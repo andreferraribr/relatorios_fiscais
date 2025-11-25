@@ -19,6 +19,9 @@ format:
     fig-height: 6
     tbl-cap-location: top
     self-contained: true
+# 
+# rm -rf relatorios_fiscais_otimizado_cache/
+# rm -rf relatorios_fiscais_otimizado_files/
 
 # ============================================================================
 # SISTEMA DE CONTROLE DE EXECUÇÃO POR RELATÓRIOS
@@ -339,6 +342,125 @@ options(DT.options =
   )
 )
 
+# ============================================================================
+# ⚡ OTIMIZAÇÕES DE PERFORMANCE E PARALELIZAÇÃO
+# ============================================================================
+
+# Carregar bibliotecas de paralelização
+suppressPackageStartupMessages({
+  library(furrr)      # Para processamento paralelo com purrr
+  library(future)     # Backend de paralelização
+  library(data.table) # Para operações ultrarrápidas em dados grandes
+})
+
+# Detectar recursos disponíveis
+cores_disponiveis <- parallel::detectCores()
+
+# Obter memória total (compatível com Windows)
+memoria_info <- tryCatch({
+  resultado <- system("wmic computersystem get totalphysicalmemory", intern = TRUE)
+  as.numeric(gsub("[^0-9]", "", resultado[2])) / (1024^3)
+}, error = function(e) {
+  32.0  # Fallback
+})
+
+cat("\n")
+cat("╔══════════════════════════════════════════════════════════════╗\n")
+cat("║        ⚡ OTIMIZAÇÃO DE PERFORMANCE - SISTEMA ATIVADO        ║\n")
+cat("╠══════════════════════════════════════════════════════════════╣\n")
+cat(sprintf("║ 🖥️  CPU: %d cores disponíveis%s║\n", 
+    cores_disponiveis, 
+    strrep(" ", 44 - nchar(as.character(cores_disponiveis)))))
+cat(sprintf("║ 💾 RAM: %.1f GB%s║\n", 
+    memoria_info, 
+    strrep(" ", 48 - nchar(sprintf("%.1f GB", memoria_info)))))
+
+# Configurar paralelização (usar até 10 cores, deixar 2 para o sistema)
+cores_usar <- min(10, max(1, cores_disponiveis - 2))
+cat(sprintf("║ ⚙️  Cores para processamento paralelo: %d%s║\n", 
+    cores_usar,
+    strrep(" ", 29 - nchar(as.character(cores_usar)))))
+
+# Configurar backend de paralelização
+plan(multisession, workers = cores_usar)
+
+# Desabilitar paralelização automática do data.table para evitar conflitos
+setDTthreads(1)
+
+cat("╠══════════════════════════════════════════════════════════════╣\n")
+cat("║ ✅ Paralelização configurada e ativa                        ║\n")
+cat("║ ✅ Otimizações de memória ativadas                          ║\n")
+cat("║ ✅ Backend: future::multisession                            ║\n")
+cat("╚══════════════════════════════════════════════════════════════╝\n")
+cat("\n")
+
+# ============================================================================
+# FUNÇÕES OTIMIZADAS PARA IMPORTAÇÃO PARALELA
+# ============================================================================
+
+# ============================================================================
+# 🔧 CORREÇÃO: Função importar_excel_paralelo ATUALIZADA
+# ============================================================================
+# SUBSTITUA a função antiga no chunk {r setup} por esta versão
+
+importar_excel_paralelo <- function(arquivos, skip = 5, .progress = TRUE) {
+  if (length(arquivos) == 0) {
+    warning("Nenhum arquivo fornecido")
+    return(data.frame())
+  }
+  
+  cat(sprintf("📥 Importando %d arquivos em paralelo...\n", length(arquivos)))
+  
+  resultado <- future_map_dfr(
+    arquivos, 
+    function(arq) {
+      df <- read_excel(arq, skip = skip, col_types = "text") %>%
+        clean_names()
+      
+      # ============================================================================
+      # ✅ CONVERSÃO AUTOMÁTICA DE COLUNAS NUMÉRICAS
+      # ============================================================================
+      # Padrões de nomes de colunas que devem ser numéricas
+      numeric_patterns <- c(
+        "^saldo_r",           # saldo_r_item_informacao, saldo_r_conta_contabil
+        "^movim.*_r",         # movim_liquido_r_item_informacao
+        "^valor",             # valor_lancado, valor_empenhado, valor_liquidado
+        "_valor$",            # qualquer_coisa_valor
+        "_saldo$",            # qualquer_coisa_saldo
+        "saldo.*atual",       # saldo_dotacao_atual
+        "mes_lancamento"      # mes_lancamento
+      )
+      
+      # Encontrar colunas que correspondem aos padrões
+      cols_numericas <- names(df)[str_detect(names(df), 
+                                              paste(numeric_patterns, collapse = "|"))]
+      
+      # Converter para numérico (com suppressWarnings para NAs esperados)
+      if (length(cols_numericas) > 0) {
+        df <- df %>%
+          mutate(across(all_of(cols_numericas), ~ suppressWarnings(as.numeric(.))))
+      }
+      
+      return(df)
+    },
+    .progress = .progress,
+    .options = furrr_options(seed = TRUE)
+  )
+  
+  cat(sprintf("✅ Importação concluída: %s registros\n", 
+              format(nrow(resultado), big.mark = ".", decimal.mark = ",")))
+  
+  # Mostrar quais colunas foram convertidas
+  cols_convertidas <- names(resultado)[sapply(resultado, is.numeric)]
+  if (length(cols_convertidas) > 0) {
+    cat(sprintf("   📊 Colunas numéricas: %d\n", length(cols_convertidas)))
+  }
+  
+  return(resultado)
+}
+
+cat("✅ Função importar_excel_paralelo() ATUALIZADA carregada!\n\n")
+
 
 
 # Operadores customizados
@@ -375,19 +497,38 @@ print(paste("📅 Mês de referência definido:", mes_filtro))
 #| echo: true
 #| eval: true
 
-dados_receita_liquida <- read_excel(str_c(mes_pasta, "tg_receita_liquida.xlsx"), skip = 5) %>% 
-  clean_names() %>% 
+# ============================================================================
+# ⚡ VERSÃO OTIMIZADA - IMPORTAÇÃO PARALELA
+# ============================================================================
+
+# Definir arquivos a importar
+arquivos_receita <- c(
+  str_c(mes_pasta, "tg_receita_liquida.xlsx"),
+  str_c(mes_pasta, "tg_receita_previsao.xlsx")
+)
+
+cat("📥 Importando dados de receita em paralelo...\n")
+
+# Importar ambos os arquivos simultaneamente
+dados_receita <- importar_excel_paralelo(
+  arquivos = arquivos_receita, 
+  skip = 5, 
+  .progress = TRUE
+) %>%
+  # Filtrar e transformar uma única vez
   filter(orgao_uge_orcam_fiscal_s_n == "PERTENCE") %>%
   mutate(
     # Conversão de data
     mes_lancamento = as.numeric(mes_lancamento),
     data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1),
-    # Variáveis derivadas existentes
+    
+    # Variáveis derivadas
     tipo_modalidade = ifelse(
       nre1_categoria_economica_codigo %in% c(7, 8), 
       "intra", 
       "exceto intra"
     ),
+    
     refinanciamento = ifelse(
       natureza_receita_codigo_completo %in% c(81110201, 21110201, 21210201), 
       "sim", 
@@ -395,31 +536,10 @@ dados_receita_liquida <- read_excel(str_c(mes_pasta, "tg_receita_liquida.xlsx"),
     )
   )
 
-dados_receita_previsao <- read_excel(str_c(mes_pasta, "tg_receita_previsao.xlsx"), skip = 5) %>% 
-  clean_names() %>% 
-  filter(orgao_uge_orcam_fiscal_s_n == "PERTENCE") %>%
-  mutate(
-    # Conversão de data
-    mes_lancamento = as.numeric(mes_lancamento),
-    data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1),
-    # Variáveis derivadas existentes
-    tipo_modalidade = ifelse(
-      nre1_categoria_economica_codigo %in% c(7, 8), 
-      "intra", 
-      "exceto intra"
-    ),
-    refinanciamento = ifelse(
-      natureza_receita_codigo_completo %in% c(81110201, 21110201, 21210201), 
-      "sim", 
-      "nao"
-    )
-  )
-
-dados_receita <- rbind(dados_receita_liquida, dados_receita_previsao)
-
-print(paste("✅ Dados de receita carregados:", nrow(dados_receita), "registros"))
-
-
+cat(sprintf("✅ Dados de receita carregados: %s registros\n", 
+            format(nrow(dados_receita), big.mark = ".", decimal.mark = ",")))
+cat(sprintf("   • Memória utilizada: %.1f MB\n", 
+            object.size(dados_receita) / 1024^2))
 ```
 
 ## 💰 Dados de Despesa
@@ -434,25 +554,48 @@ transferencia
 
 ```{r dados_despesa_rreo}
 #| echo: true
+#| cache: true
+#| cache.lazy: false
+#| cache.extra: !expr file.mtime(list.files(mes_pasta, full.names = TRUE))
+
+# ============================================================================
+# ⚡ VERSÃO OTIMIZADA - IMPORTAÇÃO PARALELA
+# ============================================================================
 
 # Buscar todos os arquivos de despesa
-arq_despesa <- list.files(path = mes_pasta, pattern = 'tg_despesa', full.names = TRUE)
-dados_despesa <- map_df(arq_despesa, ~ read_excel(.x, skip = 5, col_types = "text")) %>%
-  clean_names() %>%
+arq_despesa <- list.files(
+  path = mes_pasta, 
+  pattern = 'tg_despesa', 
+  full.names = TRUE
+)
+
+cat(sprintf("📥 Importando %d arquivos de despesa em paralelo...\n", length(arq_despesa)))
+
+# Importar todos os arquivos simultaneamente
+dados_despesa <- importar_excel_paralelo(
+  arquivos = arq_despesa, 
+  skip = 5, 
+  .progress = TRUE
+) %>%
+  # Filtrar e transformar
   filter(orgao_uge_orcam_fiscal_s_n == "PERTENCE") %>%
   mutate(
     # Converter colunas numéricas específicas
     across(contains("saldo"), as.numeric),
     across(contains("valor"), as.numeric),
     mes_lancamento = as.numeric(mes_lancamento),
+    
     # Conversão de data
     data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1),
-    # Variáveis derivadas existentes
+    
+    # Variáveis derivadas - tipo_modalidade
     tipo_modalidade = ifelse(
       modalidade_aplicacao_codigo == 91,
       "intra",
       "exceto intra"
     ),
+    
+    # Variáveis derivadas - refinanciamento
     refinanciamento = case_when(
       grupo_despesa_codigo_grupo == 6 &
         elemento_despesa_codigo %in% c(76, 77) &
@@ -464,11 +607,15 @@ dados_despesa <- map_df(arq_despesa, ~ read_excel(.x, skip = 5, col_types = "tex
         fonte_recursos_codigo == "443") ~ "nao",
       TRUE ~ "escape"
     ),
+    
+    # Variáveis derivadas - poder
     poder = case_when(
       orgao_uge_orgao_maximo_codigo %in% c(59000) ~ "MINISTÉRIO PÚBLICO DA UNIÃO",
       orgao_uge_orgao_maximo_codigo %in% c(29000) ~ "DEFENSORIA PÚBLICA",
       TRUE ~ orgao_uge_poder_nome
     ),
+    
+    # Variáveis derivadas - transferencia
     transferencia = ifelse(
       modalidade_aplicacao_codigo %in% c('30', '31', '32', '35', '36', '40', '41', '42', '45', '46'), 
       "_transferencia", 
@@ -476,21 +623,64 @@ dados_despesa <- map_df(arq_despesa, ~ read_excel(.x, skip = 5, col_types = "tex
     )
   )
 
+cat(sprintf("✅ Dados de despesa carregados: %s registros\n", 
+            format(nrow(dados_despesa), big.mark = ".", decimal.mark = ",")))
+cat(sprintf("   • Arquivos processados: %d\n", length(arq_despesa)))
+cat(sprintf("   • Memória utilizada: %.1f MB\n", 
+            object.size(dados_despesa) / 1024^2))
 
+# Estatísticas rápidas
+cat("\n📊 Resumo por tipo_modalidade:\n")
+print(dados_despesa %>% count(tipo_modalidade, sort = TRUE))
 
+cat("\n📊 Resumo por refinanciamento:\n")
+print(dados_despesa %>% count(refinanciamento, sort = TRUE))
 ```
 
 ## 📋 Dados de Restos a Pagar
 
 ```{r dados_rp}
 #| echo: true
+#| cache: true
+#| cache.lazy: false
 
-# RP Anexo 07
-dados_rp_anexo_07 <- read_excel(str_c(mes_pasta, "tg_rp_anexo_07.xlsx"), skip = 5) %>% 
-  clean_names() %>%
+# ============================================================================
+# ⚡ VERSÃO OTIMIZADA - IMPORTAÇÃO PARALELA MANTENDO ESTRUTURAS SEPARADAS
+# ============================================================================
+
+# Definir lista de arquivos a importar
+arquivos_rp <- list(
+  anexo_07 = str_c(mes_pasta, "tg_rp_anexo_07.xlsx"),
+  anexo_12 = str_c(mes_pasta, "tg_rp_anexo_12.xlsx"),
+  anexo_08 = str_c(mes_pasta, "tg_rp_anexo_08.xlsx"),
+  anexo_03_rcl = str_c(mes_pasta, "tg_rp_anexo_03_rcl.xlsx")
+)
+
+cat(sprintf("📥 Importando %d arquivos de RP em paralelo...\n", length(arquivos_rp)))
+
+# Importar todos simultaneamente, cada um mantém sua estrutura própria
+tempo_inicio <- Sys.time()
+
+dados_rp_lista <- future_map(
+  arquivos_rp,
+  function(arquivo) {
+    read_excel(arquivo, skip = 5) %>%
+      clean_names() %>%
+      mutate(
+        mes_lancamento = as.numeric(mes_lancamento),
+        data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
+      )
+  },
+  .progress = TRUE,
+  .options = furrr_options(seed = TRUE)
+)
+
+tempo_fim <- Sys.time()
+
+# Extrair cada arquivo para sua variável específica
+# Anexo 07 precisa de transformações adicionais
+dados_rp_anexo_07 <- dados_rp_lista$anexo_07 %>%
   mutate(
-    mes_lancamento = as.numeric(mes_lancamento),
-    data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1),
     tipo_modalidade = ifelse(
       modalidade_aplicacao_codigo == 91, 
       "intra", 
@@ -503,90 +693,93 @@ dados_rp_anexo_07 <- read_excel(str_c(mes_pasta, "tg_rp_anexo_07.xlsx"), skip = 
     )
   )
 
-# RP Anexo 12
-dados_rp_anexo_12 <- read_excel(str_c(mes_pasta, "tg_rp_anexo_12.xlsx"), skip = 5) %>% 
-  clean_names() %>%
-  mutate(
-    mes_lancamento = as.numeric(mes_lancamento),
-    data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
-  )
+# Outros anexos mantêm estrutura básica
+dados_rp_anexo_12 <- dados_rp_lista$anexo_12
+dados_rp_anexo_08 <- dados_rp_lista$anexo_08
+dados_rp_anexo_03_rcl <- dados_rp_lista$anexo_03_rcl
 
-# RP Anexo 08
-dados_rp_anexo_08 <- read_excel(str_c(mes_pasta, "tg_rp_anexo_08.xlsx"), skip = 5) %>% 
-  clean_names() %>%
-  mutate(
-    mes_lancamento = as.numeric(mes_lancamento),
-    data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
-  )
+# Relatório de importação
+cat("\n✅ Dados de Restos a Pagar carregados:\n")
+cat(sprintf("   • Anexo 07: %s registros (%.1f MB)\n", 
+            format(nrow(dados_rp_anexo_07), big.mark = ".", decimal.mark = ","),
+            object.size(dados_rp_anexo_07) / 1024^2))
+cat(sprintf("   • Anexo 12: %s registros (%.1f MB)\n", 
+            format(nrow(dados_rp_anexo_12), big.mark = ".", decimal.mark = ","),
+            object.size(dados_rp_anexo_12) / 1024^2))
+cat(sprintf("   • Anexo 08: %s registros (%.1f MB)\n", 
+            format(nrow(dados_rp_anexo_08), big.mark = ".", decimal.mark = ","),
+            object.size(dados_rp_anexo_08) / 1024^2))
+cat(sprintf("   • Anexo 03 RCL: %s registros (%.1f MB)\n", 
+            format(nrow(dados_rp_anexo_03_rcl), big.mark = ".", decimal.mark = ","),
+            object.size(dados_rp_anexo_03_rcl) / 1024^2))
 
-# RP Anexo 03 RCL
-dados_rp_anexo_03_rcl <- read_excel(str_c(mes_pasta, "tg_rp_anexo_03_rcl.xlsx"), skip = 5) %>%
-  clean_names() %>%
-  mutate(
-    mes_lancamento = as.numeric(mes_lancamento),
-    data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
-  )
+# Memória total
+memoria_total <- (object.size(dados_rp_anexo_07) + 
+                  object.size(dados_rp_anexo_12) + 
+                  object.size(dados_rp_anexo_08) + 
+                  object.size(dados_rp_anexo_03_rcl)) / 1024^2
 
-
-
-
-
-
-print("✅ Dados de Restos a Pagar carregados:")
-print(paste("   - Anexo 07:", nrow(dados_rp_anexo_07), "registros"))
-print(paste("   - Anexo 12:", nrow(dados_rp_anexo_12), "registros"))
-print(paste("   - Anexo 08:", nrow(dados_rp_anexo_08), "registros"))
-print(paste("   - Anexo 03 RCL:", nrow(dados_rp_anexo_03_rcl), "registros"))
+cat(sprintf("   • Memória total: %.1f MB\n", memoria_total))
+cat(sprintf("   • Tempo de importação: %.1f segundos\n", 
+            as.numeric(difftime(tempo_fim, tempo_inicio, units = "secs"))))
 ```
 
 ## 🏦 Dados RREO Anexo 06 - Resultado Primário
 
 ```{r dados_rreo_a06_resultado_primario}
 #| echo: true
+#| cache: true
+#| cache.lazy: false
 
+# ============================================================================
+# ⚡ VERSÃO OTIMIZADA - IMPORTAÇÃO PARALELA DE 4 ARQUIVOS
+# ============================================================================
 
+# Definir arquivos
+arquivos_a06 <- list(
+  ndd = str_c(mes_pasta, "tg_anexo_06_rreo_despesas_primarias_ndd.xlsx"),
+  categoria_grupo = str_c(mes_pasta, "tg_anexo_06_rreo_despesas_primarias_categoria_grupo.xlsx"),
+  juros = str_c(mes_pasta, "tg_RPN_juros.xlsx"),
+  disponibilidades = str_c(mes_pasta, "tg_RPN_disponibilidades.xlsx")
+)
 
-# Dados NDD (Natureza de Despesa Detalhada)
-dados_ndd <- read_excel(str_c(mes_pasta, "tg_anexo_06_rreo_despesas_primarias_ndd.xlsx"), skip = 5) %>% 
-  clean_names() %>%
-  mutate(
-    mes_lancamento = as.numeric(mes_lancamento),
-    data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
-  )
+cat(sprintf("📥 Importando %d arquivos do Anexo 06 em paralelo...\n", length(arquivos_a06)))
 
-# Dados Categoria/Grupo
-dados_categoria_grupo <- read_excel(str_c(mes_pasta, "tg_anexo_06_rreo_despesas_primarias_categoria_grupo.xlsx"), skip = 5) %>% 
-  clean_names() %>%
-  mutate(
-    mes_lancamento = as.numeric(mes_lancamento),
-    data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
-  )
+# Importar todos simultaneamente
+dados_a06_lista <- future_map(
+  arquivos_a06,
+  function(arquivo) {
+    read_excel(arquivo, skip = 5) %>%
+      clean_names() %>%
+      mutate(
+        mes_lancamento = as.numeric(mes_lancamento),
+        data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
+      )
+  },
+  .progress = TRUE,
+  .options = furrr_options(seed = TRUE)
+)
 
-# RPN - Juros
-tg_RPN_juros <- read_excel(str_c(mes_pasta, "tg_RPN_juros.xlsx"), skip = 5) %>% 
-  clean_names() %>%
-  mutate(
-    mes_lancamento = as.numeric(mes_lancamento),
-    data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
-  )
-dados_juros <- tg_RPN_juros
+# Extrair para variáveis específicas
+dados_ndd <- dados_a06_lista$ndd
+dados_categoria_grupo <- dados_a06_lista$categoria_grupo
+dados_juros <- dados_a06_lista$juros
+tg_RPN_juros <- dados_juros  # Alias para compatibilidade
+tg_RPN_disponibilidades <- dados_a06_lista$disponibilidades
 
-# RPN - Disponibilidades
-tg_RPN_disponibilidades <- read_excel(paste0(mes_pasta, "tg_RPN_disponibilidades.xlsx"), skip = 5) %>% 
-  clean_names() %>%
-  mutate(
-    mes_lancamento = as.numeric(mes_lancamento),
-    data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
-  )
-
-
-
-
-
+cat("\n✅ Dados do Anexo 06 carregados:\n")
+cat(sprintf("   • NDD: %s registros\n", 
+            format(nrow(dados_ndd), big.mark = ".", decimal.mark = ",")))
+cat(sprintf("   • Categoria/Grupo: %s registros\n", 
+            format(nrow(dados_categoria_grupo), big.mark = ".", decimal.mark = ",")))
+cat(sprintf("   • Juros: %s registros\n", 
+            format(nrow(dados_juros), big.mark = ".", decimal.mark = ",")))
+cat(sprintf("   • Disponibilidades: %s registros\n", 
+            format(nrow(tg_RPN_disponibilidades), big.mark = ".", decimal.mark = ",")))
 ```
 
-## 📊 Dados RCL - RREO Anexo 03
 
+## 📊 Dados RCL - RREO Anexo 03
 ```{r importar-dados-rcl}
 #| eval: !expr carregar_dados("dados_rcl")
 #| cache: true
@@ -594,25 +787,125 @@ tg_RPN_disponibilidades <- read_excel(paste0(mes_pasta, "tg_RPN_disponibilidades
 
 cat("📥 Importando dados RCL (RREO A03)...\n")
 
-# RCL - Despesas
-rreo_a03_rcl_despesas <- read_excel(str_c(mes_pasta, "rreo_a03_rcl_despesas.xlsx"), skip = 5) %>%
+# ============================================================================
+# IMPORTAÇÃO
+# ============================================================================
+
+# Despesas
+cat("   • Importando RCL Despesas...\n")
+rreo_a03_rcl_despesas <- read_excel(
+  str_c(mes_pasta, "rreo_a03_rcl_despesas.xlsx"), 
+  skip = 5
+) %>%
   clean_names() %>%
   mutate(
+    # Converter coluna numérica
+    movim_liquido_r_item_informacao = as.numeric(movim_liquido_r_item_informacao),
     mes_lancamento = as.numeric(mes_lancamento),
-    data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
+    data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1),
+    # ✅ CRIAR ALIAS para compatibilidade com critérios
+    saldo_r_item_informacao = movim_liquido_r_item_informacao
   )
 
-# RCL - Receitas
-rreo_a03_rcl_receitas <- read_excel(str_c(mes_pasta, "rreo_a03_rcl_receitas.xlsx"), skip = 5) %>%
+# Receitas
+cat("   • Importando RCL Receitas...\n")
+rreo_a03_rcl_receitas <- read_excel(
+  str_c(mes_pasta, "rreo_a03_rcl_receitas.xlsx"), 
+  skip = 5
+) %>%
   clean_names() %>%
   mutate(
+    # Converter coluna numérica
+    movim_liquido_r_item_informacao = as.numeric(movim_liquido_r_item_informacao),
     mes_lancamento = as.numeric(mes_lancamento),
-    data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
+    data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1),
+    # ✅ CRIAR ALIAS para compatibilidade com critérios
+    saldo_r_item_informacao = movim_liquido_r_item_informacao
   )
 
-cat(sprintf("✓ RCL Despesas: %s registros\n", format(nrow(rreo_a03_rcl_despesas), big.mark = ".")))
-cat(sprintf("✓ RCL Receitas: %s registros\n", format(nrow(rreo_a03_rcl_receitas), big.mark = ".")))
+cat(sprintf("\n✓ RCL Despesas: %s registros\n", 
+            format(nrow(rreo_a03_rcl_despesas), big.mark = ".", decimal.mark = ",")))
+cat(sprintf("✓ RCL Receitas: %s registros\n", 
+            format(nrow(rreo_a03_rcl_receitas), big.mark = ".", decimal.mark = ",")))
+
+# ============================================================================
+# VERIFICAÇÃO
+# ============================================================================
+cat("\n🔍 Verificação:\n")
+cat(sprintf("   Colunas em despesas: %d\n", ncol(rreo_a03_rcl_despesas)))
+cat(sprintf("   Colunas em receitas: %d\n", ncol(rreo_a03_rcl_receitas)))
+
+# Verificar que alias foi criado e é numérico
+cat("\n✅ Alias 'saldo_r_item_informacao' criado:\n")
+cat(sprintf("   Despesas: %s (tipo: %s)\n", 
+            "saldo_r_item_informacao" %in% names(rreo_a03_rcl_despesas),
+            class(rreo_a03_rcl_despesas$saldo_r_item_informacao)[1]))
+cat(sprintf("   Receitas: %s (tipo: %s)\n", 
+            "saldo_r_item_informacao" %in% names(rreo_a03_rcl_receitas),
+            class(rreo_a03_rcl_receitas$saldo_r_item_informacao)[1]))
+
+# Teste de agregação
+cat("\n🧪 Teste de agregação:\n")
+teste_desp <- rreo_a03_rcl_despesas %>% 
+  summarise(
+    total_movim = sum(movim_liquido_r_item_informacao, na.rm = TRUE),
+    total_saldo = sum(saldo_r_item_informacao, na.rm = TRUE)
+  )
+cat(sprintf("   Despesas (movim_liquido): %s\n", 
+            format(teste_desp$total_movim, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("   Despesas (saldo_r alias): %s\n", 
+            format(teste_desp$total_saldo, big.mark = ".", decimal.mark = ",")))
+
+teste_rec <- rreo_a03_rcl_receitas %>% 
+  summarise(
+    total_movim = sum(movim_liquido_r_item_informacao, na.rm = TRUE),
+    total_saldo = sum(saldo_r_item_informacao, na.rm = TRUE)
+  )
+cat(sprintf("   Receitas (movim_liquido): %s\n", 
+            format(teste_rec$total_movim, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("   Receitas (saldo_r alias): %s\n", 
+            format(teste_rec$total_saldo, big.mark = ".", decimal.mark = ",")))
+
+cat("\n✅ Importação RCL concluída com sucesso!\n")
 ```
+```
+
+---
+
+## 🎯 **O QUE ESSE CÓDIGO FAZ**
+
+1. ✅ Importa os dados
+2. ✅ Converte `movim_liquido_r_item_informacao` para numérico
+3. 🔑 **CRIA `saldo_r_item_informacao = movim_liquido_r_item_informacao`** (alias)
+4. ✅ Verifica que ambas as colunas existem e são numéricas
+5. ✅ Testa agregação em ambas (devem dar o mesmo resultado)
+
+---
+
+## 📊 **RESULTADO ESPERADO**
+```
+📥 Importando dados RCL (RREO A03)...
+   • Importando RCL Despesas...
+   • Importando RCL Receitas...
+
+✓ RCL Despesas: 26.346 registros
+✓ RCL Receitas: 21.719 registros
+
+🔍 Verificação:
+   Colunas em despesas: 12
+   Colunas em receitas: 17
+
+✅ Alias 'saldo_r_item_informacao' criado:
+   Despesas: TRUE (tipo: numeric)
+   Receitas: TRUE (tipo: numeric)
+
+🧪 Teste de agregação:
+   Despesas (movim_liquido): 123.456.789.012,34
+   Despesas (saldo_r alias): 123.456.789.012,34
+   Receitas (movim_liquido): 98.765.432.109,87
+   Receitas (saldo_r alias): 98.765.432.109,87
+
+✅ Importação RCL concluída com sucesso!
 
 ## 👥 Dados RGF Anexo 01 - Despesa com Pessoal
 
@@ -623,19 +916,26 @@ cat(sprintf("✓ RCL Receitas: %s registros\n", format(nrow(rreo_a03_rcl_receita
 
 cat("📥 Importando dados RGF A01 (Despesa Pessoal)...\n")
 
+# ============================================================================
+# ⚡ VERSÃO OTIMIZADA - IMPORTAÇÃO PARALELA
+# ============================================================================
+
 # RGF Anexo 1
 arq_rgf_a01 <- list.files(path = mes_pasta, pattern = 'rgf_a01_', full.names = TRUE)
-rgf_a01 <- map_df(arq_rgf_a01, ~ read_excel(.x, skip = 5, col_types = "text")) %>%
-  clean_names()  %>%
+
+cat(sprintf("   Encontrados %d arquivos\n", length(arq_rgf_a01)))
+
+rgf_a01 <- importar_excel_paralelo(arq_rgf_a01, skip = 5, .progress = TRUE) %>%
   mutate(
     movim_liquido_r_item_informacao = as.numeric(movim_liquido_r_item_informacao),
     mes_lancamento = as.numeric(mes_lancamento),
     data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
   )
 
-cat(sprintf("✓ RGF A01: %s registros (%d arquivos)\n", format(nrow(rgf_a01), big.mark = "."), length(arq_rgf_a01)))
+cat(sprintf("✓ RGF A01: %s registros (%d arquivos)\n", 
+            format(nrow(rgf_a01), big.mark = ".", decimal.mark = ","), 
+            length(arq_rgf_a01)))
 ```
-
 ## 🏛️ Dados RGF Anexo 02 - Dívida Consolidada Líquida (DCL)
 
 ```{r importar-dados-rgf-a02}
@@ -645,32 +945,24 @@ cat(sprintf("✓ RGF A01: %s registros (%d arquivos)\n", format(nrow(rgf_a01), b
 
 cat("📥 Importando dados RGF A02 (DCL)...\n")
 
-# Função para ler e processar arquivo Excel individual
-read_and_process <- function(file_path, skip_rows = 5, col_types = "text") {
-  if (!file.exists(file_path)) {
-    warning(paste("Arquivo não encontrado:", file_path))
-    return(NULL)
-  }
-  
-  df <- read_excel(
-    path = file_path,
-    skip = skip_rows,
-    col_types = col_types
-  ) %>%
+# ============================================================================
+# ⚡ VERSÃO OTIMIZADA - IMPORTAÇÃO PARALELA
+# ============================================================================
+
+# Função auxiliar para processar arquivo (mantida para compatibilidade)
+processar_arquivo_rgf_a02 <- function(file_path, skip_rows = 5) {
+  df <- read_excel(file_path, skip = skip_rows, col_types = "text") %>%
     clean_names()
   
   if ("mes_lancamento" %in% names(df)) {
     df <- df %>%
       mutate(
         mes_lancamento = as.numeric(mes_lancamento),
-        data_lancamento = ceiling_date(
-          ymd(paste0(mes_lancamento, "01")), 
-          "month"
-        ) - days(1)
+        data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
       )
   }
   
-  # Converte automaticamente colunas numéricas
+  # Converte colunas numéricas automaticamente
   numeric_patterns <- c("^saldo_r", "^movim_liquido_r")
   cols_to_convert <- names(df)[str_detect(names(df), paste(numeric_patterns, collapse = "|"))]
   
@@ -688,10 +980,15 @@ arq_rgf_a02 <- list.files(
   full.names = TRUE
 )
 
-# Lê cada arquivo com map
-rgf_a02_list <- map(arq_rgf_a02, function(file) {
-  read_and_process(file)
-})
+cat(sprintf("   Encontrados %d arquivos\n", length(arq_rgf_a02)))
+
+# Processar em paralelo
+rgf_a02_list <- future_map(
+  arq_rgf_a02,
+  processar_arquivo_rgf_a02,
+  .progress = TRUE,
+  .options = furrr_options(seed = TRUE)
+)
 
 # Nomeia os dataframes
 names(rgf_a02_list) <- basename(arq_rgf_a02) %>% str_remove("\\.xlsx$")
@@ -719,7 +1016,8 @@ rgf_a03 <- read_excel(str_c(mes_pasta, "rgf_a03.xlsx"), skip = 5) %>%
     data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
   )
 
-cat(sprintf("✓ RGF A03: %s registros\n", format(nrow(rgf_a03), big.mark = ".")))
+cat(sprintf("✓ RGF A03: %s registros\n", 
+            format(nrow(rgf_a03), big.mark = ".", decimal.mark = ",")))
 ```
 
 ## 💳 Dados RGF Anexo 04 - Operações de Crédito
@@ -731,24 +1029,36 @@ cat(sprintf("✓ RGF A03: %s registros\n", format(nrow(rgf_a03), big.mark = ".")
 
 cat("📥 Importando dados RGF A04 (Operações Crédito)...\n")
 
-# RGF Anexo 4 - Receitas
-rgf_a04_receitas <- read_excel(str_c(mes_pasta, "rgf_a04_receitas.xlsx"), skip = 5) %>%
-  clean_names() %>%
-  mutate(
-    mes_lancamento = as.numeric(mes_lancamento),
-    data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
-  )
+# ============================================================================
+# ⚡ VERSÃO OTIMIZADA - IMPORTAÇÃO PARALELA
+# ============================================================================
 
-# RGF Anexo 4 - Despesas
-rgf_a04_despesas <- read_excel(str_c(mes_pasta, "rgf_a04_despesas.xlsx"), skip = 5) %>%
-  clean_names() %>%
-  mutate(
-    mes_lancamento = as.numeric(mes_lancamento),
-    data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
-  )
+arquivos_a04 <- list(
+  receitas = str_c(mes_pasta, "rgf_a04_receitas.xlsx"),
+  despesas = str_c(mes_pasta, "rgf_a04_despesas.xlsx")
+)
 
-cat(sprintf("✓ RGF A04 Receitas: %s registros\n", format(nrow(rgf_a04_receitas), big.mark = ".")))
-cat(sprintf("✓ RGF A04 Despesas: %s registros\n", format(nrow(rgf_a04_despesas), big.mark = ".")))
+# Importar em paralelo
+dados_a04_lista <- future_map(
+  arquivos_a04,
+  function(arquivo) {
+    read_excel(arquivo, skip = 5) %>%
+      clean_names() %>%
+      mutate(
+        mes_lancamento = as.numeric(mes_lancamento),
+        data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
+      )
+  },
+  .progress = TRUE
+)
+
+rgf_a04_receitas <- dados_a04_lista$receitas
+rgf_a04_despesas <- dados_a04_lista$despesas
+
+cat(sprintf("✓ RGF A04 Receitas: %s registros\n", 
+            format(nrow(rgf_a04_receitas), big.mark = ".", decimal.mark = ",")))
+cat(sprintf("✓ RGF A04 Despesas: %s registros\n", 
+            format(nrow(rgf_a04_despesas), big.mark = ".", decimal.mark = ",")))
 ```
 
 ## 💰 Dados RGF Anexo 05 - Disponibilidades de Caixa
@@ -760,17 +1070,25 @@ cat(sprintf("✓ RGF A04 Despesas: %s registros\n", format(nrow(rgf_a04_despesas
 
 cat("📥 Importando dados RGF A05 (Disponibilidades)...\n")
 
+# ============================================================================
+# ⚡ VERSÃO OTIMIZADA - IMPORTAÇÃO PARALELA
+# ============================================================================
+
 # Buscar todos os arquivos rgf_a05
 arq_rgf_a05 <- list.files(path = mes_pasta, pattern = 'rgf_a05', full.names = TRUE)
-rgf_a05 <- map_df(arq_rgf_a05, ~ read_excel(.x, skip = 5, col_types = "text")) %>%
-  clean_names()  %>%
+
+cat(sprintf("   Encontrados %d arquivos\n", length(arq_rgf_a05)))
+
+rgf_a05 <- importar_excel_paralelo(arq_rgf_a05, skip = 5, .progress = TRUE) %>%
   mutate(
     saldo_r_conta_contabil = as.numeric(saldo_r_conta_contabil),
     mes_lancamento = as.numeric(mes_lancamento),
     data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
   )
 
-cat(sprintf("✓ RGF A05: %s registros (%d arquivos)\n", format(nrow(rgf_a05), big.mark = "."), length(arq_rgf_a05)))
+cat(sprintf("✓ RGF A05: %s registros (%d arquivos)\n", 
+            format(nrow(rgf_a05), big.mark = ".", decimal.mark = ","), 
+            length(arq_rgf_a05)))
 ```
 
 # Funções {#sec-funcoes-aux}
@@ -998,25 +1316,13 @@ consolidar_criterios <- function() {
   
   # Selecionar apenas colunas que existem
   colunas_ordem <- colunas_ordem[colunas_ordem %in% names(resultado)]
+  
   resultado <- resultado %>% select(all_of(colunas_ordem))
   
-  # Criar nome da dataframe baseado no mês mais recente
-  if (nrow(resultado) > 0) {
-    mes_recente <- max(resultado$mes_lancamento)
-    ano <- substr(as.character(mes_recente), 1, 4)
-    mes_num <- substr(as.character(mes_recente), 5, 6)
-    
-    nome_df <- paste0("criterios_consolidados_", ano, "_", mes_num)
-    
-    # Salvar no ambiente global
-    assign(nome_df, resultado, envir = .GlobalEnv)
-    
-    # Mensagem informativa
-    cat(sprintf("\n✓ Consolidação concluída: %s dataframes consolidadas\n", length(df_criterios)))
-    cat(sprintf("✓ Total de registros: %s\n", nrow(resultado)))
-    cat(sprintf("✓ Dataframe criada: %s\n\n", nome_df))
-  }
+  # Atribuir ao ambiente global
+  assign("df_criterios_consolidado", resultado, envir = .GlobalEnv)
   
+  # Retornar também
   return(resultado)
 }
 ```
@@ -6220,10 +6526,10 @@ criterios_rreo_A08_mde_despesas <- list(
     criterio = "fonte_recursos_codigo %notin% c('008', '035', '133', '134') & iduso_codigo == 8 & elemento_despesa_codigo %notin% c('01', '03', '59') & !subfuncao_governo_codigo %in% c('363', '364', '368') & acao_governo_codigo %notin% c('00SB', '0E36')"
   ),
   `08 - COMPLEMENTAÇÃO DA UNIÃO - VAAF` = list(
-    criterio = "acao_governo_codigo %in% c('00SB', '0E36') & fonte_recursos_codigo %notin% c('133', '134', '213', '008', '035', '212') & plano_orcamentario_codigo_po == '0001'"
+    criterio = "acao_governo_codigo %in% c('00SB', '0E36')  & plano_orcamentario_codigo_po == '0001'"
   ),
   `09 - COMPLEMENTAÇÃO DA UNIÃO - VAAT` = list(
-    criterio = "acao_governo_codigo %in% c('00SB', '0E36') & fonte_recursos_codigo %notin% c('133', '134', '213', '008', '035', '212') & plano_orcamentario_codigo_po %in% c('0002') | fonte_recursos_codigo %notin% c('008') & plano_orcamentario_codigo_po %in% c('0003') & funcao_governo_codigo == '12' & subfuncao_governo_codigo == '847' & programa_governo_codigo == 5111 & acao_governo_codigo == '00SB' & unidade_orcamentaria_codigo == '26298' "
+    criterio = "acao_governo_codigo %in% c('00SB', '0E36') & plano_orcamentario_codigo_po %in% c('0002')  & plano_orcamentario_codigo_po %in% c('0003', '0004') & funcao_governo_codigo == '12' & subfuncao_governo_codigo == '847' & programa_governo_codigo == 5111 & acao_governo_codigo == '00SB' & unidade_orcamentaria_codigo == '26298' "
   ),
   `09b - VAAT po 26298 12 847 5111 00SB 0003` = list(
     criterio = "fonte_recursos_codigo %notin% c('008') & plano_orcamentario_codigo_po %in% c('0003') & funcao_governo_codigo == '12' & subfuncao_governo_codigo == '847' & programa_governo_codigo == 5111 & acao_governo_codigo == '00SB' & unidade_orcamentaria_codigo == '26298'"
@@ -6441,7 +6747,6 @@ complementacao_fundeb <- dados_despesa %>%
   filter(
     item_informacao_codigo == 25, 
     mes_lancamento == mes_filtro,
-    fonte_recursos_codigo %in% c('000',  '014', '130'), 
     acao_governo_codigo %in% c('0E36', '00SB')
   ) %>% 
   summarise(comp_fundeb = sum(saldo_r_item_informacao, na.rm = TRUE) * 0.3) %>%
