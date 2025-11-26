@@ -5337,7 +5337,7 @@ criterios_rreo_A03_rcl_receitas_rcl <- list(
 )
 
 
-aplicar_criterios(rreo_a03_rcl_receitas, criterios_rreo_A03_rcl_receitas_rcl)
+aplicar_criterios(rreo_a03_rcl_receitas , criterios_rreo_A03_rcl_receitas_rcl, group_vars = c("item_informacao_codigo"))
 
 
 ```
@@ -5411,21 +5411,29 @@ criterios_rreo_A03_rcl_rp_cancelado_rcl <- list(
 
 
 
-aplicar_criterios(df = rreo_a03_rcl_despesas %>% filter(item_informacao_codigo == "25"), criterios_rreo_A03_rcl_despesas_rcl)
+aplicar_criterios(df = rreo_a03_rcl_despesas , criterios_rreo_A03_rcl_despesas_rcl, group_vars = c("item_informacao_codigo"))
 
 
 
-aplicar_criterios(df = rreo_a03_rcl_despesas %>% filter(item_informacao_codigo == "51"), criterios_rreo_A03_rcl_rp_cancelado_rcl)
+aplicar_criterios(df = rreo_a03_rcl_despesas, criterios_rreo_A03_rcl_rp_cancelado_rcl, group_vars = c("item_informacao_codigo"))
 ```
 
 ```{r}
 #| eval: !expr executar_relatorio("RREO_A03")
-rcl <- rbind(df_criterios_rreo_A03_rcl_receitas_rcl,df_criterios_rreo_A03_rcl_despesas_rcl)
 
-rcl <- rbind(rcl,df_criterios_rreo_A03_rcl_rp_cancelado_rcl)
+# Extrair ano e mês do mes_filtro
+ano_filtro <- as.integer(substr(mes_filtro, 1, 4))  # 2025
+mes_ref <- as.integer(substr(mes_filtro, 5, 6))     # 10
 
-apuracao <- rcl %>% filter(mes_lancamento <= mes_filtro)  %>%
-  filter(data_lancamento >= max(data_lancamento) %m-% months(11)) %>% 
+rcl <- rbind(df_criterios_rreo_A03_rcl_receitas_rcl ,df_criterios_rreo_A03_rcl_despesas_rcl%>% filter(item_informacao_codigo == "25"))
+
+rcl <- rbind(rcl,df_criterios_rreo_A03_rcl_rp_cancelado_rcl%>% filter(item_informacao_codigo == "51"))
+
+apuracao <- rcl %>%
+  filter(
+    year(data_lancamento) == ano_filtro,
+    month(data_lancamento) <= mes_ref
+  )  %>%
   mutate(
     tipo =
       case_when(
@@ -5436,7 +5444,7 @@ apuracao <- rcl %>% filter(mes_lancamento <= mes_filtro)  %>%
   )
 
 
-valor_rcl <- (apuracao %>% group_by( tipo) %>% summarise(valor = sum(valor))  %>% pivot_wider(names_from = tipo, values_from = valor, values_fill = 0 ) %>% mutate(resultado = receitas - deducoes + rp_cancelado) )$resultado
+valor_rcl <- (apuracao  %>% group_by( tipo) %>% summarise(valor = sum(valor))  %>% pivot_wider(names_from = tipo, values_from = valor, values_fill = 0 ) %>% mutate(resultado = receitas - deducoes + rp_cancelado ) )$resultado
 
 
 formatar_real <- function(valor, decimais = 2, prefixo = "R$ ") {
@@ -5451,7 +5459,51 @@ formatar_real <- function(valor, decimais = 2, prefixo = "R$ ") {
 # Uso
 formatar_real(valor_rcl)
 
+minimo_saude <- valor_rcl* 0.15
+
+formatar_real(minimo_saude)
+
 ```
+
+
+```{r}
+# rcl <- rbind(df_criterios_rreo_A03_rcl_receitas_rcl ,df_criterios_rreo_A03_rcl_despesas_rcl%>% filter(item_informacao_codigo == "25"))
+# 
+# rcl <- rbind(rcl,df_criterios_rreo_A03_rcl_rp_cancelado_rcl%>% filter(item_informacao_codigo == "51"))
+# 
+# apuracao <- rcl %>% filter(mes_lancamento <= mes_filtro)  %>%
+#   filter(data_lancamento >= max(data_lancamento) %m-% months(10)) %>% 
+#   mutate(
+#     tipo =
+#       case_when(
+#         ordem %in% c("01" , "02", "03", "04", "05", "06", "07", "08" , "09") ~ "receitas",
+#         ordem %in% c( "11" , "12", "13", "14", "15", "17" ) ~ "deducoes",
+#         ordem == "19" ~ "rp_cancelado"
+#         )
+#   )
+# 
+# 
+# valor_rcl <- (apuracao  %>% group_by( tipo) %>% summarise(valor = sum(valor))  %>% pivot_wider(names_from = tipo, values_from = valor, values_fill = 0 ) %>% mutate(resultado = receitas - deducoes + rp_cancelado ) )$resultado
+# 
+# 
+# formatar_real <- function(valor, decimais = 2, prefixo = "R$ ") {
+#   paste0(prefixo, 
+#          format(valor, 
+#                 big.mark = ".",
+#                 decimal.mark = ",",
+#                 nsmall = decimais,
+#                 scientific = FALSE))
+# }
+# 
+# # Uso
+# formatar_real(valor_rcl)
+# 
+# minimo_saude <- valor_rcl* 0.15
+# 
+# formatar_real(minimo_saude)
+
+```
+
 
 ------------------------------------------------------------------------
 
@@ -5791,6 +5843,7 @@ verificar linha 08 Total das Receitas RPPS.
 
 ```{r processar-rpps-despesas}
 #| eval: !expr executar_relatorio("RREO_A04")
+#| include: false
 # Processar despesas RPPS
 
 
@@ -5834,6 +5887,7 @@ formatar_numero(resultado_rpps <- (
 
 ```{r criterios-receitas-fcdf}
 #| eval: !expr executar_relatorio("RREO_A04")
+#| include: false
 criterios_rreo_A04_rpps_receitas_fcdf<- list(
   
   # FCDF - RECEITA SEGURADOS - Ativo
@@ -5877,6 +5931,7 @@ criterios_rreo_A04_rpps_receitas_fcdf<- list(
 
 ```{r criterios-despesas-fcdf}
 #| eval: !expr executar_relatorio("RREO_A04")
+#| include: false
 criterios_rreo_A04_rpps_despesas_fcdf <- list(
   
   # FCDF - DESPESAS - A detalhar
@@ -5905,6 +5960,7 @@ criterios_rreo_A04_rpps_despesas_fcdf <- list(
 
 ```{r processar-fcdf-receitas}
 #| eval: !expr executar_relatorio("RREO_A04")
+#| include: false
 
 datatable(aplicar_criterios(df = dados_receita %>% 
     filter(unidade_orcamentaria_codigo %in% c(73901)),
@@ -5920,6 +5976,7 @@ datatable(aplicar_criterios(df = dados_receita %>%
 
 ```{r processar-fcdf-despesas}
 #| eval: !expr executar_relatorio("RREO_A04")
+#| include: false
 
 datatable(aplicar_criterios(df = dados_despesa %>% 
     filter(
@@ -6507,6 +6564,7 @@ Este anexo apresenta as **Receitas e Despesas com Manutenção e Desenvolvimento
 ```{r criterios_educacao}
 #| eval: !expr executar_relatorio("RREO_A08")
 #| echo: true
+#| include: false
 
 # Definir a lista de critérios para classificação das despesas MDE
 criterios_rreo_A08_mde_despesas <- list(
@@ -6935,6 +6993,7 @@ Este relatório consolida informações sobre: - **Despesas Computadas**: Aplica
 
 ```{r despesas-saude-especificas}
 #| eval: !expr executar_relatorio("RREO_A12")
+#| include: false
 # Filtrar despesas das subfunções específicas de saúde (301-306)
 despesas_saude <- dados_despesa %>% 
   filter(
@@ -6997,6 +7056,7 @@ cat("\n💰 **Total das Subfunções Específicas de Saúde:** R$",
 
 ```{r despesas-saude-demais}
 #| eval: !expr executar_relatorio("RREO_A12")
+#| include: false
 # Calcular despesas em outras subfunções
 despesas_saude_demais <- as.numeric(
   dados_despesa %>% 
@@ -7022,6 +7082,7 @@ cat("💰 **Total Geral das Despesas Computadas:** R$",
 
 ```{r despesas-saude-consolidada}
 #| eval: !expr executar_relatorio("RREO_A12")
+#| include: false
 # Processar todas as despesas de saúde com agrupamento
 despesas_saude_completa <- dados_despesa %>% 
   filter(
@@ -7093,6 +7154,7 @@ cat("\n💰 **Total Consolidado das Despesas com Saúde:** R$",
 
 ```{r despesas-nao-computadas}
 #| eval: !expr executar_relatorio("RREO_A12")
+#| include: false
 # Filtrar despesas não computadas do Ministério da Saúde
 despesa_saude_nao_computadas <- dados_despesa %>% 
   filter(
@@ -7155,8 +7217,37 @@ DT::datatable(
   DT::formatRound("saldo_r_item_informacao", 2, mark = ".", dec.mark = ",")
 ```
 
-```         
+```{r}
+#| eval: !expr executar_relatorio("RREO_A12")
+
+
+# Calcular total das subfunções específicas
+total_subfuncoes_especificas <- sum(despesas_saude$saldo_r_item_informacao)
+cat("\n💰 **Total das Subfunções Específicas de Saúde:** R$", 
+    format(total_subfuncoes_especificas, big.mark = ".", decimal.mark = ","), "\n")
+
+cat("💰 **Total das Demais Subfunções de Saúde:** R$", 
+    format(despesas_saude_demais, big.mark = ".", decimal.mark = ","), "\n")
+
+# Total geral das despesas computadas
+total_despesas_computadas <- total_subfuncoes_especificas + despesas_saude_demais
+cat("💰 **Total Geral das Despesas Computadas:** R$", 
+    format(total_despesas_computadas, big.mark = ".", decimal.mark = ","), "\n\n")
+
+
+# Total consolidado em milhares
+total_consolidado <- sum(despesas_saude_completa$saldo_r_item_informacao) / 1000
+cat("\n💰 **Total Consolidado das Despesas com Saúde:** R$", 
+    format(total_consolidado, big.mark = ".", decimal.mark = ","), "mil\n")
+
+
+# Cumprimento do minimo
+
+cat("\n💰 **Cumprimento do minimo:** ", 
+    format(total_despesas_computadas/minimo_saude*100, big.mark = ".", decimal.mark = ",", digits = 4), "%\n")
+
 ```
+
 
 # 📋 RREO Tabela 01
 
@@ -7254,8 +7345,12 @@ criterios_rreo_T01_receitas <- list(
 )
 ```
 
+
+
+
 ```{r processar-receitas}
 #| eval: !expr executar_relatorio("RREO_T01")
+
 # Processar dados de receitas
 
 
