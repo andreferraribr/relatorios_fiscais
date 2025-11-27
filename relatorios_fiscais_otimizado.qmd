@@ -496,6 +496,7 @@ print(paste("📅 Mês de referência definido:", mes_filtro))
 #| cache.extra: !expr file.mtime(list.files(mes_pasta, full.names = TRUE))
 #| echo: true
 #| eval: true
+#| include: false
 
 # ============================================================================
 # ⚡ VERSÃO OTIMIZADA - IMPORTAÇÃO PARALELA
@@ -544,19 +545,12 @@ cat(sprintf("   • Memória utilizada: %.1f MB\n",
 
 ## 💰 Dados de Despesa
 
-Criar variáveis:
-
-tipo_modalidade
-
-refinanciamento
-
-transferencia
-
 ```{r dados_despesa_rreo}
 #| echo: true
 #| cache: true
 #| cache.lazy: false
 #| cache.extra: !expr file.mtime(list.files(mes_pasta, full.names = TRUE))
+#| include: false
 
 # ============================================================================
 # ⚡ VERSÃO OTIMIZADA - IMPORTAÇÃO PARALELA
@@ -643,6 +637,7 @@ print(dados_despesa %>% count(refinanciamento, sort = TRUE))
 #| echo: true
 #| cache: true
 #| cache.lazy: false
+#| include: false
 
 # ============================================================================
 # ⚡ VERSÃO OTIMIZADA - IMPORTAÇÃO PARALELA MANTENDO ESTRUTURAS SEPARADAS
@@ -730,6 +725,7 @@ cat(sprintf("   • Tempo de importação: %.1f segundos\n",
 #| echo: true
 #| cache: true
 #| cache.lazy: false
+#| include: false
 
 # ============================================================================
 # ⚡ VERSÃO OTIMIZADA - IMPORTAÇÃO PARALELA DE 4 ARQUIVOS
@@ -778,12 +774,13 @@ cat(sprintf("   • Disponibilidades: %s registros\n",
             format(nrow(tg_RPN_disponibilidades), big.mark = ".", decimal.mark = ",")))
 ```
 
-
 ## 📊 Dados RCL - RREO Anexo 03
+
 ```{r importar-dados-rcl}
 #| eval: !expr carregar_dados("dados_rcl")
 #| cache: true
 #| cache.extra: !expr CACHE_KEY
+#| include: false
 
 cat("📥 Importando dados RCL (RREO A03)...\n")
 
@@ -868,44 +865,6 @@ cat(sprintf("   Receitas (saldo_r alias): %s\n",
 
 cat("\n✅ Importação RCL concluída com sucesso!\n")
 ```
-```
-
----
-
-## 🎯 **O QUE ESSE CÓDIGO FAZ**
-
-1. ✅ Importa os dados
-2. ✅ Converte `movim_liquido_r_item_informacao` para numérico
-3. 🔑 **CRIA `saldo_r_item_informacao = movim_liquido_r_item_informacao`** (alias)
-4. ✅ Verifica que ambas as colunas existem e são numéricas
-5. ✅ Testa agregação em ambas (devem dar o mesmo resultado)
-
----
-
-## 📊 **RESULTADO ESPERADO**
-```
-📥 Importando dados RCL (RREO A03)...
-   • Importando RCL Despesas...
-   • Importando RCL Receitas...
-
-✓ RCL Despesas: 26.346 registros
-✓ RCL Receitas: 21.719 registros
-
-🔍 Verificação:
-   Colunas em despesas: 12
-   Colunas em receitas: 17
-
-✅ Alias 'saldo_r_item_informacao' criado:
-   Despesas: TRUE (tipo: numeric)
-   Receitas: TRUE (tipo: numeric)
-
-🧪 Teste de agregação:
-   Despesas (movim_liquido): 123.456.789.012,34
-   Despesas (saldo_r alias): 123.456.789.012,34
-   Receitas (movim_liquido): 98.765.432.109,87
-   Receitas (saldo_r alias): 98.765.432.109,87
-
-✅ Importação RCL concluída com sucesso!
 
 ## 👥 Dados RGF Anexo 01 - Despesa com Pessoal
 
@@ -913,6 +872,7 @@ cat("\n✅ Importação RCL concluída com sucesso!\n")
 #| eval: !expr carregar_dados("dados_rgf_a01")
 #| cache: true
 #| cache.extra: !expr CACHE_KEY
+#| include: false
 
 cat("📥 Importando dados RGF A01 (Despesa Pessoal)...\n")
 
@@ -936,12 +896,14 @@ cat(sprintf("✓ RGF A01: %s registros (%d arquivos)\n",
             format(nrow(rgf_a01), big.mark = ".", decimal.mark = ","), 
             length(arq_rgf_a01)))
 ```
+
 ## 🏛️ Dados RGF Anexo 02 - Dívida Consolidada Líquida (DCL)
 
 ```{r importar-dados-rgf-a02}
 #| eval: !expr carregar_dados("dados_rgf_a02")
 #| cache: true
 #| cache.extra: !expr CACHE_KEY
+#| include: false
 
 cat("📥 Importando dados RGF A02 (DCL)...\n")
 
@@ -1005,6 +967,7 @@ cat(sprintf("✓ RGF A02: %d arquivos importados\n", length(arq_rgf_a02)))
 #| eval: !expr carregar_dados("dados_rgf_a03")
 #| cache: true
 #| cache.extra: !expr CACHE_KEY
+#| include: false
 
 cat("📥 Importando dados RGF A03 (Garantias)...\n")
 
@@ -1026,6 +989,8 @@ cat(sprintf("✓ RGF A03: %s registros\n",
 #| eval: !expr carregar_dados("dados_rgf_a04")
 #| cache: true
 #| cache.extra: !expr CACHE_KEY
+#| include: false
+#| column: screen
 
 cat("📥 Importando dados RGF A04 (Operações Crédito)...\n")
 
@@ -1067,6 +1032,7 @@ cat(sprintf("✓ RGF A04 Despesas: %s registros\n",
 #| eval: !expr carregar_dados("dados_rgf_a05")
 #| cache: true
 #| cache.extra: !expr CACHE_KEY
+#| include: false
 
 cat("📥 Importando dados RGF A05 (Disponibilidades)...\n")
 
@@ -1096,6 +1062,8 @@ cat(sprintf("✓ RGF A05: %s registros (%d arquivos)\n",
 ## Aplicar Critérios
 
 ```{r}
+#| include: false
+
 aplicar_criterios <- function(df, criterios, group_vars = NULL) {
   
   # Detectar automaticamente a métrica
@@ -1331,6 +1299,7 @@ consolidar_criterios <- function() {
 
 ```{r formatar_numero}
 #| echo: true
+#| include: false
 
 #' Formatar números para exibição brasileira
 #' @param x Vetor numérico a ser formatado
@@ -1349,6 +1318,7 @@ print(paste("Número formatado:", formatar_numero(exemplo_numero)))
 
 ```{r dt_formatada}
 #| echo: true
+#| include: false
 
 #' Criar tabela DT formatada com totais
 #' @param df Data frame a ser formatado
@@ -1387,6 +1357,7 @@ print("✅ Função dt_formatada definida")
 
 ```{r tabela_pivotada}
 #| echo: true
+#| include: false
 
 #' Pivotar tabela a partir dos itens de informação
 #' @param df Data frame com dados
@@ -1425,6 +1396,8 @@ tabela_pivotada <- function(df, grupo) {
 ## Calcular operações
 
 ```{r calcular_operacoes}
+#| echo: true
+#| include: false
 # Função para realizar operações matemáticas usando as chaves únicas
 calcular_operacoes <- function(dados_consolidados = NULL, ...) {
   
@@ -1495,6 +1468,7 @@ calcular_operacoes <- function(dados_consolidados = NULL, ...) {
 ```{r rgf-header}
 #| eval: !expr executar_modulo("RGF")
 #| echo: false
+#| include: false
 
 cat("\n")
 cat("═══════════════════════════════════════════════════════════════\n")
@@ -1706,7 +1680,7 @@ categorias_rp <- c( "DF",  "executivo")
 ```{r}
 #| eval: !expr executar_relatorio("RGF_A01")
 #| code-fold: true
-#| column: page
+
 
 
 
@@ -1815,7 +1789,7 @@ gerar_tabela_pessoal <- function(
 ```{r}
 #| eval: !expr executar_relatorio("RGF_A01")
 #| code-fold: true
-#| column: page
+#| column: screen
 
 gerar_tabela_pessoal(pessoal, pessoal_rp, "executivo")
 
@@ -1824,7 +1798,7 @@ gerar_tabela_pessoal(pessoal, pessoal_rp, "executivo")
 ```{r}
 #| eval: !expr executar_relatorio("RGF_A01")
 #| code-fold: true
-#| column: page
+#| column: screen
 
 gerar_tabela_pessoal(pessoal, pessoal_rp, "AP")
 ```
@@ -1832,7 +1806,7 @@ gerar_tabela_pessoal(pessoal, pessoal_rp, "AP")
 ```{r}
 #| eval: !expr executar_relatorio("RGF_A01")
 #| code-fold: true
-#| column: page
+#| column: screen
 
 gerar_tabela_pessoal(pessoal, pessoal_rp, "RR")
 
@@ -1841,7 +1815,7 @@ gerar_tabela_pessoal(pessoal, pessoal_rp, "RR")
 ```{r}
 #| eval: !expr executar_relatorio("RGF_A01")
 #| code-fold: true
-#| column: page
+#| column: screen
 
 gerar_tabela_pessoal(pessoal, pessoal_rp, "DF")
 ```
@@ -2524,6 +2498,8 @@ datatable(
 ```
 
 ```{r}
+#| include: false
+
 # ============================================================================
 # TABELA DE REFERÊNCIA DOS TÍTULOS PÚBLICOS
 # ============================================================================
@@ -2747,7 +2723,7 @@ dados_enriquecidos %>%
          categoria, subcategoria, saldo_r_conta_contabil) %>%
   head(10)
 
-datatable(dados_enriquecidos)
+# datatable(dados_enriquecidos)
 
 
 # ============================================================================
@@ -2817,6 +2793,11 @@ dados_enriquecidos %>%
     quantidade = n()
   )
 
+
+
+```
+
+```{r}
 # Resumo cruzado: detentor x prazo
 datatable(dados_enriquecidos %>%
   group_by(detentor, prazo) %>%
@@ -2826,7 +2807,6 @@ datatable(dados_enriquecidos %>%
     .groups = "drop"
   )) %>% 
   formatRound(c("total"), 2, mark = ".", dec.mark = ",")
-
 ```
 
 # 📋 RGF Anexo 03 (Garantias e Contragarantias)
@@ -3527,229 +3507,7 @@ criterios_rgf_a05_disponibilidade <- list(
 ```{r}
 #| eval: !expr executar_relatorio("RGF_A05")
 #| column: screen
-# 
-# # ===============================================================================
-# # EXEMPLO DE USO
-# # ===============================================================================
-# 
-# # ===============================================================================
-# # RGF TABELA 04 - DISPONIBILIDADE DE CAIXA E RESTOS A PAGAR
-# # Processamento Completo e Validado
-# # ===============================================================================
-# 
-# library(dplyr)
-# library(tidyr)
-# library(readxl)
-# library(stringr)
-# 
-# # ===============================================================================
-# # FUNÇÃO AUXILIAR
-# # ===============================================================================
-# 
-# get_col <- function(df, nome_coluna) {
-#   if (nome_coluna %in% names(df)) {
-#     return(df[[nome_coluna]])
-#   } else {
-#     return(0)
-#   }
-# }
-# 
-# # ===============================================================================
-# # ETAPA 1: APLICAR CRITÉRIOS E PIVOTAR
-# # ===============================================================================
-# 
-# # Aplicar critérios de filtro
-# resultado_rgf_a05 <- aplicar_criterios(
-#   df = rgf_a05,
-#   criterios = criterios_rgf_a05_disponibilidade,
-#   group_vars = c("linhas")
-# )
-# 
-# # Pivotar para formato wide
-# rgf_a05_wide <- resultado_rgf_a05 %>%
-#   select(mes_lancamento, linhas, categoria, valor) %>%
-#   pivot_wider(names_from = categoria, values_from = valor, values_fill = 0)
-# 
-# # ===============================================================================
-# # ETAPA 2: RENOMEAR COLUNAS BÁSICAS
-# # ===============================================================================
-# 
-# rgf_a05_wide <- rgf_a05_wide %>%
-#   mutate(
-#     # Colunas de receitas e despesas
-#     receitas = get_col(., "01_receitas"),
-#     despesas = get_col(., "02_despesas"),
-#     
-#     # Disponibilidade de caixa
-#     disponibilidade_caixa_bruta = get_col(., "03_disponibilidade_caixa_bruta"),
-#     deducao_receitas_classificar = get_col(., "04_deducao_receitas_classificar"),
-#     
-#     # Restos a Pagar
-#     rp_liquidados_nao_pagos_exercicios_anteriores = 
-#       get_col(., "05_rp_liquidados_nao_pagos_exercicios_anteriores"),
-#     rp_liquidados_nao_pagos_exercicio = 
-#       get_col(., "06_rp_liquidados_nao_pagos_exercicio"),
-#     rp_empenhados_nao_liquidados_exercicios_anteriores = 
-#       get_col(., "07_rp_empenhados_nao_liquidados_exercicios_anteriores"),
-#     
-#     # Obrigações
-#     demais_obrigacoes_new = get_col(., "21_demais_obrigacoes_new"),
-#     demais_obrigacoes_subtracao = get_col(., "22_demais_obrigacoes_subtracao"),
-#     
-#     # TEDs
-#     conta_894310000_disp_recursos_ted_liberar = 
-#       get_col(., "15_conta_894310000_disp_recursos_ted_liberar"),
-#     conta_894320000_disp_recursos_ted_receber = 
-#       get_col(., "16_conta_894320000_disp_recursos_ted_receber")
-#   )
-# 
-# # ===============================================================================
-# # ETAPA 3: CALCULAR DISPONIBILIDADE BRUTA CLEAN
-# # Regras diferentes por tipo de linha
-# # ===============================================================================
-# 
-# rgf_a05_clean <- rgf_a05_wide %>%
-#   mutate(
-#     disponibilidade_bruta_clean = case_when(
-#       # Fundos/Órgãos/Programa: ajusta com TEDs
-#       linhas == "7_fundos_orgaos_programa" ~ 
-#         disponibilidade_caixa_bruta + 
-#         conta_894320000_disp_recursos_ted_receber - 
-#         conta_894310000_disp_recursos_ted_liberar,
-#       
-#       # Não Classificados: deduz receitas a classificar
-#       linhas == "9_nao_classificados" ~ 
-#         disponibilidade_caixa_bruta - deducao_receitas_classificar,
-#       
-#       # Demais linhas: valor direto
-#       TRUE ~ disponibilidade_caixa_bruta
-#     )
-#   )
-# 
-# # ===============================================================================
-# # ETAPA 4: CALCULAR DEMAIS OBRIGAÇÕES FINANCEIRAS CLEAN
-# # Regras diferentes por tipo de linha
-# # ===============================================================================
-# 
-# rgf_a05_clean <- rgf_a05_clean %>%
-#   mutate(
-#     demais_obrigacoes_financeiras_clean = case_when(
-#       # Fundos/Órgãos/Programa: cálculo simples
-#       linhas == "7_fundos_orgaos_programa" ~ 
-#         demais_obrigacoes_new - demais_obrigacoes_subtracao,
-#       
-#       # Demais linhas: ajusta com TEDs
-#       TRUE ~ 
-#         demais_obrigacoes_new - demais_obrigacoes_subtracao + 
-#         conta_894310000_disp_recursos_ted_liberar - 
-#         conta_894320000_disp_recursos_ted_receber
-#     )
-#   )
-# 
-# # ===============================================================================
-# # ETAPA 5: JOIN COM DISPONIBILIDADE INICIAL
-# # ===============================================================================
-# 
-# disponibilidade_inicial <- read_excel("disponibilidade_inicial.xlsx")
-# 
-# rgf_a05_clean <- rgf_a05_clean %>%
-#   left_join(disponibilidade_inicial, by = "linhas")
-# 
-# # ===============================================================================
-# # ETAPA 6: CALCULAR DEMAIS FLUXOS CLEAN
-# # Fórmula: Disp. Inicial + Receitas - Despesas - Disp. Bruta Clean
-# # ===============================================================================
-# 
-# rgf_a05_clean <- rgf_a05_clean %>%
-#   mutate(
-#     demais_fluxos_clean = 
-#       disponibilidade_inicial + 
-#       receitas - 
-#       despesas - 
-#       disponibilidade_bruta_clean
-#   )
-# 
-# # ===============================================================================
-# # ETAPA 7: CALCULAR DISPONIBILIDADE ANTES DA INSCRIÇÃO DE RP
-# # ===============================================================================
-# 
-# rgf_a05_clean <- rgf_a05_clean %>%
-#   mutate(
-#     disponibilidade_antes_inscr_rp_clean = 
-#       disponibilidade_bruta_clean - 
-#       rp_liquidados_nao_pagos_exercicios_anteriores - 
-#       rp_empenhados_nao_liquidados_exercicios_anteriores - 
-#       rp_liquidados_nao_pagos_exercicio - 
-#       demais_obrigacoes_financeiras_clean
-#   )
-# 
-# # ===============================================================================
-# # ETAPA 8: SELECIONAR E ORDENAR COLUNAS FINAIS
-# # ===============================================================================
-# 
-# rgf_a05_final <- rgf_a05_clean %>%
-#   select(
-#     mes_lancamento,
-#     linhas,
-#     disponibilidade_inicial,
-#     receitas,
-#     despesas,
-#     demais_fluxos_clean,
-#     disponibilidade_bruta_clean,
-#     rp_liquidados_nao_pagos_exercicios_anteriores,
-#     rp_liquidados_nao_pagos_exercicio,
-#     rp_empenhados_nao_liquidados_exercicios_anteriores,
-#     demais_obrigacoes_financeiras_clean,
-#     disponibilidade_antes_inscr_rp_clean
-#   ) %>%
-#   arrange(linhas)
-# 
-# 
-# 
-# # Formatado em milhões
-# rgf_a05_formatada <- rgf_a05_final %>% filter(linhas != "outros") %>% adorn_totals("row") %>%
-#   mutate(
-#     across(
-#       where(is.numeric) & !matches("mes_lancamento"),
-#       ~ round(.x , 2)
-#     )
-#   )
-# 
-# 
-# 
-
-
-# datatable(rgf_a05_formatada)
-
-# 
-# # Pegar nomes originais e modificar
-# novos_nomes <- rgf_a05_formatada %>% 
-#   select(-mes_lancamento) %>% 
-#   colnames() %>%
-#   gsub("_clean", "", .) %>%
-#   gsub("_", " ", .) %>%
-#   gsub("nao pagos", "NP", .) %>%
-#   gsub("exercicios", "exerc.", .) %>%
-#   gsub("anteriores", "ant.", .) %>%
-#   gsub("liquidados", "liq.", .) %>%
-#   gsub("empenhados", "emp.", .) %>%
-#   gsub("disponibilidade", "disp.", .)
-# 
-# datatable(
-#   rgf_a05_formatada %>% select(-mes_lancamento),
-#   colnames = novos_nomes,
-#   options = list(
-#     scrollX = TRUE,
-#     pageLength = 15
-#   ),
-#   rownames = FALSE
-# ) %>%
-#   formatCurrency(2:11, "", mark = ".", dec.mark = ",", digits = 2)
-```
-
-```{r}
-#| eval: !expr executar_relatorio("RGF_A05")
-#| column: screen
+#| include: false
 # ===============================================================================
 # ANEXO 5 RGF - UNIÃO E EXECUTIVO (CORRIGIDO)
 # Protótipo em R/RStudio
@@ -3999,17 +3757,17 @@ rgf_a05_executivo_formatada <- formatar_tabela(rgf_a05_executivo)
 # ETAPA 12: EXPORTAR
 # ===============================================================================
 
-write_xlsx(
-  list(
-    "Uniao_Final" = rgf_a05_uniao,
-    "Uniao_Milhoes" = rgf_a05_uniao_formatada,
-    "Executivo_Final" = rgf_a05_executivo,
-    "Executivo_Milhoes" = rgf_a05_executivo_formatada,
-    "Completo" = rgf_a05_final,
-    "Disponibilidade_Inicial" = disponibilidade_inicial
-  ),
-  path = "rgf_a05_final_completo.xlsx"
-)
+# write_xlsx(
+#   list(
+#     "Uniao_Final" = rgf_a05_uniao,
+#     "Uniao_Milhoes" = rgf_a05_uniao_formatada,
+#     "Executivo_Final" = rgf_a05_executivo,
+#     "Executivo_Milhoes" = rgf_a05_executivo_formatada,
+#     "Completo" = rgf_a05_final,
+#     "Disponibilidade_Inicial" = disponibilidade_inicial
+#   ),
+#   path = "rgf_a05_final_completo.xlsx"
+# )
 
 # ===============================================================================
 # ETAPA 13: VISUALIZAÇÃO - UNIÃO
@@ -4027,6 +3785,18 @@ novos_nomes <- rgf_a05_uniao_formatada %>%
   gsub("empenhados", "emp.", .) %>%
   gsub("disponibilidade", "disp.", .)
 
+
+
+
+
+
+
+```
+
+```{r rgf_05_tabela_uniao}
+#| eval: !expr executar_relatorio("RGF_A05")
+#| column: screen
+
 cat("\n=== TABELA UNIÃO ===\n")
 datatable(
   rgf_a05_uniao_formatada %>% select(-mes_lancamento),
@@ -4037,14 +3807,9 @@ datatable(
 ) %>%
   formatCurrency(2:11, "", mark = ".", dec.mark = ",", digits = 2)
 
-# ===============================================================================
-# ETAPA 14: VISUALIZAÇÃO - EXECUTIVO
-# ===============================================================================
-
-
 ```
 
-```{r}
+```{r rgf_05_tabela_executivo}
 #| eval: !expr executar_relatorio("RGF_A05")
 #| column: screen
 cat("\n=== TABELA EXECUTIVO ===\n")
@@ -5429,22 +5194,29 @@ rcl <- rbind(df_criterios_rreo_A03_rcl_receitas_rcl ,df_criterios_rreo_A03_rcl_d
 
 rcl <- rbind(rcl,df_criterios_rreo_A03_rcl_rp_cancelado_rcl%>% filter(item_informacao_codigo == "51"))
 
-apuracao <- rcl %>%
-  filter(
-    year(data_lancamento) == ano_filtro,
-    month(data_lancamento) <= mes_ref
-  )  %>%
+rcl <- rcl   %>%
   mutate(
     tipo =
       case_when(
         ordem %in% c("01" , "02", "03", "04", "05", "06", "07", "08" , "09") ~ "receitas",
         ordem %in% c( "11" , "12", "13", "14", "15", "17" ) ~ "deducoes",
-        ordem == "19" ~ "rp_cancelado"
+        ordem == "19" ~ "rp_cancelado",
+        .default = "demais"
+        
         )
   )
 
 
-valor_rcl <- (apuracao  %>% group_by( tipo) %>% summarise(valor = sum(valor))  %>% pivot_wider(names_from = tipo, values_from = valor, values_fill = 0 ) %>% mutate(resultado = receitas - deducoes + rp_cancelado ) )$resultado
+# minimo_saude <- (rcl%>%
+#   filter(
+#     year(data_lancamento) == year(ym(mes_filtro))
+#   )  %>% group_by( tipo) %>% summarise(valor = sum(valor))  %>% pivot_wider(names_from = tipo, values_from = valor, values_fill = 0 ) %>% mutate(resultado = receitas - deducoes + rp_cancelado ) )$resultado* 0.15
+
+rcl_12_meses <- rcl %>% 
+  filter(
+    ym(mes_filtro)-months(11)< data_lancamento &
+     data_lancamento < ym(mes_filtro) +  months(1)
+      )  %>% group_by( tipo, data_lancamento) %>% summarise(valor = sum(valor))  %>% pivot_wider(names_from = tipo, values_from = valor, values_fill = 0 ) %>% mutate(resultado = receitas - deducoes + rp_cancelado ) 
 
 
 formatar_real <- function(valor, decimais = 2, prefixo = "R$ ") {
@@ -5456,54 +5228,17 @@ formatar_real <- function(valor, decimais = 2, prefixo = "R$ ") {
                 scientific = FALSE))
 }
 
-# Uso
-formatar_real(valor_rcl)
 
-minimo_saude <- valor_rcl* 0.15
+minimo_saude <- sum((rcl_12_meses %>% filter(year(data_lancamento) == year(ym(mes_filtro))))$resultado* 0.15)
+
+# Uso
+formatar_real(sum(rcl_12_meses$resultado))
+
+
 
 formatar_real(minimo_saude)
 
 ```
-
-
-```{r}
-# rcl <- rbind(df_criterios_rreo_A03_rcl_receitas_rcl ,df_criterios_rreo_A03_rcl_despesas_rcl%>% filter(item_informacao_codigo == "25"))
-# 
-# rcl <- rbind(rcl,df_criterios_rreo_A03_rcl_rp_cancelado_rcl%>% filter(item_informacao_codigo == "51"))
-# 
-# apuracao <- rcl %>% filter(mes_lancamento <= mes_filtro)  %>%
-#   filter(data_lancamento >= max(data_lancamento) %m-% months(10)) %>% 
-#   mutate(
-#     tipo =
-#       case_when(
-#         ordem %in% c("01" , "02", "03", "04", "05", "06", "07", "08" , "09") ~ "receitas",
-#         ordem %in% c( "11" , "12", "13", "14", "15", "17" ) ~ "deducoes",
-#         ordem == "19" ~ "rp_cancelado"
-#         )
-#   )
-# 
-# 
-# valor_rcl <- (apuracao  %>% group_by( tipo) %>% summarise(valor = sum(valor))  %>% pivot_wider(names_from = tipo, values_from = valor, values_fill = 0 ) %>% mutate(resultado = receitas - deducoes + rp_cancelado ) )$resultado
-# 
-# 
-# formatar_real <- function(valor, decimais = 2, prefixo = "R$ ") {
-#   paste0(prefixo, 
-#          format(valor, 
-#                 big.mark = ".",
-#                 decimal.mark = ",",
-#                 nsmall = decimais,
-#                 scientific = FALSE))
-# }
-# 
-# # Uso
-# formatar_real(valor_rcl)
-# 
-# minimo_saude <- valor_rcl* 0.15
-# 
-# formatar_real(minimo_saude)
-
-```
-
 
 ------------------------------------------------------------------------
 
@@ -5634,37 +5369,6 @@ criterios_rreo_A04_rgps_despesas_rgps <- list(
 ```
 
 ### Resultado RGPS
-
-```{r resuldado_rgps}
-# formatar_numero(resultado_rgps <- (
-#   aplicar_criterios(df = dados_receita %>% 
-#     filter(
-#       unidade_orcamentaria_codigo %in% c(33904, 40904, 55902, 25917) | 
-#       natureza_receita_codigo_completo == 79900211,
-#            item_informacao_codigo %in% c(5)
-#       ), criterios_rreo_A04_rgps_receitas_rgps) %>% filter(ordem != "02") %>% summarise(valor=sum(valor))
-#   -
-#     aplicar_criterios(df = dados_despesa %>% 
-#     filter(unidade_orcamentaria_codigo %in% c(33904, 40904, 55902, 25917),
-#            item_informacao_codigo %in% c(25)
-#            ), criterios_rreo_A04_rgps_despesas_rgps)%>% summarise(valor=sum(valor))
-# ))
-# 
-# datatable( aplicar_criterios(df = dados_receita %>% 
-#     filter(
-#       unidade_orcamentaria_codigo %in% c(33904, 40904, 55902, 25917) | 
-#       natureza_receita_codigo_completo == 79900211,
-#            item_informacao_codigo %in% c(5)
-#       ), criterios_rreo_A04_rgps_receitas_rgps))%>% 
-#   formatRound(c("valor"), 2, mark = ".", dec.mark = ",")
-# 
-# datatable(aplicar_criterios(df = dados_despesa %>% 
-#     filter(unidade_orcamentaria_codigo %in% c(33904, 40904, 55902, 25917),
-#            item_informacao_codigo %in% c(25)
-#            ), criterios_rreo_A04_rgps_despesas_rgps))%>% 
-#   formatRound(c("valor"), 2, mark = ".", dec.mark = ",")
-
-```
 
 ```{r}
 df_resultado_rgps <- tibble(
@@ -7235,10 +6939,6 @@ cat("💰 **Total Geral das Despesas Computadas:** R$",
     format(total_despesas_computadas, big.mark = ".", decimal.mark = ","), "\n\n")
 
 
-# Total consolidado em milhares
-total_consolidado <- sum(despesas_saude_completa$saldo_r_item_informacao) / 1000
-cat("\n💰 **Total Consolidado das Despesas com Saúde:** R$", 
-    format(total_consolidado, big.mark = ".", decimal.mark = ","), "mil\n")
 
 
 # Cumprimento do minimo
@@ -7248,16 +6948,7 @@ cat("\n💰 **Cumprimento do minimo:** ",
 
 ```
 
-
 # 📋 RREO Tabela 01
-
-A **Tabela 01** apresenta o demonstrativo da receita e despesa orçamentária, sendo um dos principais instrumentos de acompanhamento da execução orçamentária do Governo Federal.
-
-## 🎯 Objetivo
-
--   Demonstrar a evolução das receitas e despesas orçamentárias
--   Acompanhar o cumprimento das metas fiscais
--   Permitir análise comparativa entre períodos
 
 ## 💰 RECEITAS ORÇAMENTÁRIAS
 
@@ -7344,9 +7035,6 @@ criterios_rreo_T01_receitas <- list(
   )
 )
 ```
-
-
-
 
 ```{r processar-receitas}
 #| eval: !expr executar_relatorio("RREO_T01")
@@ -7562,15 +7250,6 @@ datatable(aplicar_criterios(
 ```
 
 # 📋 RREO Tabela 02
-
-A **Tabela 02** apresenta o demonstrativo das despesas por função de governo, discriminando por tipo de administração (Direta e Indireta), fornecendo uma visão detalhada da aplicação dos recursos públicos.
-
-## 🎯 Objetivo
-
--   Demonstrar a execução das despesas por categorias funcionais
--   Segregar despesas entre aplicação direta e transferências
--   Detalhar gastos com pessoal civil e militar
--   Acompanhar transferências intergovernamentais
 
 ## 📊 Critérios da Tabela 02
 
