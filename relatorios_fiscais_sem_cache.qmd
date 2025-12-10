@@ -6,7 +6,7 @@ date: today
 execute:
   warning: false
   message: false
-  cache: true
+  cache: false
 format:
   html:
     theme: cosmo
@@ -41,6 +41,7 @@ library(kableExtra)
 library(readr)
 library(scales)
 library(lubridate)
+library(rlang)
 
 Sys.setlocale("LC_TIME", "pt_BR.UTF-8")
 
@@ -193,7 +194,7 @@ print("✅ Bibliotecas carregadas com sucesso!")
 
 ```{r variaveis_globais}
 # Filtro principal do mês
-mes_filtro <- "202510"
+mes_filtro <- "202511"
 
 mes_pasta <- str_c("data/",mes_filtro,"/")
 
@@ -767,35 +768,63 @@ cat(sprintf("✓ RGF A05: %s registros (%d arquivos)\n",
 ```{r}
 #| include: false
 
-aplicar_criterios <- function(df, criterios, group_vars = NULL) {
+#' Aplica critérios de filtro e agrupamento a um dataframe
+#'
+#' @param df Dataframe de entrada com dados fiscais
+#' @param criterios Lista nomeada de critérios (cada item com campo 'criterio')
+#' @param group_vars Vetor de variáveis para agrupamento (opcional)
+#' @param save_global Se TRUE, salva resultado no ambiente global com nome automático (padrão: FALSE)
+#' @param validate_criteria Se TRUE, valida critérios antes de executar (padrão: TRUE)
+#'
+#' @return Dataframe com resultados agregados por categoria
+#'
+#' @examples
+#' # Uso moderno (recomendado)
+#' resultado <- aplicar_criterios(dados_despesa, criterios_rgf_A01)
+#' 
+#' # Compatibilidade com código antigo
+#' aplicar_criterios(dados_despesa, criterios_rgf_A01, save_global = TRUE)
+#'
+aplicar_criterios <- function(df, 
+                               criterios, 
+                               group_vars = NULL,
+                               save_global = TRUE,
+                               validate_criteria = TRUE) {
   
-  # Detectar automaticamente a métrica
+  # ============================================================================
+  # 1. DETECÇÃO AUTOMÁTICA DA MÉTRICA
+  # ============================================================================
   metrica <- names(df)[grepl("^(saldo|movim)", names(df), ignore.case = TRUE)][1]
   
-  # Capturar o nome do dataframe passado como argumento
+  if (is.na(metrica) || length(metrica) == 0) {
+    stop("Não foi possível detectar coluna de métrica (saldo_* ou movim_*)")
+  }
+  
+  # ============================================================================
+  # 2. CAPTURAR METADADOS DO DATAFRAME
+  # ============================================================================
   df_completo <- paste(deparse(substitute(df)), collapse = " ")
   
   # Separar nome da df de eventuais filtros
   if (grepl("%>%", df_completo)) {
-    # Se há pipe, extrair apenas o nome da df original
     df_nome <- trimws(strsplit(df_completo, "%>%")[[1]][1])
     df_filtros <- paste(strsplit(df_completo, "%>%")[[1]][-1], collapse = " %>% ")
     df_filtros <- trimws(df_filtros)
   } else {
-    # Se não há pipe, usar o nome completo
     df_nome <- df_completo
     df_filtros <- NA
   }
   
-  # Capturar o nome da variável criterios passada como argumento
+  # Capturar nome da variável criterios
   criterios_nome <- deparse(substitute(criterios))
   
-  # Definir variáveis de agrupamento
-  # Se group_vars não foi fornecido, usar mes_lancamento e data_lancamento como padrão
+  # ============================================================================
+  # 3. DEFINIR VARIÁVEIS DE AGRUPAMENTO
+  # ============================================================================
   if (is.null(group_vars)) {
     group_vars <- c("mes_lancamento", "data_lancamento")
   } else {
-    # Garantir que mes_lancamento e data_lancamento estejam sempre incluídos
+    # Garantir que mes_lancamento e data_lancamento estejam incluídos
     if (!"mes_lancamento" %in% group_vars) {
       group_vars <- c("mes_lancamento", group_vars)
     }
@@ -804,13 +833,14 @@ aplicar_criterios <- function(df, criterios, group_vars = NULL) {
     }
   }
   
-  # Verificar se as colunas de agrupamento existem na df
+  # Verificar quais colunas existem na df
   group_vars <- group_vars[group_vars %in% names(df)]
   
-  # Desmembrar o nome da variável criterios usando "_" como separador
+  # ============================================================================
+  # 4. EXTRAIR METADADOS DOS CRITÉRIOS
+  # ============================================================================
   partes <- strsplit(criterios_nome, "_")[[1]]
   
-  # Remover "criterios" se estiver presente
   if (partes[1] == "criterios") {
     partes <- partes[-1]
   }
@@ -820,7 +850,31 @@ aplicar_criterios <- function(df, criterios, group_vars = NULL) {
   anexo_nome <- if (length(partes) >= 3) partes[3] else NA
   detalhe <- if (length(partes) >= 4) paste(partes[4:length(partes)], collapse = "_") else NA
   
-  # Aplicar critérios - apenas filtros normais
+  # ============================================================================
+  # 5. VALIDAR CRITÉRIOS (OPCIONAL)
+  # ============================================================================
+  if (validate_criteria) {
+    for (cat_nome in names(criterios)) {
+      crit <- criterios[[cat_nome]]
+      
+      # Pular fórmulas matemáticas
+      if (grepl("\\{[^}]+\\}", crit$criterio)) {
+        next
+      }
+      
+      # Tentar parsear para verificar sintaxe
+      tryCatch({
+        rlang::parse_expr(crit$criterio)
+      }, error = function(e) {
+        warning(sprintf("⚠️ Critério inválido em categoria '%s': %s\n   Expressão: %s", 
+                       cat_nome, e$message, crit$criterio))
+      })
+    }
+  }
+  
+  # ============================================================================
+  # 6. APLICAR CRITÉRIOS (COM RLANG - SEGURO)
+  # ============================================================================
   resultado <- map_df(names(criterios), function(categoria) {
     crit <- criterios[[categoria]]
     
@@ -829,7 +883,7 @@ aplicar_criterios <- function(df, criterios, group_vars = NULL) {
       return(data.frame())
     }
     
-    # Extrair informação de print do nome da categoria
+    # Extrair flag de print do nome da categoria
     if (grepl("_s$", categoria)) {
       print_flag <- "s"
       categoria_limpa <- str_replace(categoria, "_s$", "")
@@ -841,90 +895,139 @@ aplicar_criterios <- function(df, criterios, group_vars = NULL) {
       categoria_limpa <- categoria
     }
     
-    # Avaliar condição
-    condicao_expr <- eval(parse(text = crit$criterio), envir = df)
+    # ========================================================================
+    # 🔧 CORREÇÃO PRINCIPAL: Usar rlang em vez de eval(parse())
+    # ========================================================================
+    condicao_expr <- tryCatch({
+      # Parsear expressão de forma segura
+      expr <- rlang::parse_expr(crit$criterio)
+      
+      # Avaliar no contexto do dataframe
+      rlang::eval_tidy(expr, data = df)
+      
+    }, error = function(e) {
+      stop(sprintf(
+        "❌ Erro ao avaliar critério em categoria '%s':\n   Expressão: %s\n   Erro: %s", 
+        categoria, crit$criterio, e$message
+      ))
+    })
     
-    # Aplicar filtro e agrupar
+    # Verificar se retornou vetor lógico
+    if (!is.logical(condicao_expr)) {
+      stop(sprintf(
+        "❌ Critério não retornou vetor lógico em categoria '%s':\n   Expressão: %s\n   Tipo retornado: %s",
+        categoria, crit$criterio, class(condicao_expr)[1]
+      ))
+    }
+    
+    # ========================================================================
+    # 7. APLICAR FILTRO E AGRUPAR
+    # ========================================================================
     if (length(group_vars) > 0) {
-      df %>%
+      resultado_filtrado <- df %>%
         filter(condicao_expr) %>%
         group_by(across(all_of(group_vars))) %>%
         summarise(
           valor = sum(.data[[metrica]], na.rm = TRUE),
           .groups = "drop"
         ) %>%
-        mutate(
-          categoria = categoria_limpa,
-          metrica = metrica,
-          dataframe_nome = df_nome,
-          dataframe_filtros = df_filtros,
-          relatorio = relatorio,
-          anexo_codigo = anexo_codigo,
-          anexo_nome = anexo_nome,
-          detalhe = detalhe,
-          print = print_flag,
-          filtro = crit$criterio
-        ) %>%
-        separate(categoria, into = c("ordem", "nome"), sep = 2, remove = FALSE) %>%
-        select(any_of(c("mes_lancamento", "data_lancamento")), everything())
+       mutate(
+  categoria = categoria_limpa,
+  metrica = metrica,
+  dataframe_nome = df_nome,
+  dataframe_filtros = df_filtros,
+  criterios_nome_completo = criterios_nome,  # ← ADICIONAR ISTO
+  relatorio = relatorio,
+  anexo_codigo = anexo_codigo,
+  anexo_nome = anexo_nome,
+  detalhe = detalhe,
+  print = print_flag,
+  filtro = crit$criterio
+)
     } else {
-      # Se não há variáveis de agrupamento, retornar apenas o total
-      df %>%
+      resultado_filtrado <- df %>%
         filter(condicao_expr) %>%
         summarise(
           valor = sum(.data[[metrica]], na.rm = TRUE)
         ) %>%
         mutate(
-          mes_lancamento = NA,
-          data_lancamento = NA,
-          categoria = categoria_limpa,
-          metrica = metrica,
-          dataframe_nome = df_nome,
-          dataframe_filtros = df_filtros,
-          relatorio = relatorio,
-          anexo_codigo = anexo_codigo,
-          anexo_nome = anexo_nome,
-          detalhe = detalhe,
-          print = print_flag,
-          filtro = crit$criterio
-        ) %>%
-        separate(categoria, into = c("ordem", "nome"), sep = 2, remove = FALSE) %>%
-        select(any_of(c("mes_lancamento", "data_lancamento")), everything())
+  categoria = categoria_limpa,
+  metrica = metrica,
+  dataframe_nome = df_nome,
+  dataframe_filtros = df_filtros,
+  criterios_nome_completo = criterios_nome,  # ← ADICIONAR ISTO
+  relatorio = relatorio,
+  anexo_codigo = anexo_codigo,
+  anexo_nome = anexo_nome,
+  detalhe = detalhe,
+  print = print_flag,
+  filtro = crit$criterio
+)
     }
+    
+    # ========================================================================
+    # 🔧 CORREÇÃO: Usar str_extract em vez de separate(sep = 2)
+    # ========================================================================
+    resultado_final <- resultado_filtrado %>%
+      mutate(
+        # Extrair ordem (1 ou 2 dígitos no início)
+        ordem = str_extract(categoria, "^\\d{1,2}"),
+        # Extrair nome (tudo após os dígitos e espaços)
+        nome = str_trim(str_remove(categoria, "^\\d{1,2}\\s*"))
+      ) %>%
+      select(any_of(c("mes_lancamento", "data_lancamento")), everything())
+    
+    return(resultado_final)
   })
   
-  # Criar o nome da nova dataframe com prefixo df_
-  novo_nome <- paste0("df_", criterios_nome)
+  # ============================================================================
+  # 8. SALVAR NO AMBIENTE GLOBAL (OPCIONAL)
+  # ============================================================================
+  if (save_global) {
+    novo_nome <- paste0("df_", criterios_nome)
+    assign(novo_nome, resultado, envir = .GlobalEnv)
+    message("✅ Resultado salvo em variável global: ", novo_nome)
+  }
   
-  # Atribuir o resultado à nova dataframe no ambiente global
-  assign(novo_nome, resultado, envir = .GlobalEnv)
-  
-  # Retornar o resultado também
+  # ============================================================================
+  # 9. RETORNAR RESULTADO
+  # ============================================================================
   return(resultado)
 }
+
 ```
 
 ```{r}
-# Função simplificada para consolidar todas as dataframes com prefixo "df_criterios"
-consolidar_criterios <- function() {
-  # Obter todos os objetos no ambiente global
-  objetos <- ls(envir = .GlobalEnv)
+
+consolidar_criterios <- function(save_global = FALSE) {
   
-  # Filtrar apenas as dataframes que começam com "df_criterios"
+  # ============================================================================
+  # 1. OBTER DATAFRAMES DO AMBIENTE GLOBAL
+  # ============================================================================
+  objetos <- ls(envir = .GlobalEnv)
   df_criterios <- objetos[grepl("^df_criterios", objetos)]
   
   if (length(df_criterios) == 0) {
-    warning("Nenhuma dataframe com prefixo 'df_criterios' foi encontrada")
+    warning("⚠️ Nenhuma dataframe com prefixo 'df_criterios' foi encontrada no ambiente global")
     return(data.frame())
   }
   
-  # Obter todas as dataframes e combiná-las
+  message(sprintf("📊 Encontradas %d dataframes para consolidar", length(df_criterios)))
+  
+  # ============================================================================
+  # 2. OBTER E PADRONIZAR DATAFRAMES
+  # ============================================================================
   tabelas <- map(df_criterios, ~ get(.x, envir = .GlobalEnv))
   
-  # Padronizar tipos de colunas antes de combinar - apenas se existirem
+  # Padronizar tipos de colunas antes de combinar
   tabelas_padronizadas <- map(tabelas, function(tabela) {
     
-    # Converter colunas apenas se existirem
+    # Converter colunas problemáticas para character
+    if ("dataframe_filtros" %in% names(tabela)) {
+      tabela$dataframe_filtros <- as.character(tabela$dataframe_filtros)
+      tabela$dataframe_filtros[is.na(tabela$dataframe_filtros)] <- ""
+    }
+    
     if ("item_informacao_codigo" %in% names(tabela)) {
       tabela$item_informacao_codigo <- as.character(tabela$item_informacao_codigo)
     }
@@ -932,32 +1035,73 @@ consolidar_criterios <- function() {
       tabela$item_informacao_nome <- as.character(tabela$item_informacao_nome)
     }
     
+    if ("relatorio" %in% names(tabela)) {
+      tabela$relatorio <- as.character(tabela$relatorio)
+    }
+    if ("anexo_codigo" %in% names(tabela)) {
+      tabela$anexo_codigo <- as.character(tabela$anexo_codigo)
+    }
+    if ("anexo_nome" %in% names(tabela)) {
+      tabela$anexo_nome <- as.character(tabela$anexo_nome)
+    }
+    if ("detalhe" %in% names(tabela)) {
+      tabela$detalhe <- as.character(tabela$detalhe)
+    }
+    
     return(tabela)
   })
   
-  # Combinar todas as tabelas
+  # ============================================================================
+  # 3. COMBINAR TODAS AS TABELAS (SEM AGRUPAR AINDA)
+  # ============================================================================
   resultado_completo <- bind_rows(tabelas_padronizadas)
   
-  # Identificar colunas disponíveis para agrupamento
-  colunas_base <- c("mes_lancamento", "ordem", "nome", "metrica", "dataframe_nome", "dataframe_filtros",
-                   "relatorio", "anexo_codigo", "anexo_nome", "detalhe", "print", "filtro")
+  message(sprintf("✅ Consolidadas %d linhas de dados", nrow(resultado_completo)))
   
-  # Adicionar colunas opcionais se existirem
-  if ("item_informacao_nome" %in% names(resultado_completo)) {
-    colunas_base <- c(colunas_base, "item_informacao_nome")
-  }
-  if ("item_informacao_codigo" %in% names(resultado_completo)) {
-    colunas_base <- c(colunas_base, "item_informacao_codigo")
-  }
+  # ============================================================================
+  # 4. 🔧 CORREÇÃO: IDENTIFICAR TODAS AS COLUNAS PARA AGRUPAMENTO
+  # ============================================================================
+  # Colunas padrão que sempre existem
+  colunas_padrao <- c("mes_lancamento", "data_lancamento", "ordem", "nome", 
+                      "metrica", "dataframe_nome", "dataframe_filtros",
+                      "relatorio", "anexo_codigo", "anexo_nome", 
+                      "detalhe", "print", "filtro")
   
-  # Agrupar apenas pelas colunas que existem
+  # 🔧 NOVO: Identificar colunas EXTRAS que vieram de group_vars
+  todas_colunas <- names(resultado_completo)
+  colunas_extras <- setdiff(
+    todas_colunas, 
+    c(colunas_padrao, "valor", "categoria", "chave")
+  )
+  
+  # Colunas para agrupamento = padrão + extras
+  colunas_agrupamento <- c(colunas_padrao, colunas_extras)
+  
+  # Filtrar apenas as que realmente existem
+  colunas_agrupamento <- colunas_agrupamento[colunas_agrupamento %in% todas_colunas]
+  
+  message(sprintf("📋 Agrupando por %d colunas (incluindo variáveis customizadas)", 
+                  length(colunas_agrupamento)))
+  
+  # ============================================================================
+  # 5. AGRUPAR E SUMARIZAR (PRESERVANDO TODAS AS DIMENSÕES)
+  # ============================================================================
   resultado <- resultado_completo %>%
-    group_by(across(all_of(colunas_base))) %>%
+    group_by(across(all_of(colunas_agrupamento))) %>%
     summarise(valor = sum(valor, na.rm = TRUE), .groups = "drop") %>%
-    arrange(mes_lancamento, relatorio, anexo_codigo, detalhe, ordem) %>%
+    arrange(mes_lancamento, relatorio, anexo_codigo, detalhe, ordem)
+  
+  # ============================================================================
+  # 6. CRIAR COLUNAS DERIVADAS
+  # ============================================================================
+  resultado <- resultado %>%
     mutate(
-      # Converter mes_lancamento para data (último dia do mês)
-      data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1),
+      # Garantir que data_lancamento existe
+      data_lancamento = if_else(
+        is.na(data_lancamento),
+        ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1),
+        data_lancamento
+      ),
       # Criar chave única
       chave = paste0(
         mes_lancamento, "_", 
@@ -968,7 +1112,9 @@ consolidar_criterios <- function() {
       )
     )
   
-  # Reordenar colunas - apenas as que existem
+  # ============================================================================
+  # 7. REORDENAR COLUNAS (PADRÃO + EXTRAS + VALOR)
+  # ============================================================================
   colunas_ordem <- c(
     "chave", "mes_lancamento", "data_lancamento", 
     "dataframe_nome", "dataframe_filtros", 
@@ -976,26 +1122,32 @@ consolidar_criterios <- function() {
     "detalhe", "print", "filtro", "metrica"
   )
   
-  if ("item_informacao_nome" %in% names(resultado)) {
-    colunas_ordem <- c(colunas_ordem, "item_informacao_nome")
-  }
-  if ("item_informacao_codigo" %in% names(resultado)) {
-    colunas_ordem <- c(colunas_ordem, "item_informacao_codigo")
-  }
+  # Adicionar colunas extras na ordem
+  colunas_ordem <- c(colunas_ordem, colunas_extras)
   
+  # Adicionar ordem, nome, valor no final
   colunas_ordem <- c(colunas_ordem, "ordem", "nome", "valor")
   
-  # Selecionar apenas colunas que existem
-  colunas_ordem <- colunas_ordem[colunas_ordem %in% names(resultado)]
+  # Selecionar apenas colunas que existem (sem duplicatas)
+  colunas_ordem <- unique(colunas_ordem[colunas_ordem %in% names(resultado)])
   
   resultado <- resultado %>% select(all_of(colunas_ordem))
   
-  # Atribuir ao ambiente global
-  assign("df_criterios_consolidado", resultado, envir = .GlobalEnv)
+  # ============================================================================
+  # 8. SALVAR NO AMBIENTE GLOBAL (OPCIONAL)
+  # ============================================================================
+  if (save_global) {
+    assign("df_criterios_consolidado", resultado, envir = .GlobalEnv)
+    message("✅ Dados consolidados salvos em: df_criterios_consolidado")
+  }
   
-  # Retornar também
+  # ============================================================================
+  # 9. RETORNAR RESULTADO
+  # ============================================================================
   return(resultado)
 }
+
+
 ```
 
 ## Formatação de Números
@@ -1938,14 +2090,6 @@ criterios_rgf_A02_passivo_atuarial <- list(
 )
 ```
 
-df_criterios_rgf_A02_passivo_atuarial \<- aplicar_criterios(
-
-df = rgf_a02_passivo_atuarial,
-
-criterios = criterios_rgf_A02_passivo_atuarial
-
-)
-
 ```{r}
 #| code-fold: true
 #| column: page
@@ -2690,6 +2834,35 @@ datatable(
     scrollX = TRUE,
     lengthMenu = list(c(10, 25, 50, -1), c('10', '25', '50', 'Todas'))
    
+  )
+) %>% 
+  formatRound(c("valor"), 2, mark = ".", dec.mark = ",")
+```
+
+```{r}
+# ==============================================================================
+# RGF A03 - GARANTIAS - PROCESSAMENTO
+# ==============================================================================
+
+# Aplicar critérios e SALVAR (importante para consolidação)
+garantias_processado <- aplicar_criterios(
+  rgf_a03, 
+  criterios_rgf_A03_garantias
+)
+
+# Agregar para exibição
+garantias_agregado <- garantias_processado %>% 
+  group_by(ordem, nome) %>% 
+  summarise(valor = sum(valor), .groups = "drop")
+
+# Exibir em datatable
+datatable(
+  garantias_agregado,
+  rownames = FALSE,
+  options = list(
+    pageLength = -1,
+    scrollX = TRUE,
+    lengthMenu = list(c(10, 25, 50, -1), c('10', '25', '50', 'Todas'))
   )
 ) %>% 
   formatRound(c("valor"), 2, mark = ".", dec.mark = ",")
@@ -3501,7 +3674,7 @@ datatable(
 # 📋 RREO Anexo 01 - Balanço Orçamentário {#sec-anexo-07}
 
 ```{r}
-#| include: false
+
 criterios_rreo_A01_receitas_bo  <- list(
   
   # ========== RECEITAS CORRENTES ==========
@@ -4203,7 +4376,7 @@ aplicar_criterios(dados_receita, criterios_rreo_A01_receitas_bo, group_vars = c(
 ```
 
 ```{r}
-#| include: false
+
 criterios_rreo_A01_despesas_bo <- list(
   
   # ========== DESPESAS (Exceto Intra-Orçamentárias) (IX) ==========
@@ -4578,6 +4751,7 @@ Você estava tentando fazer o pivot com dados **não agregados**, onde cada comb
 ### Resultado Orçamentário
 
 ```{r}
+#| eval: true
 (formatar_numero (resultado_orcamentario <- as.numeric(df_criterios_rreo_A01_receitas_bo %>% filter(ordem == "85", item_informacao_codigo == "5") %>% summarise(valor= valor))-as.numeric(df_criterios_rreo_A01_despesas_bo %>% filter(ordem == "34", item_informacao_codigo == "25") %>% summarise(valor= valor))) )
 
 
@@ -4778,15 +4952,16 @@ criterios_rreo_A03_rcl_despesas_rcl <- list(
   # TRANSFERÊNCIAS CONSTITUCIONAIS E LEGAIS (DESPESAS)
   `17  Transferências Constitucionais e Legais` = list(
     criterio = "
-    
-    acao_governo_codigo %in% c('0E36', '00SB') | 
-    grepl('^28846090900RX', programa_governo_codigo) | 
-    (programa_governo_codigo %in% c('0903', '2030', '2080') & 
-     modalidade_aplicacao_codigo %in% c(30, 31, 32, 35, 36, 40, 41, 42, 45, 46) & 
-     acao_governo_codigo %in% c('0044', '0045', '0046', '0050', '0051', '00H6', '006M', 
-                                '00G6', '0169', '0223', '0369', '0546', '0547', '0999', 
-                                '099B', '0A53', '0C03', '0C33', '0E25', '0E36', '00PX', 
-                                '00QR', '00S3', '00S7', '00S8', '00SE', '00RX', '00UH'))
+    (
+      acao_governo_codigo %in% c('0044', '0045', '0046', '0050', '0051', '00H6', '006M', 
+                                 '00G6', '0169', '0223', '0369', '0546', '0547', '0999', 
+                                 '099B', '0A53', '0C03', '0C33', '0E25', '0E36', '00PX', 
+                                 '00QR', '00S3', '00S7', '00S8', '00SE', '00RX', '00UH') &
+      modalidade_aplicacao_codigo %in% c('30', '31', '32', '35', '36', '40', '41', '42', '45', '46') &
+      programa_governo_codigo == '0903'
+    ) |
+    grepl('^28846090900RX', pt) |
+    acao_governo_codigo %in% c('0E36', '00SB')
     "
   ),
   
@@ -4809,30 +4984,21 @@ criterios_rreo_A03_rcl_despesas_rcl <- list(
 
 criterios_rreo_A03_rcl_rp_cancelado_rcl <- list(
   
- 
-  
-    # RP CANCELADOS DE TRANSFERÊNCIAS CONSTITUCIONAIS E LEGAIS
   `19 RP Cancelados de Transferências Constitucionais e Legais` = list(
     criterio = "
-    
-    # CONDIÇÃO 1: Ações específicas visualizadas no print
-    acao_governo_codigo %in% c('0044', '0045', '006M', '0A53', '0C33') |
-    
-    # CONDIÇÃO 2: Programa que começa com código específico (do SQL original)
-    grepl('^28846090900RX', programa_governo_codigo) |
-    
-    # CONDIÇÃO 3: Combinação de critérios do SQL original
-    (programa_governo_codigo %in% c('0903', '2030', '2080') & 
-     modalidade_aplicacao_codigo %in% c(30, 31, 32, 35, 36, 40, 41, 42, 45, 46) & 
-     acao_governo_codigo %in% c('0044', '0045', '0046', '0050', '0051', '00H6', '006M', 
-                                '00G6', '0169', '0223', '0369', '0546', '0547', '0999', 
-                                '099B', '0A53', '0C03', '0C33', '0E25', '0E36', '00PX', 
-                                '00QR', '00S3', '00S7', '00S8', '00SE', '00RX', '00UH'))
+    (
+      acao_governo_codigo %in% c('0044', '0045', '0046', '0050', '0051', '00H6', '006M', 
+                                 '00G6', '0169', '0223', '0369', '0546', '0547', '0999', 
+                                 '099B', '0A53', '0C03', '0C33', '0E25', '0E36', '00PX', 
+                                 '00QR', '00S3', '00S7', '00S8', '00SE', '00RX', '00UH') &
+      modalidade_aplicacao_codigo %in% c('30', '31', '32', '35', '36', '40', '41', '42', '45', '46') &
+      programa_governo_codigo == '0903'
+    ) |
+    grepl('^28846090900RX', pt) |
+    acao_governo_codigo %in% c('0E36', '00SB')
     "
+  )
 )
-
-)
-
 
 
 aplicar_criterios(df = rreo_a03_rcl_despesas , criterios_rreo_A03_rcl_despesas_rcl, group_vars = c("item_informacao_codigo"))
@@ -4846,7 +5012,7 @@ aplicar_criterios(df = rreo_a03_rcl_despesas, criterios_rreo_A03_rcl_rp_cancelad
 
 
 
-rcl <- rbind(df_criterios_rreo_A03_rcl_receitas_rcl ,df_criterios_rreo_A03_rcl_despesas_rcl%>% filter(item_informacao_codigo == "25"))
+rcl <- rbind(df_criterios_rreo_A03_rcl_receitas_rcl ,df_criterios_rreo_A03_rcl_despesas_rcl%>% filter(item_informacao_codigo %in% c( "25", "27")))
 
 rcl <- rbind(rcl,df_criterios_rreo_A03_rcl_rp_cancelado_rcl%>% filter(item_informacao_codigo == "51"))
 
@@ -4893,6 +5059,9 @@ formatar_real(sum(rcl_12_meses$resultado))
 
 
 formatar_real(minimo_saude)
+
+
+formatar_real(sum((rcl_12_meses %>% filter(year(data_lancamento) == year(ym(mes_filtro))))$resultado))
 
 ```
 
@@ -5173,6 +5342,11 @@ criterios_rreo_A04_rpps_despesas_civil_militar_rpps <- list(
    # MILITARES - DESPESAS - Outros Outros Benefícios Inativos
   `10  MILITARES - DESPESAS - Outros Outros Benefícios Inativos` = list(
     criterio = "grupo_despesa_codigo_grupo %in% c(1) & elemento_despesa_codigo %notin% c( '00', '01') & acao_governo_codigo %in% c('214H', '218K')"
+  ),
+  
+     # MILITARES - DESPESAS - Compensação financeira entre RPPSU e os demais RPPS
+  `11  MILITARES - DESPESAS - Compensação financeira entre RPPSU e os demais RPPS` = list(
+    criterio = "acao_governo_codigo %in% c('00X3')"
   )
 )
 ```
@@ -5264,7 +5438,7 @@ df_resultado_rpps_civil <- tibble(
     criterios_rreo_A04_rpps_despesas_civil_militar_rpps
   ) %>%
     # Filtra apenas linhas de CIVIS (01 a 04)
-    filter(grepl("^0[1-4]", ordem)) %>%
+     filter(str_detect(nome, "CIVIS")) %>%
     summarise(valor = sum(valor)) %>% 
     pull(valor)
 ) %>%
@@ -5311,8 +5485,8 @@ df_resultado_rpps_militar <- tibble(
       ), 
     criterios_rreo_A04_rpps_despesas_civil_militar_rpps
   ) %>%
-    # Filtra apenas linhas de MILITARES (05 a 10)
-    filter(grepl("^0[5-9]|^10", ordem)) %>%
+   
+    filter(str_detect(nome, "MILITARES")) %>%
     summarise(valor = sum(valor)) %>% 
     pull(valor)
 ) %>%
@@ -6680,6 +6854,9 @@ tabela_consolidada <- despesas_saude_completa %>%
 total_consolidado <- sum(despesas_saude_completa$saldo_r_item_informacao) / 1000
 cat("\n💰 **Total Consolidado das Despesas com Saúde:** R$", 
     format(total_consolidado, big.mark = ".", decimal.mark = ","), "mil\n")
+
+cat("\n💰 **cumprimento do mínimo:** ", 
+    format(total_consolidado*1000/minimo_saude*100, big.mark = ".", decimal.mark = ","), "%\n")
 ```
 
 ## 🚫 Despesas Não Computadas
@@ -6773,8 +6950,8 @@ cat("💰 **Total Geral das Despesas Computadas:** R$",
 
 # Cumprimento do minimo
 
-cat("\n💰 **Cumprimento do minimo:** ", 
-    format(total_despesas_computadas/minimo_saude*100, big.mark = ".", decimal.mark = ",", digits = 4), "%\n")
+# cat("\n💰 **Cumprimento do minimo:** ", 
+#     format(total_despesas_computadas/minimo_saude*100, big.mark = ".", decimal.mark = ",", digits = 4), "%\n")
 
 ```
 
@@ -7360,3 +7537,313 @@ datatable(validacao_aplicacao,
 formatar_numero((dados_despesa %>% 
   filter(resultado_eof_codigo == 6, item_informacao_codigo == 23) %>% summarise(saldo_r_item_informacao = sum(saldo_r_item_informacao, na.rm =  TRUE)))$saldo_r_item_informacao)
 ```
+
+```{r}
+#| label: diagnostico-objetos-vazios
+#| code-fold: true
+
+# ==============================================================================
+# DIAGNÓSTICO: Investigar Objetos Vazios
+# ==============================================================================
+
+# Criar consolidação temporária para diagnóstico
+dados_consolidados_temp <- consolidar_criterios(save_global = FALSE)
+
+cat("\n📊 ESTRUTURA COMPLETA DOS DADOS CONSOLIDADOS:\n\n")
+
+# Ver distribuição por relatório e anexo
+dados_consolidados_temp %>%
+  group_by(relatorio, anexo_codigo) %>%
+  summarise(
+    n_linhas = n(),
+    detalhes = paste(unique(detalhe), collapse = " | "),
+    anexos_nome = paste(unique(anexo_nome), collapse = " | "),
+    .groups = "drop"
+  ) %>%
+  arrange(relatorio, anexo_codigo) %>%
+  print(n = 50)
+
+# ==============================================================================
+# 1. INVESTIGAR RGF A01 (Pessoal)
+# ==============================================================================
+
+cat("\n\n🔍 RGF A01 - PESSOAL:\n")
+
+rgf_a01_todos <- dados_consolidados_temp %>%
+  filter(relatorio == "rgf", anexo_codigo == "A01")
+
+if (nrow(rgf_a01_todos) == 0) {
+  cat("❌ Nenhum dado encontrado para RGF A01\n")
+  cat("Verificando possíveis variações:\n")
+  
+  # Tentar outras combinações
+  dados_consolidados_temp %>%
+    filter(grepl("rgf", relatorio, ignore.case = TRUE)) %>%
+    distinct(relatorio, anexo_codigo, anexo_nome) %>%
+    print()
+} else {
+  cat(sprintf("✅ Encontrados %d linhas em RGF A01\n", nrow(rgf_a01_todos)))
+  cat("\nValores únicos:\n")
+  cat("  - detalhe: ", paste(unique(rgf_a01_todos$detalhe), collapse = ", "), "\n")
+  cat("  - anexo_nome: ", paste(unique(rgf_a01_todos$anexo_nome), collapse = ", "), "\n")
+}
+
+# ==============================================================================
+# 2. INVESTIGAR RGF A03 (Garantias)
+# ==============================================================================
+
+cat("\n\n🔍 RGF A03 - GARANTIAS:\n")
+
+rgf_a03_todos <- dados_consolidados_temp %>%
+  filter(relatorio == "rgf", anexo_codigo == "A03")
+
+if (nrow(rgf_a03_todos) == 0) {
+  cat("❌ Nenhum dado encontrado para RGF A03\n")
+} else {
+  cat(sprintf("✅ Encontrados %d linhas em RGF A03\n", nrow(rgf_a03_todos)))
+}
+
+# ==============================================================================
+# 3. INVESTIGAR RGF A05 (Disponibilidades)
+# ==============================================================================
+
+cat("\n\n🔍 RGF A05 - DISPONIBILIDADES:\n")
+
+# Tentar com 'A05' maiúsculo
+rgf_a05_maiusculo <- dados_consolidados_temp %>%
+  filter(relatorio == "rgf", anexo_codigo == "A05")
+
+# Tentar com 'a05' minúsculo
+rgf_a05_minusculo <- dados_consolidados_temp %>%
+  filter(relatorio == "rgf", anexo_codigo == "a05")
+
+cat(sprintf("  Com 'A05' maiúsculo: %d linhas\n", nrow(rgf_a05_maiusculo)))
+cat(sprintf("  Com 'a05' minúsculo: %d linhas\n", nrow(rgf_a05_minusculo)))
+
+if (nrow(rgf_a05_maiusculo) == 0 && nrow(rgf_a05_minusculo) == 0) {
+  cat("❌ Nenhum dado encontrado para RGF A05\n")
+  cat("Códigos de anexo disponíveis em RGF:\n")
+  dados_consolidados_temp %>%
+    filter(relatorio == "rgf") %>%
+    distinct(anexo_codigo) %>%
+    arrange(anexo_codigo) %>%
+    print()
+}
+
+# ==============================================================================
+# 4. INVESTIGAR RREO A01 - Balanço Orçamentário (Receitas/Despesas)
+# ==============================================================================
+
+cat("\n\n🔍 RREO A01 - BALANÇO ORÇAMENTÁRIO:\n")
+
+rreo_a01_todos <- dados_consolidados_temp %>%
+  filter(relatorio == "rreo", anexo_codigo == "A01")
+
+cat(sprintf("Total: %d linhas\n", nrow(rreo_a01_todos)))
+cat("\nValores únicos de 'detalhe':\n")
+print(unique(rreo_a01_todos$detalhe))
+
+# Testar filtros
+bo_receitas_teste <- rreo_a01_todos %>%
+  filter(grepl("receitas", detalhe, ignore.case = TRUE))
+
+bo_despesas_teste <- rreo_a01_todos %>%
+  filter(grepl("despesas", detalhe, ignore.case = TRUE))
+
+cat(sprintf("\nCom filtro 'receitas': %d linhas\n", nrow(bo_receitas_teste)))
+cat(sprintf("Com filtro 'despesas': %d linhas\n", nrow(bo_despesas_teste)))
+
+# ==============================================================================
+# 5. RESUMO DE TODOS OS CÓDIGOS DISPONÍVEIS
+# ==============================================================================
+
+cat("\n\n📋 TODOS OS CÓDIGOS DISPONÍVEIS:\n\n")
+
+dados_consolidados_temp %>%
+  group_by(relatorio, anexo_codigo) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  arrange(relatorio, anexo_codigo) %>%
+  print(n = 50)
+```
+
+# Consolidação
+
+```{r}
+
+#| code-fold: true
+#| label: consolidacao-master
+
+# ==============================================================================
+# CONSOLIDAÇÃO MASTER - FONTE ÚNICA DA VERDADE
+# ==============================================================================
+
+dados_consolidados <- consolidar_criterios(save_global = FALSE)
+
+message(sprintf("✅ Consolidação: %d linhas de %d relatórios", 
+                nrow(dados_consolidados),
+                n_distinct(dados_consolidados$anexo_codigo)))
+
+# ==============================================================================
+# RGF
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# RGF A01 - PESSOAL (JÁ CRIADO ANTES COM aplicar_criterios INLINE)
+# ------------------------------------------------------------------------------
+
+# Os objetos pessoal e pessoal_rp já foram criados pelos chunks anteriores
+# Apenas verificamos se existem
+
+if (exists("pessoal") && exists("pessoal_rp")) {
+  message(sprintf("✅ RGF A01 - Pessoal: %d linhas | RP: %d linhas", 
+                  nrow(pessoal), nrow(pessoal_rp)))
+} else {
+  warning("⚠️ RGF A01 - Objetos pessoal/pessoal_rp não encontrados")
+  pessoal <- tibble()
+  pessoal_rp <- tibble()
+}
+
+# ------------------------------------------------------------------------------
+# RGF A02 - DCL
+# ------------------------------------------------------------------------------
+
+dcl_completo <- dados_consolidados %>%
+  filter(relatorio == "rgf", anexo_codigo == "A02")
+
+message(sprintf("✅ RGF A02 - DCL: %d linhas", nrow(dcl_completo)))
+
+# ------------------------------------------------------------------------------
+# RGF A03 - GARANTIAS
+# ------------------------------------------------------------------------------
+
+garantias <- dados_consolidados %>%
+  filter(relatorio == "rgf", anexo_codigo == "A03")
+
+if (nrow(garantias) == 0) {
+  warning("⚠️ RGF A03 - Garantias não encontrado")
+  warning("   Verificar se aplicar_criterios foi extraído do datatable()")
+} else {
+  message(sprintf("✅ RGF A03 - Garantias: %d linhas", nrow(garantias)))
+}
+
+# ------------------------------------------------------------------------------
+# RGF A04 - OPERAÇÕES DE CRÉDITO
+# ------------------------------------------------------------------------------
+
+operacoes_credito <- dados_consolidados %>%
+  filter(relatorio == "rgf", anexo_codigo == "A04")
+
+message(sprintf("✅ RGF A04 - Operações: %d linhas", nrow(operacoes_credito)))
+
+# ------------------------------------------------------------------------------
+# RGF A05 - DISPONIBILIDADES
+# ------------------------------------------------------------------------------
+
+disponibilidades <- dados_consolidados %>%
+  filter(relatorio == "rgf", anexo_codigo == "A05")
+
+if (nrow(disponibilidades) == 0) {
+  warning("⚠️ RGF A05 - Disponibilidades não encontrado")
+  warning("   Verificar se versão simplificada foi criada")
+} else {
+  message(sprintf("✅ RGF A05 - Disponibilidades: %d linhas", nrow(disponibilidades)))
+}
+
+# ==============================================================================
+# RREO
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# RREO A01 - BALANÇO ORÇAMENTÁRIO
+# ------------------------------------------------------------------------------
+
+balanco_orcamentario <- dados_consolidados %>%
+  filter(relatorio == "rreo", anexo_codigo == "A01")
+
+# 🔧 USAR anexo_nome EM VEZ DE detalhe
+bo_receitas <- balanco_orcamentario %>%
+  filter(anexo_nome == "receitas")
+
+bo_despesas <- balanco_orcamentario %>%
+  filter(anexo_nome == "despesas")
+
+message(sprintf("✅ RREO A01 - Balanço: %d linhas (receitas: %d | despesas: %d)", 
+                nrow(balanco_orcamentario), nrow(bo_receitas), nrow(bo_despesas)))
+
+# ------------------------------------------------------------------------------
+# RREO A03 - RCL
+# ------------------------------------------------------------------------------
+
+rcl <- dados_consolidados %>%
+  filter(relatorio == "rreo", anexo_codigo == "A03") %>%
+  filter(
+    (detalhe == "receitas_rcl") |
+    (detalhe == "despesas_rcl" & item_informacao_codigo == "25") |
+    (detalhe == "rp_cancelado_rcl" & item_informacao_codigo == "51")
+  ) %>%
+  mutate(
+    tipo = case_when(
+      ordem %in% c("01", "02", "03", "04", "05", "06", "07", "08", "09") ~ "receitas",
+      ordem %in% c("11", "12", "13", "14", "15", "17") ~ "deducoes",
+      ordem == "19" ~ "rp_cancelado",
+      .default = "demais"
+    )
+  )
+
+if (!exists("mes_filtro")) {
+  mes_filtro <- max(rcl$mes_lancamento, na.rm = TRUE)
+}
+
+minimo_saude <- rcl %>%
+  filter(year(data_lancamento) == year(ym(mes_filtro))) %>%
+  group_by(tipo) %>%
+  summarise(valor = sum(valor, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = tipo, values_from = valor, values_fill = 0)
+
+colunas_esperadas <- c("deducoes", "demais", "receitas", "rp_cancelado")
+for (col in colunas_esperadas) {
+  if (!col %in% names(minimo_saude)) minimo_saude[[col]] <- 0
+}
+
+message(sprintf("✅ RREO A03 - RCL: %d linhas", nrow(rcl)))
+
+# ------------------------------------------------------------------------------
+# RREO A04 - PREVIDÊNCIA
+# ------------------------------------------------------------------------------
+
+previdencia <- dados_consolidados %>%
+  filter(relatorio == "rreo", anexo_codigo == "A04")
+
+rgps_receita <- previdencia %>% filter(detalhe == "receitas_rgps")
+rgps_despesa <- previdencia %>% filter(detalhe == "despesas_rgps")
+fcdf_receita <- previdencia %>% filter(detalhe == "receitas_fcdf")
+fcdf_despesa <- previdencia %>% filter(detalhe == "despesas_fcdf")
+rpps_receita <- previdencia %>% filter(detalhe == "receitas_civil_militar_rpps")
+rpps_despesa <- previdencia %>% filter(detalhe == "despesas_civil_militar_rpps")
+
+message(sprintf("✅ RREO A04 - Previdência: %d linhas", nrow(previdencia)))
+
+# ------------------------------------------------------------------------------
+# RREO - OUTROS
+# ------------------------------------------------------------------------------
+
+rreo_a06 <- dados_consolidados %>% filter(relatorio == "rreo", anexo_codigo == "A06")
+rreo_a08 <- dados_consolidados %>% filter(relatorio == "rreo", anexo_codigo == "A08")
+rreo_t01 <- dados_consolidados %>% filter(relatorio == "rreo", anexo_codigo == "T01")
+rreo_t01b <- dados_consolidados %>% filter(relatorio == "rreo", anexo_codigo == "T01B")
+rreo_t02 <- dados_consolidados %>% filter(relatorio == "rreo", anexo_codigo == "T02")
+
+message("✅ Consolidação completa!")
+```
+
+
+```{r}
+#| column: screen
+datatable(rcl %>% 
+              filter(
+                  ym(mes_filtro)-months(11)< data_lancamento &
+                      data_lancamento < ym(mes_filtro) +  months(1)
+              ) %>% group_by(ordem, nome, data_lancamento) %>% summarise(valor = sum(valor)) %>% pivot_wider(names_from = data_lancamento, values_from = valor))%>%
+    formatCurrency(3:14, "", mark = ".", dec.mark = ",", digits = 2)
+```
+
