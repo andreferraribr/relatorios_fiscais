@@ -194,7 +194,7 @@ print("✅ Bibliotecas carregadas com sucesso!")
 
 ```{r variaveis_globais}
 # Filtro principal do mês
-mes_filtro <- "202511"
+mes_filtro <- "202510"
 
 mes_pasta <- str_c("data/",mes_filtro,"/")
 
@@ -1696,18 +1696,22 @@ criterios_rgf_A02_dcl_precatorios <- list(
   
   `08 Precatórios posteriores a 05/05/2000` = list(
     criterio = "
+    conta_contabil_numero != c('622130400') &
     acao_governo_codigo %in% c('0005', '00U9', '00UP', '0EC8', '0EC7', '00WU') |
     (unidade_orcamentaria_codigo == '71103' & acao_governo_codigo == '0Z01')
     "
   ),
   
-    `08a Precatórios posteriores a 05/05/2000` = list(
+    `38 Precatórios posteriores a 05/05/2000 sem ação 0005 e 0EC7` = list(
     criterio = "
-    acao_governo_codigo %in% c( '00U9', '00UP', '0EC8',  '00WU') |
+    conta_contabil_numero == c('622130400') & 
+    acao_governo_codigo %in% c( '0005', '0EC7') |
     (unidade_orcamentaria_codigo == '71103' & acao_governo_codigo == '0Z01')
     "
   )
 )
+
+
 
 # ===============================================================================
 # BASE: rgf_a02_rp_exceto_170600
@@ -2105,6 +2109,8 @@ df_criterios_rgf_A02_dcl_precatorios <- aplicar_criterios(
   criterios = criterios_rgf_A02_dcl_precatorios
 )
 
+
+
 # ===============================================================================
 # 2. rgf_a02_rp_exceto_170600
 # ===============================================================================
@@ -2320,6 +2326,82 @@ datatable(
 ) %>% 
   formatRound(c("valor_total", "valor_absoluto"), 2, mark = ".", dec.mark = ",")
 ```
+
+
+```{r}
+valores_linhas <- valores_linhas %>% 
+  mutate(valor = 
+    case_when(
+      ordem %in% c("02", "25", "26", "38", "16") ~  -valor_total,
+      .default = valor_total
+      
+    )
+  )
+```
+
+
+```{r}
+formatar_numero((valores_linhas %>% filter(ordem %in% c("01", "02", "03", "04", "05", "26")) %>% summarise(valor = sum(valor)))$valor)
+
+
+formatar_numero((valores_linhas %>% filter(ordem %in% c("01", "02", "03", "04", "05", "26", "06","07", "08", "09", "10", "38")) %>% summarise(valor = sum(valor)))$valor)
+
+
+formatar_numero((valores_linhas %>% filter(ordem %in% c("08","38")) %>% summarise(valor = sum(valor)))$valor)
+
+
+formatar_numero((valores_linhas %>% filter(ordem %in% c( "14", "15", "16")) %>% summarise(valor = sum(valor)))$valor)
+```
+
+
+## DCL consolidada
+
+```{r}
+# =============================================================================
+# CÁLCULO DA DCL A PARTIR DE valores_linhas
+# =============================================================================
+
+calcular_dcl_simples <- function(df) {
+  
+  # Função auxiliar para pegar valor por ordem
+  v <- function(ord) {
+    val <- df$valor_total[df$ordem == ord]
+    if (length(val) == 0) 0 else val
+  }
+  
+  # DÍVIDA CONSOLIDADA (DC)
+  divida_mobiliaria <- v("01") - v("02") + v("03") + v("04") + v("05") - v("26")
+  DC <- divida_mobiliaria + v("06") + v("07") + v("08") + v("09") + v("10") - v("38")
+  
+  # DEDUÇÕES
+  ativo_disponivel <- v("11") + v("12")
+  aplicacoes_fin <- - v("13") - v("14") + v("15") + v("16")  # FAT + Fundos Setor Privado
+  renegociacao <-  v("20") - v("21")
+  demais_ativos <- v("22") - v("23")
+  haveres_fin <- aplicacoes_fin + renegociacao + demais_ativos
+  
+  DEDUCOES <- ativo_disponivel + haveres_fin - v("25")  # RP subtrai
+  
+  # DCL
+  DCL <- DC - DEDUCOES
+  
+  # Retorno em R$ milhares
+  list(DC = DC/1000, DEDUCOES = DEDUCOES/1000, DCL = DCL/1000)
+}
+
+# Executar
+resultado <- calcular_dcl_simples(valores_linhas)
+
+cat("DC:", format(resultado$DC, big.mark = ".", decimal.mark = ","), "mil\n")
+cat("Deduções:", format(resultado$DEDUCOES, big.mark = ".", decimal.mark = ","), "mil\n")
+cat("DCL:", format(resultado$DCL, big.mark = ".", decimal.mark = ","), "mil\n")
+```
+
+
+
+
+
+## Titulos Públicos
 
 ```{r}
 #| include: false
