@@ -7,6 +7,7 @@ execute:
   warning: false
   message: false
   cache: false
+  
 format:
   html:
     theme: cosmo
@@ -194,7 +195,7 @@ print("✅ Bibliotecas carregadas com sucesso!")
 
 ```{r variaveis_globais}
 # Filtro principal do mês
-mes_filtro <- "202510"
+mes_filtro <- "202511"
 
 mes_pasta <- str_c("data/",mes_filtro,"/")
 
@@ -2049,9 +2050,8 @@ criterios_rgf_A02_dcl_balancete_fundos <- list(
     startsWith(conta_contabil_numero, '1111104') |
     startsWith(conta_contabil_numero, '1111119') |
     conta_contabil_numero %in% c('111210200', '111210300', '111215000', '111215200') |
-    c_con_subgrupo_3_nome %in% c('INVESTIMENTOS', 'IMOBILIZADO', '
-
-INTANGIVEL', 'DIFERIDO')
+    (startsWith(conta_contabil_numero, '1111102') & ug_executora_codigo != '380916') |
+    c_con_subgrupo_3_nome %in% c('INVESTIMENTOS', 'IMOBILIZADO', 'INTANGIVEL', 'DIFERIDO')
     "
   )
 )
@@ -7032,7 +7032,7 @@ cat("💰 **Total Geral das Despesas Computadas:** R$",
 
 # Cumprimento do minimo
 
-# cat("\n💰 **Cumprimento do minimo:** ", 
+# cat("\n💰 **Cumprimento do minimo:** ",
 #     format(total_despesas_computadas/minimo_saude*100, big.mark = ".", decimal.mark = ",", digits = 4), "%\n")
 
 ```
@@ -7927,5 +7927,223 @@ datatable(rcl %>%
                       data_lancamento < ym(mes_filtro) +  months(1)
               ) %>% group_by(ordem, nome, data_lancamento) %>% summarise(valor = sum(valor)) %>% pivot_wider(names_from = data_lancamento, values_from = valor))%>%
     formatCurrency(3:14, "", mark = ".", dec.mark = ",", digits = 2)
+```
+
+
+# Consolidado Final
+
+```{r}
+
+# Resultado orcamentario
+
+# Exibir com DT::datatable formatado
+DT::datatable(
+  df_resultado,
+  options = list(dom = 't', pageLength = 3),
+  rownames = FALSE
+) %>%
+  DT::formatCurrency("Valor", currency = "R$ ", digits = 2, mark = ".", dec.mark = ",")
+
+# Funcao
+
+
+
+
+datatable(dados_despesa %>% group_by( refinanciamento) %>% filter(item_informacao_codigo == 23) %>% summarise(saldo_r_item_informacao = sum(saldo_r_item_informacao)) %>% adorn_totals(), caption = "RREO Anexo 02: Função" )%>% formatRound("saldo_r_item_informacao", 2, mark = ".", dec.mark = "," )%>% 
+  DT::formatStyle(columns = colnames(.$x$data), fontSize = '100%')
+
+
+# RCL
+
+print("RCL")
+
+cat("\n💰 **RCL:** ", 
+    formatar_real(sum(rcl_12_meses$resultado)), "%\n")
+
+
+
+
+
+
+
+
+# RGPS
+DT::datatable(
+  df_resultado_rgps,
+  options = list(dom = 't', pageLength = 3),
+  rownames = FALSE
+) %>%
+  DT::formatCurrency("Valor", currency = "R$ ", digits = 2, mark = ".", dec.mark = ",")
+
+
+# RPPS Civil
+
+DT::datatable(
+  df_resultado_rpps_civil,
+  options = list(dom = 't', pageLength = 3),
+  rownames = FALSE
+) %>%
+  DT::formatCurrency("Valor", currency = "R$ ", digits = 2, mark = ".", dec.mark = ",")
+
+
+# RPPS Militar
+
+# Exibir tabela formatada
+DT::datatable(
+  df_resultado_rpps_militar,
+  options = list(dom = 't', pageLength = 3),
+  rownames = FALSE
+) %>%
+  DT::formatCurrency("Valor", currency = "R$ ", digits = 2, mark = ".", dec.mark = ",")
+
+
+# RPPS
+
+DT::datatable(
+  df_resultado_rpps,
+  options = list(dom = 't', pageLength = 3),
+  rownames = FALSE
+) %>%
+  DT::formatCurrency("Valor", currency = "R$ ", digits = 2, mark = ".", dec.mark = ",")
+
+
+
+# RPPS FCDP
+
+DT::datatable(
+  df_resultado_fcdf,
+  options = list(dom = 't', pageLength = 3),
+  rownames = FALSE
+) %>%
+  DT::formatCurrency("Valor", currency = "R$ ", digits = 2, mark = ".", dec.mark = ",")
+
+
+# Educação
+
+# Renderizar tabela
+kable(resumo_aplicacao, 
+      caption = "🎯 Resumo da Aplicação em MDE",
+      format = "html",
+      col.names = c("Item", "Valor", "Status"),
+      align = c("l", "r", "c")) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE
+  ) %>%
+  row_spec(0, bold = TRUE, background = "#f8f9fa") %>%
+  row_spec(6, bold = TRUE, 
+           background = ifelse(as.numeric(percentual_aplicacao) >= 100, "#d4edda", "#f8d7da"),
+           color = ifelse(as.numeric(percentual_aplicacao) >= 100, "#155724", "#721c24")) %>%
+  column_spec(2, width = "200px")
+
+
+# regra de ouro
+
+datatable(regra_ouro_df,
+          caption = paste("Resultado da Regra de Ouro - Mês", mes_atual),
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE) %>%
+  formatCurrency("Valor", 
+                 currency = "R$ ", 
+                 digits = 2, 
+                 mark = ".", 
+                 dec.mark = ",")
+
+
+# Saúde
+
+# Saúde - usando print() e datatable() em vez de cat()
+
+# Exibir mínimo saúde como tabela
+datatable(
+  data.frame(
+    Indicador = "Mínimo Constitucional Saúde (15% RCL)",
+    Valor = if(is.data.frame(minimo_saude)) {
+      (minimo_saude$receitas - minimo_saude$deducoes + minimo_saude$rp_cancelado) * 0.15
+    } else {
+      minimo_saude
+    }
+  ),
+  options = list(dom = 't'),
+  rownames = FALSE
+) %>%
+  formatCurrency("Valor", currency = "R$ ", digits = 2, mark = ".", dec.mark = ",")
+
+# Total consolidado
+total_consolidado <- sum(despesas_saude_completa$saldo_r_item_informacao, na.rm = TRUE) / 1000
+
+# Calcular valor do mínimo para comparação
+valor_minimo <- if(is.data.frame(minimo_saude)) {
+  (minimo_saude$receitas - minimo_saude$deducoes + minimo_saude$rp_cancelado) * 0.15
+} else {
+  as.numeric(minimo_saude)
+}
+
+# Calcular percentual
+pct_cumprimento <- (total_consolidado * 1000 / valor_minimo) * 100
+
+# Exibir como datatable
+datatable(
+  data.frame(
+    Indicador = c("Total Despesas Saúde (R$ mil)", "Mínimo Constitucional", "Cumprimento (%)"),
+    Valor = c(
+      format(total_consolidado, big.mark = ".", decimal.mark = ",", nsmall = 2),
+      format(valor_minimo / 1000, big.mark = ".", decimal.mark = ",", nsmall = 2),
+      paste0(format(pct_cumprimento, digits = 4, nsmall = 2), "%")
+    )
+  ),
+  options = list(dom = 't'),
+  rownames = FALSE,
+  caption = "💰 Cumprimento do Mínimo Constitucional - Saúde"
+)
+
+
+# resultado seguridade
+
+# Opção 1: usar pull()
+resultado_seguridade <- as.numeric(
+  df_criterios_rreo_T01_receitas %>% 
+    filter(ordem == "14") %>% 
+    summarise(valor = valor) %>% 
+    pull(valor)
+) - as.numeric(
+  df_criterios_rreo_T01_despesas_T01 %>% 
+    filter(ordem == "11") %>% 
+    summarise(valor = valor) %>% 
+    pull(valor)
+)
+
+data.frame(
+  Indicador = "Resultado Seguridade",
+  Valor = resultado_seguridade
+) %>%
+  datatable(
+    options = list(dom = 't', pageLength = 1),
+    rownames = FALSE,
+    caption = "💰 Resultado Seguridade"
+  ) %>%
+  formatCurrency("Valor", currency = "R$ ", digits = 2, mark = ".", dec.mark = ",")
+
+datatable(aplicar_criterios(
+  df = dados_despesa %>% filter(esfera_orcamentaria_codigo == 2, item_informacao_codigo == "25") %>% unique(),
+  criterios = criterios_rreo_T01B_seguridade_T01B
+)%>% group_by(categoria) %>% summarise(valor = sum(valor, na.rm = TRUE))) %>%
+  formatRound(c("valor"), 2, mark = ".", dec.mark = ",")
+
+# Tabela 02
+
+datatable(validacao_aplicacao, 
+          caption = "Validação - Aplicação Direta") %>%
+  formatRound(c('saldo_r_item_informacao'), 2, mark = ".", dec.mark = ",")
+
+
+# Tabela 03
+
+
+
+
+cat( "\n💰 **Tabela 03:** ", formatar_numero((dados_despesa %>% 
+  filter(resultado_eof_codigo == 6, item_informacao_codigo == 23) %>% summarise(saldo_r_item_informacao = sum(saldo_r_item_informacao, na.rm =  TRUE)))$saldo_r_item_informacao), "\n") 
+
 ```
 
