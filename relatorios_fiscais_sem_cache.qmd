@@ -359,10 +359,10 @@ print(dados_despesa %>% count(refinanciamento, sort = TRUE))
 
 # Definir lista de arquivos a importar
 arquivos_rp <- list(
-  anexo_07 = str_c(mes_pasta, "tg_rp_anexo_07.xlsx"),
-  anexo_12 = str_c(mes_pasta, "tg_rp_anexo_12.xlsx"),
-  anexo_08 = str_c(mes_pasta, "tg_rp_anexo_08.xlsx"),
-  anexo_03_rcl = str_c(mes_pasta, "tg_rp_anexo_03_rcl.xlsx")
+  anexo_07 = str_c(mes_pasta, "rreo_a07_rp.xlsx"),
+  anexo_12 = str_c(mes_pasta, "rreo_a12_rp.xlsx"),
+  anexo_08 = str_c(mes_pasta, "rreo_a08_rp.xlsx"),
+  anexo_03_rcl = str_c(mes_pasta, "rreo_a03_rp.xlsx")
 )
 
 cat(sprintf("📥 Importando %d arquivos de RP em paralelo...\n", length(arquivos_rp)))
@@ -447,10 +447,10 @@ cat(sprintf("   • Tempo de importação: %.1f segundos\n",
 
 # Definir arquivos
 arquivos_a06 <- list(
-  ndd = str_c(mes_pasta, "tg_anexo_06_rreo_despesas_primarias_ndd.xlsx"),
-  categoria_grupo = str_c(mes_pasta, "tg_anexo_06_rreo_despesas_primarias_categoria_grupo.xlsx"),
-  juros = str_c(mes_pasta, "tg_RPN_juros.xlsx"),
-  disponibilidades = str_c(mes_pasta, "tg_RPN_disponibilidades.xlsx")
+  ndd = str_c(mes_pasta, "rreo_a06_despesas_primarias_ndd.xlsx"),
+  categoria_grupo = str_c(mes_pasta, "rreo_a06_despesas_primarias_categoria_grupo.xlsx"),
+  juros = str_c(mes_pasta, "rreo_a06_juros.xlsx"),
+  disponibilidades = str_c(mes_pasta, "rreo_a06_disponibilidades.xlsx")
 )
 
 cat(sprintf("📥 Importando %d arquivos do Anexo 06 em paralelo...\n", length(arquivos_a06)))
@@ -2057,10 +2057,10 @@ criterios_rgf_A02_dcl_balancete_fundos <- list(
 )
 
 # ===============================================================================
-# BASE: rgf_a02_passivo_atuarial
+# BASE: rgf_a02_dcl_passivo_atuarial
 # Filtros TG: Orçamento Fiscal
 # ===============================================================================
-criterios_rgf_A02_passivo_atuarial <- list(
+criterios_rgf_A02_dcl_passivo_atuarial <- list(
   
   `40 RPPS civil` = list(
     criterio = "
@@ -2201,11 +2201,11 @@ df_criterios_rgf_A02_dcl_balancete_deducoes_depositos_a_vista <- aplicar_criteri
 
 
 # ===============================================================================
-# PROCESSAR: rgf_a02_passivo_atuarial
+# PROCESSAR: rgf_a02_dcl_passivo_atuarial
 # ===============================================================================
-df_criterios_rgf_A02_passivo_atuarial <- aplicar_criterios(
-  df = rgf_a02_passivo_atuarial,
-  criterios = criterios_rgf_A02_passivo_atuarial
+df_criterios_rgf_A02_dcl_passivo_atuarial <- aplicar_criterios(
+  df = rgf_a02_dcl_passivo_atuarial,
+  criterios = criterios_rgf_A02_dcl_passivo_atuarial
 )
 
 # ===============================================================================
@@ -2255,7 +2255,7 @@ df_rgf_A02_dcl_consolidado <- bind_rows(
   df_criterios_rgf_A02_dcl_balancete_fundos_111215100,
   df_criterios_rgf_A02_dcl_balancete_fundos,
   df_criterios_rgf_A02_dcl_depositos_vista,  # Usar consolidado da linha 12
-  df_criterios_rgf_A02_passivo_atuarial
+  df_criterios_rgf_A02_dcl_passivo_atuarial
 ) %>%
   arrange(mes_lancamento, ordem)
 # ===============================================================================
@@ -2327,7 +2327,6 @@ datatable(
   formatRound(c("valor_total", "valor_absoluto"), 2, mark = ".", dec.mark = ",")
 ```
 
-
 ```{r}
 valores_linhas <- valores_linhas %>% 
   mutate(valor = 
@@ -2338,7 +2337,6 @@ valores_linhas <- valores_linhas %>%
     )
   )
 ```
-
 
 ```{r}
 formatar_numero((valores_linhas %>% filter(ordem %in% c("01", "02", "03", "04", "05", "26")) %>% summarise(valor = sum(valor)))$valor)
@@ -2363,13 +2361,6 @@ formatar_numero((valores_linhas %>% filter(ordem %in% c( "11","12", "14", "15", 
 
 valor_dcl <- formatar_numero((valores_linhas %>% filter(ordem %in% c("01", "02", "03", "04", "05", "26", "06","07", "08", "09", "10", "38")) %>% summarise(valor = sum(valor)))$valor- (valores_linhas %>% filter(ordem %in% c( "11","12", "14", "15", "16", "20", "21", "22", "23", "25")) %>% summarise(valor = sum(valor)))$valor )
 ```
-
-
-
-
-
-
-
 
 ## Titulos Públicos
 
@@ -5948,9 +5939,7 @@ criterios_rreo_A06_receitas_A06 <- list(
   # OUTRAS ALIENAÇÕES DE BENS (Sub-subitem)
   `17  ______Outras Alienações de Bens` = list(
     criterio = "
-    nre1_categoria_economica_codigo == 2 & 
-    nre2_origem_receita_codigo_origem == 2 & 
-    !startsWith(natureza_receita_codigo_completo, '2221') & 
+    natureza_receita_codigo_completo == '22110011' & 
     item_informacao_codigo == 5
     "
   ),
@@ -6115,13 +6104,14 @@ criterios_rreo_A06_despesas_natureza_detalhada_A06 <- list(
   
   # CONCESSÃO DE EMPRÉSTIMOS E FINANCIAMENTOS (XVII)
   `34  ______Concessão de Empréstimos e Financiamentos (XVII)` = list(
-    criterio = "
-    natureza_despesa_detalhada_codigo %in% c('45909206', '45909208', '45909266') & 
-    !acao_governo_codigo %in% c('0021', '0029', '0030', '0031', '0061', '006A', '0427', 
-                               '0534', '0A81', '0A84', '2130', '0062', '00DD', '00S5', 
-                               '20GI', '006C', '00ED', '00EE', '00SG')
-    "
-  ),
+  criterio = "
+  (natureza_despesa_detalhada_codigo %in% c('45909206', '45909208', '45909266') |
+   str_detect(natureza_despesa_detalhada_codigo, '^45..6600$')) & 
+  !acao_governo_codigo %in% c('0021', '0029', '0030', '0031', '0061', '006A', '0427', 
+                             '0534', '0A81', '0A84', '2130', '0062', '00DD', '00S5', 
+                             '20GI', '006C', '00ED', '00EE', '00SG')
+  "
+),
   
   # AQUISIÇÃO DE TÍTULOS DE CAPITAL JÁ INTEGRALIZADO (XVIII)
   `35  ______Aquisição de Títulos de Capital já Integralizado (XVIII)` = list(
@@ -6215,6 +6205,8 @@ criterios_rreo_A06_juros_ativos_passivos_A06 <- list(
 )
 ```
 
+![ajustar totalização](subsitio_cesef.png)
+
 ```{r processar_resultado_primario}
 
 
@@ -6259,6 +6251,62 @@ datatable(rreo_a06_final)%>%
   
 
 
+```
+
+```{r}
+# ==============================================================================
+# RREO ANEXO 6 - RESULTADO PRIMÁRIO
+# ==============================================================================
+# Calcula o resultado primário a partir do dataframe rreo_a06_final
+
+# ------------------------------------------------------------------------------
+# Função auxiliar: busca valor pela categoria
+# ------------------------------------------------------------------------------
+obter_valor <- function(codigo) {
+  # Busca linha que começa com o código (ex: "01  ", "12  ")
+  linha <- rreo_a06_final %>% 
+    filter(str_detect(categoria, paste0("^", sprintf("%02d", codigo), "  ")))
+  
+  if (nrow(linha) == 0) return(0)
+  return(linha$valor[1])
+}
+
+# ------------------------------------------------------------------------------
+# RECEITA PRIMÁRIA TOTAL
+# ------------------------------------------------------------------------------
+# Fórmula: Rec. Correntes (I) + Rec. Capital (V) - itens não-primários
+# Itens não-primários: Aplic. Financeiras (II), Outras Rec. Financeiras (III),
+#                      Op. Crédito (VI), Amort. Empréstimos (VII),
+#                      Alien. Invest. Perm. (IX), Outras Rec. Cap. NP (X)
+
+receita_primaria_total <- obter_valor(1) + obter_valor(12) -  # Correntes + Capital
+                          obter_valor(5) - obter_valor(9) -   # - II - III
+                          obter_valor(13) - obter_valor(14) - # - VI - VII
+                          obter_valor(16) - obter_valor(20)   # - IX - X
+
+# ------------------------------------------------------------------------------
+# DESPESA PRIMÁRIA TOTAL
+# ------------------------------------------------------------------------------
+# Fórmula: Desp. Correntes (XIII) + Desp. Capital (XVI) - itens não-primários
+# Itens não-primários: Juros e Encargos (XIV), Concessão Empréstimos (XVII),
+#                      Amortização Dívida (XX)
+
+despesa_primaria_total <- obter_valor(23) + obter_valor(28) - # Correntes + Capital
+                          obter_valor(25) -                    # - XIV
+                          obter_valor(34) - obter_valor(31)    # - XVII - XX
+
+# ------------------------------------------------------------------------------
+# RESULTADO PRIMÁRIO
+# ------------------------------------------------------------------------------
+resultado_primario <- receita_primaria_total - despesa_primaria_total
+
+# Exibir resultado
+cat("RESULTADO PRIMÁRIO\n")
+cat("─────────────────────────────────────────\n")
+cat("Receita Primária Total: ", formatar_numero(receita_primaria_total), "\n")
+cat("Despesa Primária Total: ", formatar_numero(despesa_primaria_total), "\n")
+cat("─────────────────────────────────────────\n")
+cat("RESULTADO PRIMÁRIO:     ", formatar_numero(resultado_primario), "\n")
 ```
 
 # 📋 RREO Anexo 07 - Restos a Pagar
@@ -7518,8 +7566,6 @@ datatable(validacao_civil,
   formatRound(c('saldo_r_item_informacao'), 2, mark = ".", dec.mark = ",")
 ```
 
-
-
 # 📋 RREO Tabela 03
 
 ```{r tabela_3}
@@ -7547,6 +7593,7 @@ formatar_numero((dados_despesa %>%
 ```{r}
 #| label: diagnostico-objetos-vazios
 #| code-fold: true
+#| eval: false
 
 # ==============================================================================
 # DIAGNÓSTICO: Investigar Objetos Vazios
@@ -7677,6 +7724,7 @@ dados_consolidados_temp %>%
 ```{r}
 
 #| code-fold: true
+#| eval: false
 #| label: consolidacao-master
 
 # ==============================================================================
@@ -7842,7 +7890,6 @@ rreo_t02 <- dados_consolidados %>% filter(relatorio == "rreo", anexo_codigo == "
 message("✅ Consolidação completa!")
 ```
 
-
 ```{r}
 #| column: screen
 datatable(rcl %>% 
@@ -7852,7 +7899,6 @@ datatable(rcl %>%
               ) %>% group_by(ordem, nome, data_lancamento) %>% summarise(valor = sum(valor)) %>% pivot_wider(names_from = data_lancamento, values_from = valor))%>%
     formatCurrency(3:14, "", mark = ".", dec.mark = ",", digits = 2)
 ```
-
 
 # Consolidado Final
 
@@ -8157,7 +8203,14 @@ datatable(
   )
 ```
 
+```{r}
+#| column: screen
+
+dados_consolidados <- consolidar_criterios(save_global = FALSE)
+
+datatable(dados_consolidados %>% group_by(dataframe_nome,relatorio, anexo_codigo, anexo_nome, detalhe) %>% count())
 
 
 
-
+datatable(dados_consolidados)
+```
