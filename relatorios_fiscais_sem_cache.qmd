@@ -5929,9 +5929,7 @@ criterios_rreo_A06_receitas_A06 <- list(
   # RECEITAS DE ALIENAÇÃO DE INVESTIMENTOS PERMANENTES (IX) - Sub-subitem
   `16  ______Receitas de Alienação de Investimentos Permanentes (IX)` = list(
     criterio = "
-    nre1_categoria_economica_codigo == 2 & 
-    nre2_origem_receita_codigo_origem == 2 & 
-    startsWith(natureza_receita_codigo_completo, '2221') & 
+    natureza_receita_codigo_completo == 22110011 & 
     item_informacao_codigo == 5
     "
   ),
@@ -6104,14 +6102,15 @@ criterios_rreo_A06_despesas_natureza_detalhada_A06 <- list(
   
   # CONCESSÃO DE EMPRÉSTIMOS E FINANCIAMENTOS (XVII)
   `34  ______Concessão de Empréstimos e Financiamentos (XVII)` = list(
-  criterio = "
-  (natureza_despesa_detalhada_codigo %in% c('45909206', '45909208', '45909266') |
-   str_detect(natureza_despesa_detalhada_codigo, '^45..6600$')) & 
-  !acao_governo_codigo %in% c('0021', '0029', '0030', '0031', '0061', '006A', '0427', 
-                             '0534', '0A81', '0A84', '2130', '0062', '00DD', '00S5', 
-                             '20GI', '006C', '00ED', '00EE', '00SG')
-  "
-),
+    criterio = "
+    (natureza_despesa_detalhada_codigo %in% c('45909206', '45909208', '45909266') |
+     (str_starts(natureza_despesa_detalhada_codigo, '45') & 
+      elemento_despesa_codigo == '66')) & 
+    !acao_governo_codigo %in% c('0021', '0029', '0030', '0031', '0061', '006A', '0427', 
+                               '0534', '0A81', '0A84', '2130', '0062', '00DD', '00S5', 
+                               '20GI', '006C', '00ED', '00EE', '00SG')
+    "
+  ),
   
   # AQUISIÇÃO DE TÍTULOS DE CAPITAL JÁ INTEGRALIZADO (XVIII)
   `35  ______Aquisição de Títulos de Capital já Integralizado (XVIII)` = list(
@@ -6128,14 +6127,7 @@ criterios_rreo_A06_despesas_natureza_detalhada_A06 <- list(
     criterio = "{30 - 34 - 35}"
   ),
   
-  # SUBSÍDIOS (METODOLOGIA CESEF)
-  `37  ______Subsídios (metodologia CESEF - financeiro primário)` = list(
-    criterio = "
-    acao_governo_codigo %in% c('0021', '0029', '0030', '0031', '0061', '006A', '0427', 
-                              '0534', '0A81', '0A84', '2130', '0062', '00DD', '00S5', 
-                              '20GI', '006C', '00ED', '00EE', '00SG')
-    "
-  ),
+  # Item 37 removido - agora usa dados_despesa
   
   # COTAS DOS FUNDOS GARANTIDORES
   `38  ______Cotas dos Fundos Garantidores (metodologia CESEF - primário)` = list(
@@ -6203,6 +6195,21 @@ criterios_rreo_A06_juros_ativos_passivos_A06 <- list(
     "
   )
 )
+
+
+# ===============================================================================
+# 6. SUBSÍDIOS CESEF (dados_despesa) - Item 37
+# ===============================================================================
+criterios_rreo_A06_subsidios_cesef <- list(
+  
+  `37  ______Subsídios (metodologia CESEF - financeiro primário)` = list(
+    criterio = "
+    acao_governo_codigo %in% c('0021', '0029', '0030', '0031', '0061', '006A', '0427', 
+                              '0534', '0A81', '0A84', '2130', '0062', '00DD', '00S5', 
+                              '20GI', '006C', '00ED', '00EE', '00SG')
+    "
+  )
+)
 ```
 
 ![ajustar totalização](subsitio_cesef.png)
@@ -6210,7 +6217,7 @@ criterios_rreo_A06_juros_ativos_passivos_A06 <- list(
 ```{r processar_resultado_primario}
 
 
- # Aplicar critérios e consolidar em uma única operação
+# Aplicar critérios e consolidar em uma única operação
 rreo_a06_consolidado <- bind_rows(
   aplicar_criterios(
     df = dados_categoria_grupo %>% filter(mes_lancamento == mes_filtro, item_informacao_codigo == "56"),
@@ -6221,8 +6228,13 @@ rreo_a06_consolidado <- bind_rows(
     criterios = criterios_rreo_A06_receitas_A06
   ),
   aplicar_criterios(
-    df = dados_ndd %>% filter(item_informacao_codigo == "56"),
+    df = dados_ndd %>% filter(item_informacao_codigo == "56", mes_lancamento == mes_filtro),
     criterios = criterios_rreo_A06_despesas_natureza_detalhada_A06
+  ),
+  # Item 37 - Subsídios CESEF (fonte: dados_despesa)
+  aplicar_criterios(
+    df = dados_despesa %>% filter(mes_lancamento == mes_filtro, item_informacao_codigo == "56"),
+    criterios = criterios_rreo_A06_subsidios_cesef
   ),
   aplicar_criterios(
     df = dados_juros,
@@ -6257,56 +6269,50 @@ datatable(rreo_a06_final)%>%
 # ==============================================================================
 # RREO ANEXO 6 - RESULTADO PRIMÁRIO
 # ==============================================================================
-# Calcula o resultado primário a partir do dataframe rreo_a06_final
 
-# ------------------------------------------------------------------------------
-# Função auxiliar: busca valor pela categoria
-# ------------------------------------------------------------------------------
+# Função auxiliar
 obter_valor <- function(codigo) {
-  # Busca linha que começa com o código (ex: "01  ", "12  ")
   linha <- rreo_a06_final %>% 
     filter(str_detect(categoria, paste0("^", sprintf("%02d", codigo), "  ")))
-  
   if (nrow(linha) == 0) return(0)
   return(linha$valor[1])
 }
 
-# ------------------------------------------------------------------------------
-# RECEITA PRIMÁRIA TOTAL
-# ------------------------------------------------------------------------------
-# Fórmula: Rec. Correntes (I) + Rec. Capital (V) - itens não-primários
-# Itens não-primários: Aplic. Financeiras (II), Outras Rec. Financeiras (III),
-#                      Op. Crédito (VI), Amort. Empréstimos (VII),
-#                      Alien. Invest. Perm. (IX), Outras Rec. Cap. NP (X)
+# Cálculos
+resultado_primario <- tibble(
+  componente = c(
+    "RECEITA PRIMÁRIA CORRENTE (IV)",
+    "RECEITA PRIMÁRIA DE CAPITAL (XI)",
+    "RECEITA PRIMÁRIA TOTAL (XII)",
+    "DESPESA PRIMÁRIA CORRENTE (XV)",
+    "DESPESA PRIMÁRIA DE CAPITAL (XXI)",
+    "(+) Subsídios CESEF",
+    "DESPESA PRIMÁRIA TOTAL (XXIII)",
+    "RESULTADO PRIMÁRIO (XII - XXIII)"
+  ),
+  valor = c(
+    obter_valor(1) - obter_valor(5) - obter_valor(9),
+    obter_valor(12) - obter_valor(13) - obter_valor(14) - obter_valor(20),
+    NA,  # será calculado
+    obter_valor(23) - obter_valor(25),
+    obter_valor(28) - obter_valor(34) - obter_valor(31),
+    obter_valor(37),
+    NA,  # será calculado
+    NA   # será calculado
+  )
+) %>%
+  mutate(
+    valor = case_when(
+      componente == "RECEITA PRIMÁRIA TOTAL (XII)" ~ valor[1] + valor[2],
+      componente == "DESPESA PRIMÁRIA TOTAL (XXIII)" ~ valor[4] + valor[5] + valor[6],
+      componente == "RESULTADO PRIMÁRIO (XII - XXIII)" ~ (valor[1] + valor[2]) - (valor[4] + valor[5] + valor[6]),
+      TRUE ~ valor
+    )
+  )
 
-receita_primaria_total <- obter_valor(1) + obter_valor(12) -  # Correntes + Capital
-                          obter_valor(5) - obter_valor(9) -   # - II - III
-                          obter_valor(13) - obter_valor(14) - # - VI - VII
-                          obter_valor(16) - obter_valor(20)   # - IX - X
-
-# ------------------------------------------------------------------------------
-# DESPESA PRIMÁRIA TOTAL
-# ------------------------------------------------------------------------------
-# Fórmula: Desp. Correntes (XIII) + Desp. Capital (XVI) - itens não-primários
-# Itens não-primários: Juros e Encargos (XIV), Concessão Empréstimos (XVII),
-#                      Amortização Dívida (XX)
-
-despesa_primaria_total <- obter_valor(23) + obter_valor(28) - # Correntes + Capital
-                          obter_valor(25) -                    # - XIV
-                          obter_valor(34) - obter_valor(31)    # - XVII - XX
-
-# ------------------------------------------------------------------------------
-# RESULTADO PRIMÁRIO
-# ------------------------------------------------------------------------------
-resultado_primario <- receita_primaria_total - despesa_primaria_total
-
-# Exibir resultado
-cat("RESULTADO PRIMÁRIO\n")
-cat("─────────────────────────────────────────\n")
-cat("Receita Primária Total: ", formatar_numero(receita_primaria_total), "\n")
-cat("Despesa Primária Total: ", formatar_numero(despesa_primaria_total), "\n")
-cat("─────────────────────────────────────────\n")
-cat("RESULTADO PRIMÁRIO:     ", formatar_numero(resultado_primario), "\n")
+# Exibir
+datatable(resultado_primario) %>%
+  formatRound("valor", 2, mark = ".", dec.mark = ",")
 ```
 
 # 📋 RREO Anexo 07 - Restos a Pagar
@@ -6783,6 +6789,91 @@ datatable(regra_ouro_df,
                  dec.mark = ",")
 
 
+```
+
+```{r}
+# ==============================================================================
+# RREO ANEXO 9 - REGRA DE OURO
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# VARIÁVEL MANUAL - Saldo inicial da dívida (ajustar anualmente)
+# ------------------------------------------------------------------------------
+saldo_inicial_divida <- 731471695519.71  # Saldo abertura 2025 (000/2025)
+
+# ------------------------------------------------------------------------------
+# 1. RECEITAS DE OPERAÇÕES DE CRÉDITO
+# ------------------------------------------------------------------------------
+# Filtro: Item Informação = 5 (Receita Líquida), Origem = 21 ou 81
+
+receitas_op_credito <- dados_receita %>%
+  filter(
+    mes_lancamento == mes_filtro,
+    item_informacao_codigo == "5",
+    str_starts(natureza_receita_codigo_completo, "21") | 
+    str_starts(natureza_receita_codigo_completo, "81")
+  ) %>%
+  summarise(valor = sum(saldo_r_item_informacao, na.rm = TRUE)) %>%
+  pull(valor)
+
+# ------------------------------------------------------------------------------
+# 2. DESPESAS DE CAPITAL (Liquidadas + Inscritas em RP Não Processados)
+# ------------------------------------------------------------------------------
+# Filtro: Categoria = 4 (Capital), Item Informação = 25 (Liquidadas)
+# Nota: Inscritas em RP NP pode estar em outra fonte
+
+despesas_capital <- dados_despesa %>%
+  filter(
+    mes_lancamento == mes_filtro,
+    categoria_economica_despesa_codigo == "4",
+    item_informacao_codigo == "25"
+  ) %>%
+  summarise(valor = sum(saldo_r_item_informacao, na.rm = TRUE)) %>%
+  pull(valor)
+
+# ------------------------------------------------------------------------------
+# 3. SUBCONTA DA DÍVIDA (Saldo atual)
+# ------------------------------------------------------------------------------
+saldo_atual_divida <- rgf_a02_balancete %>%
+  filter(
+    conta_contabil_numero == "111110401",
+    mes_lancamento == mes_filtro
+  ) %>%
+  summarise(valor = sum(saldo_r_conta_contabil, na.rm = TRUE)) %>%
+  pull(valor)
+
+variacao_divida <- saldo_atual_divida - saldo_inicial_divida
+
+# ------------------------------------------------------------------------------
+# 4. CÁLCULO DA REGRA DE OURO
+# ------------------------------------------------------------------------------
+regra_ouro <- despesas_capital - (receitas_op_credito - variacao_divida)
+status <- ifelse(regra_ouro > 0, "NÃO CUMPRIDA", "CUMPRIDA")
+
+# ------------------------------------------------------------------------------
+# 5. RESULTADO
+# ------------------------------------------------------------------------------
+tibble(
+  Componente = c(
+    "Receitas de Operações de Crédito (I)",
+    "(-) Variação Subconta da Dívida (II)",
+    "= Receitas Líquidas (III = I - II)",
+    "Despesas de Capital (IV)",
+    "REGRA DE OURO (IV - III)"
+  ),
+  Valor = c(
+    receitas_op_credito,
+    variacao_divida,
+    receitas_op_credito - variacao_divida,
+    despesas_capital,
+    regra_ouro
+  )
+) %>%
+  datatable(
+    caption = paste("Regra de Ouro -", mes_filtro, "| Status:", status),
+    options = list(dom = 't')
+  ) %>%
+  formatRound("Valor", 2, mark = ".", dec.mark = ",")
 ```
 
 # 📋 RREO Anexo 11 - Alienação de Ativos.
@@ -7994,6 +8085,55 @@ DT::datatable(
   DT::formatCurrency("Valor", currency = "R$ ", digits = 2, mark = ".", dec.mark = ",")
 
 
+
+# ==============================================================================
+# RREO ANEXO 6 - RESULTADO PRIMÁRIO
+# ==============================================================================
+
+# Função auxiliar
+obter_valor <- function(codigo) {
+  linha <- rreo_a06_final %>% 
+    filter(str_detect(categoria, paste0("^", sprintf("%02d", codigo), "  ")))
+  if (nrow(linha) == 0) return(0)
+  return(linha$valor[1])
+}
+
+# Cálculos
+resultado_primario <- tibble(
+  componente = c(
+    "RECEITA PRIMÁRIA CORRENTE (IV)",
+    "RECEITA PRIMÁRIA DE CAPITAL (XI)",
+    "RECEITA PRIMÁRIA TOTAL (XII)",
+    "DESPESA PRIMÁRIA CORRENTE (XV)",
+    "DESPESA PRIMÁRIA DE CAPITAL (XXI)",
+    "(+) Subsídios CESEF",
+    "DESPESA PRIMÁRIA TOTAL (XXIII)",
+    "RESULTADO PRIMÁRIO (XII - XXIII)"
+  ),
+  valor = c(
+    obter_valor(1) - obter_valor(5) - obter_valor(9),
+    obter_valor(12) - obter_valor(13) - obter_valor(14) - obter_valor(20),
+    NA,  # será calculado
+    obter_valor(23) - obter_valor(25),
+    obter_valor(28) - obter_valor(34) - obter_valor(31),
+    obter_valor(37),
+    NA,  # será calculado
+    NA   # será calculado
+  )
+) %>%
+  mutate(
+    valor = case_when(
+      componente == "RECEITA PRIMÁRIA TOTAL (XII)" ~ valor[1] + valor[2],
+      componente == "DESPESA PRIMÁRIA TOTAL (XXIII)" ~ valor[4] + valor[5] + valor[6],
+      componente == "RESULTADO PRIMÁRIO (XII - XXIII)" ~ (valor[1] + valor[2]) - (valor[4] + valor[5] + valor[6]),
+      TRUE ~ valor
+    )
+  )
+
+# Exibir
+datatable(resultado_primario) %>%
+  formatRound("valor", 2, mark = ".", dec.mark = ",")
+
 # Educação
 
 # Renderizar tabela
@@ -8025,6 +8165,90 @@ datatable(regra_ouro_df,
                  mark = ".", 
                  dec.mark = ",")
 
+
+
+# ==============================================================================
+# RREO ANEXO 9 - REGRA DE OURO
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# VARIÁVEL MANUAL - Saldo inicial da dívida (ajustar anualmente)
+# ------------------------------------------------------------------------------
+saldo_inicial_divida <- 731471695519.71  # Saldo abertura 2025 (000/2025)
+
+# ------------------------------------------------------------------------------
+# 1. RECEITAS DE OPERAÇÕES DE CRÉDITO
+# ------------------------------------------------------------------------------
+# Filtro: Item Informação = 5 (Receita Líquida), Origem = 21 ou 81
+
+receitas_op_credito <- dados_receita %>%
+  filter(
+    mes_lancamento == mes_filtro,
+    item_informacao_codigo == "5",
+    str_starts(natureza_receita_codigo_completo, "21") | 
+    str_starts(natureza_receita_codigo_completo, "81")
+  ) %>%
+  summarise(valor = sum(saldo_r_item_informacao, na.rm = TRUE)) %>%
+  pull(valor)
+
+# ------------------------------------------------------------------------------
+# 2. DESPESAS DE CAPITAL (Liquidadas + Inscritas em RP Não Processados)
+# ------------------------------------------------------------------------------
+# Filtro: Categoria = 4 (Capital), Item Informação = 25 (Liquidadas)
+# Nota: Inscritas em RP NP pode estar em outra fonte
+
+despesas_capital <- dados_despesa %>%
+  filter(
+    mes_lancamento == mes_filtro,
+    categoria_economica_despesa_codigo == "4",
+    item_informacao_codigo == "25"
+  ) %>%
+  summarise(valor = sum(saldo_r_item_informacao, na.rm = TRUE)) %>%
+  pull(valor)
+
+# ------------------------------------------------------------------------------
+# 3. SUBCONTA DA DÍVIDA (Saldo atual)
+# ------------------------------------------------------------------------------
+saldo_atual_divida <- rgf_a02_balancete %>%
+  filter(
+    conta_contabil_numero == "111110401",
+    mes_lancamento == mes_filtro
+  ) %>%
+  summarise(valor = sum(saldo_r_conta_contabil, na.rm = TRUE)) %>%
+  pull(valor)
+
+variacao_divida <- saldo_atual_divida - saldo_inicial_divida
+
+# ------------------------------------------------------------------------------
+# 4. CÁLCULO DA REGRA DE OURO
+# ------------------------------------------------------------------------------
+regra_ouro <- despesas_capital - (receitas_op_credito - variacao_divida)
+status <- ifelse(regra_ouro > 0, "NÃO CUMPRIDA", "CUMPRIDA")
+
+# ------------------------------------------------------------------------------
+# 5. RESULTADO
+# ------------------------------------------------------------------------------
+tibble(
+  Componente = c(
+    "Receitas de Operações de Crédito (I)",
+    "(-) Variação Subconta da Dívida (II)",
+    "= Receitas Líquidas (III = I - II)",
+    "Despesas de Capital (IV)",
+    "REGRA DE OURO (IV - III)"
+  ),
+  Valor = c(
+    receitas_op_credito,
+    variacao_divida,
+    receitas_op_credito - variacao_divida,
+    despesas_capital,
+    regra_ouro
+  )
+) %>%
+  datatable(
+    caption = paste("Regra de Ouro -", mes_filtro, "| Status:", status),
+    options = list(dom = 't')
+  ) %>%
+  formatRound("Valor", 2, mark = ".", dec.mark = ",")
 
 # Saúde
 
