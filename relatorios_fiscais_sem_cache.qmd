@@ -764,6 +764,79 @@ cat(sprintf("✓ RGF A05: %s registros (%d arquivos)\n",
 
 # Funções {#sec-funcoes-aux}
 
+
+## Mapear arquivo
+
+```{r}
+# ============================================================================
+# FUNCAO: mapear_arquivos_tg
+# ============================================================================
+# Gera uma tabela de apoio mapeando arquivos xlsx e seus filtros do TG.
+# Basta informar o caminho da pasta com os arquivos.
+#
+# Uso: Chamar uma vez para ter a visao de todos os arquivos utilizados.
+#
+# Parametros:
+#   - pasta: caminho da pasta com os arquivos xlsx
+#   - pattern: padrao para filtrar arquivos (default: todos xlsx)
+#
+# Retorna:
+#   - DataFrame com: arquivo, filtros_tg
+# ============================================================================
+
+mapear_arquivos_tg <- function(pasta, pattern = "\\.xlsx$") {
+  
+  # Listar todos os arquivos xlsx na pasta
+  arquivos <- list.files(
+    path = pasta, 
+    pattern = pattern, 
+    full.names = TRUE
+  )
+  
+  if (length(arquivos) == 0) {
+    warning("Nenhum arquivo encontrado na pasta")
+    return(data.frame())
+  }
+  
+  cat(sprintf("Mapeando %d arquivos...\n", length(arquivos)))
+  
+  # Extrair filtros de cada arquivo (celula A4)
+  resultado <- map_df(arquivos, function(arq) {
+    
+    filtros_tg <- tryCatch({
+      celula_a4 <- read_excel(arq, range = "A4", col_names = FALSE)
+      as.character(celula_a4[[1]][1])
+    }, error = function(e) {
+      NA_character_
+    })
+    
+    data.frame(
+      arquivo = basename(arq),
+      filtros_tg = filtros_tg,
+      stringsAsFactors = FALSE
+    )
+  })
+  
+  # Salvar no ambiente global
+  assign("df_arquivos_tg", resultado, envir = .GlobalEnv)
+  
+  cat(sprintf("Tabela gerada: df_arquivos_tg (%d arquivos)\n", nrow(resultado)))
+  
+  return(resultado)
+}
+
+
+# ============================================================================
+# EXEMPLO DE USO:
+# ============================================================================
+# df_arquivos_tg <- mapear_arquivos_tg(mes_pasta)
+# 
+# # Visualizar
+# datatable(df_arquivos_tg)
+# ============================================================================
+```
+
+
 ## Aplicar Critérios
 
 ```{r}
@@ -6614,17 +6687,17 @@ print(formatar_numero(despesa_mde$valor))
 
 #| echo: true
 
-# Complementação FUNDEB (30% da complementação da União)
+# Complementação FUNDEB (100% da complementação da União)
 complementacao_fundeb <- dados_despesa %>% 
   filter(
     item_informacao_codigo == 25, 
     mes_lancamento == mes_filtro,
     acao_governo_codigo %in% c('0E36', '00SB')
   ) %>% 
-  summarise(comp_fundeb = sum(saldo_r_item_informacao, na.rm = TRUE) * 0.3) %>%
+  summarise(comp_fundeb = sum(saldo_r_item_informacao, na.rm = TRUE) ) %>%
   pull(comp_fundeb)
 
-print(paste("🎯 Complementação FUNDEB (30%):", formatar_numero(complementacao_fundeb)))
+print(paste("🎯 Complementação FUNDEB (100%):", formatar_numero(complementacao_fundeb)))
 ```
 
 ### Restos a Pagar MDE
@@ -6668,7 +6741,7 @@ print(paste("📋 Total RP MDE:", formatar_numero(despesa_mde_rp)))
 #| echo: true
 
 # Cálculo do percentual total aplicado em MDE
-total_despesas_mde <- despesa_mde + complementacao_fundeb
+total_despesas_mde <- despesa_mde + (complementacao_fundeb*0.3)
 percentual_aplicacao <- (as.numeric(total_despesas_mde) / as.numeric(rli_atual)) *100
 
 # Função para formatar valores em R$ (com as.numeric para dataframes)
@@ -6680,7 +6753,7 @@ formatar_real <- function(valor) {
 resumo_aplicacao <- data.frame(
   Item = c(
     "💰 Despesas MDE Principais",
-    "🎯 Complementação FUNDEB (30%)",
+    "🎯 Complementação FUNDEB (100%)",
     "📋 Restos a Pagar MDE",
     "📊 Total Despesas MDE",
     "📈 18% da RLI (Base de Cálculo)",
@@ -7939,16 +8012,17 @@ if (!exists("mes_filtro")) {
   mes_filtro <- max(rcl$mes_lancamento, na.rm = TRUE)
 }
 
-minimo_saude <- rcl %>%
-  filter(year(data_lancamento) == year(ym(mes_filtro))) %>%
-  group_by(tipo) %>%
-  summarise(valor = sum(valor, na.rm = TRUE), .groups = "drop") %>%
-  pivot_wider(names_from = tipo, values_from = valor, values_fill = 0)
-
-colunas_esperadas <- c("deducoes", "demais", "receitas", "rp_cancelado")
-for (col in colunas_esperadas) {
-  if (!col %in% names(minimo_saude)) minimo_saude[[col]] <- 0
-}
+minimo_saude
+# minimo_saude <- rcl %>%
+#   filter(year(data_lancamento) == year(ym(mes_filtro))) %>%
+#   group_by(tipo) %>%
+#   summarise(valor = sum(valor, na.rm = TRUE), .groups = "drop") %>%
+#   pivot_wider(names_from = tipo, values_from = valor, values_fill = 0)
+# 
+# colunas_esperadas <- c("deducoes", "demais", "receitas", "rp_cancelado")
+# for (col in colunas_esperadas) {
+#   if (!col %in% names(minimo_saude)) minimo_saude[[col]] <- 0
+# }
 
 message(sprintf("✅ RREO A03 - RCL: %d linhas", nrow(rcl)))
 
@@ -8429,12 +8503,972 @@ datatable(
 
 ```{r}
 #| column: screen
-
-dados_consolidados <- consolidar_criterios(save_global = FALSE)
-
-datatable(dados_consolidados %>% group_by(dataframe_nome,relatorio, anexo_codigo, anexo_nome, detalhe) %>% count())
-
-
-
-datatable(dados_consolidados)
+# 
+# dados_consolidados <- consolidar_criterios(save_global = FALSE)
+# 
+# datatable(dados_consolidados %>% group_by(dataframe_nome,relatorio, anexo_codigo, anexo_nome, detalhe) %>% count())
+# 
+# 
+# 
+# datatable(dados_consolidados)
+# 
+# # No seu código, após definir mes_pasta:
+# df_arquivos_tg <- mapear_arquivos_tg(mes_pasta)
+# 
+# # Visualizar
+# datatable(df_arquivos_tg)
 ```
+
+
+# importar RGF anexo 6 e RREO anexo 14
+
+```{r}
+# ============================================================================
+# VALIDACAO - COMPARACAO COM RELATORIOS OFICIAIS
+# ============================================================================
+# Compara valores calculados com RREO Anexo 14 e RGF Anexo 06 oficiais.
+# Valores oficiais estao em R$ milhares.
+#
+# IMPORTANTE: Este chunk deve ser executado APOS o chunk {r variaveis_globais}
+# onde mes_filtro e mes_pasta sao definidos.
+# ============================================================================
+
+#| echo: true
+#| output: true
+
+# ----------------------------------------------------------------------------
+# CONFIGURACAO
+# ----------------------------------------------------------------------------
+# Se mes_pasta nao existir, defina aqui:
+if (!exists("mes_pasta")) {
+  mes_filtro <- "202511"
+  mes_pasta <- str_c("data/", mes_filtro, "/")
+}
+
+# Arquivos oficiais (ajuste os nomes conforme necessario)
+arquivo_rreo_a14 <- str_c(mes_pasta, "Anexo 14 - Simplificado.xlsm")
+arquivo_rgf_a06 <- str_c(mes_pasta, "Anexo 6 Simplificado - 2025.xlsx")
+
+# ----------------------------------------------------------------------------
+# FUNCAO AUXILIAR: Ler valor de uma celula
+# ----------------------------------------------------------------------------
+
+ler_celula <- function(arquivo, celula, sheet = 1) {
+  tryCatch({
+    read_excel(arquivo, sheet = sheet, range = celula, col_names = FALSE)[[1]][1]
+  }, error = function(e) NA_real_)
+}
+
+# ----------------------------------------------------------------------------
+# MAPEAMENTO RREO ANEXO 14 - Celulas e descricoes
+# ----------------------------------------------------------------------------
+
+mapa_rreo_a14 <- tribble(
+  ~item, ~celula, ~descricao,
+  
+  # BALANCO ORCAMENTARIO - RECEITAS (linhas 10-14)
+  "previsao_inicial",        "B10", "Previsao Inicial da Receita",
+  "previsao_atualizada",     "B11", "Previsao Atualizada",
+  "receitas_realizadas",     "B12", "Receitas Realizadas",
+  "saldos_anteriores",       "B14", "Saldos de Exercicios Anteriores",
+  
+
+  # BALANCO ORCAMENTARIO - DESPESAS (linhas 17-22)
+  "dotacao_inicial",         "B17", "Dotacao Inicial",
+  "dotacao_atualizada",      "B18", "Dotacao Atualizada",
+  "despesas_empenhadas",     "B19", "Despesas Empenhadas",
+  "despesas_liquidadas",     "B20", "Despesas Liquidadas",
+  "despesas_pagas",          "E21", "Despesas Pagas",
+  "superavit_orcamentario",  "B22", "Superavit Orcamentario",
+  
+  # DESPESAS POR FUNCAO (linhas 25-26) - exceto refinanciamento
+  "funcao_empenhadas",       "B25", "Desp. Empenhadas por Funcao",
+  "funcao_liquidadas",       "B26", "Desp. Liquidadas por Funcao",
+  
+  # RCL (linha 29)
+  "rcl",                     "B29", "Receita Corrente Liquida",
+  
+  # RGPS (linhas 32-34)
+  "rgps_receitas",           "B32", "RGPS - Receitas",
+  "rgps_despesas",           "B33", "RGPS - Despesas",
+  "rgps_resultado",          "B34", "RGPS - Resultado",
+  
+  # RPPS Civil (linhas 36-38)
+  "rpps_receitas",           "B36", "RPPS - Receitas",
+  "rpps_despesas",           "B37", "RPPS - Despesas",
+  "rpps_resultado",          "B38", "RPPS - Resultado",
+  
+  # Militares (linhas 40-42)
+  "militar_receitas",        "B40", "Militares - Receitas",
+  "militar_despesas",        "B41", "Militares - Despesas",
+  "militar_resultado",       "B42", "Militares - Resultado",
+  
+  # FCDF (linhas 44-46)
+  "fcdf_receitas",           "B44", "FCDF - Receitas",
+  "fcdf_despesas",           "B45", "FCDF - Despesas",
+  "fcdf_resultado",          "B46", "FCDF - Resultado",
+  
+  # RESULTADOS (linhas 58-59)
+  "resultado_nominal",       "B58", "Resultado Nominal",
+  "resultado_primario",      "B59", "Resultado Primario",
+  
+  # RESTOS A PAGAR PROCESSADOS (linha 62)
+  "rpp_inscricao",           "B62", "RP Processados - Inscricao",
+  "rpp_cancelamento",        "C62", "RP Processados - Cancelamento",
+  "rpp_pagamento",           "D62", "RP Processados - Pagamento",
+  "rpp_saldo",               "E62", "RP Processados - Saldo",
+  
+  # RESTOS A PAGAR NAO PROCESSADOS (linha 68)
+  "rpnp_inscricao",          "B68", "RPNP - Inscricao",
+  "rpnp_cancelamento",       "C68", "RPNP - Cancelamento",
+  "rpnp_pagamento",          "D68", "RPNP - Pagamento",
+  "rpnp_saldo",              "E68", "RPNP - Saldo",
+  
+  # MDE (linhas 77, 79)
+  "mde_aplicado",            "B77", "MDE - Valor Aplicado",
+  "mde_minimo",              "C77", "MDE - Minimo a Aplicar",
+  "fundeb_complementacao",   "B79", "Complementacao FUNDEB",
+  
+  # ASPS (linha 82)
+  "asps_aplicado",           "B82", "ASPS - Valor Aplicado",
+  "asps_minimo",             "C82", "ASPS - Minimo a Aplicar"
+)
+
+# ----------------------------------------------------------------------------
+# MAPEAMENTO RGF ANEXO 06 - Celulas e descricoes
+# ----------------------------------------------------------------------------
+
+mapa_rgf_a06 <- tribble(
+  ~item, ~celula, ~descricao,
+  
+  # RCL (linha 10)
+  "rcl",                     "B10", "Receita Corrente Liquida",
+  
+  # PESSOAL - EXECUTIVO (linhas 15-18)
+  "dtp_executivo",           "B15", "DTP - Poder Executivo",
+  "limite_max_exec",         "B16", "Limite Maximo - Executivo",
+  "limite_prud_exec",        "B17", "Limite Prudencial - Executivo",
+  "limite_alerta_exec",      "B18", "Limite Alerta - Executivo",
+  
+  # PESSOAL - AMAPA (linhas 20-23)
+  "dtp_amapa",               "B20", "DTP - Amapa",
+  "limite_max_ap",           "B21", "Limite Maximo - Amapa",
+  "limite_prud_ap",          "B22", "Limite Prudencial - Amapa",
+  "limite_alerta_ap",        "B23", "Limite Alerta - Amapa",
+  
+  # PESSOAL - RORAIMA (linhas 25-28)
+  "dtp_roraima",             "B25", "DTP - Roraima",
+  "limite_max_rr",           "B26", "Limite Maximo - Roraima",
+  "limite_prud_rr",          "B27", "Limite Prudencial - Roraima",
+  "limite_alerta_rr",        "B28", "Limite Alerta - Roraima",
+  
+  # PESSOAL - DF (linhas 30-33)
+  "dtp_df",                  "B30", "DTP - Distrito Federal",
+  "limite_max_df",           "B31", "Limite Maximo - DF",
+  "limite_prud_df",          "B32", "Limite Prudencial - DF",
+  "limite_alerta_df",        "B33", "Limite Alerta - DF",
+  
+  # DIVIDA (linha 36-37)
+  "dcl",                     "B36", "Divida Consolidada Liquida",
+  "limite_dcl",              "B37", "Limite DCL (Resolucao SF)",
+  
+  # GARANTIAS (linhas 40-41)
+  "garantias",               "B40", "Total das Garantias",
+  "limite_garantias",        "B41", "Limite Garantias",
+  
+  # OPERACOES DE CREDITO (linhas 44-45)
+  "op_credito",              "B44", "Operacoes de Credito",
+  "limite_op_credito",       "B45", "Limite Op. Credito",
+  
+  # DISPONIBILIDADE (linha 52)
+  "rpnp_exercicio",          "B52", "RPNP do Exercicio",
+  "disponibilidade_caixa",   "C52", "Disponibilidade de Caixa Liquida"
+)
+
+# ----------------------------------------------------------------------------
+# FUNCAO: Ler todos os valores oficiais de um arquivo
+# ----------------------------------------------------------------------------
+
+ler_valores_oficiais <- function(arquivo, mapa) {
+  
+  if (!file.exists(arquivo)) {
+    cat(sprintf("AVISO: Arquivo nao encontrado: %s\n", arquivo))
+    return(mapa %>% mutate(valor_oficial = NA_real_))
+  }
+  
+  cat(sprintf("Lendo: %s\n", basename(arquivo)))
+  
+  mapa %>%
+    rowwise() %>%
+    mutate(valor_oficial = ler_celula(arquivo, celula)) %>%
+    ungroup()
+}
+
+# ----------------------------------------------------------------------------
+# FUNCAO: Comparar valores (oficial em milhares vs sistema em unidades)
+# ----------------------------------------------------------------------------
+
+comparar_com_sistema <- function(df_oficial, df_sistema, coluna_valor = "valor") {
+  
+  df_oficial %>%
+    left_join(
+      df_sistema %>% select(item, valor_sistema = !!sym(coluna_valor)), 
+      by = "item"
+    ) %>%
+    mutate(
+      # Sistema em milhares para comparar
+      sistema_milhar = valor_sistema / 1000,
+      
+      # Diferencas
+      diferenca = sistema_milhar - valor_oficial,
+      dif_pct = ifelse(
+        !is.na(valor_oficial) & valor_oficial != 0,
+        round((diferenca / abs(valor_oficial)) * 100, 4),
+        NA_real_
+      ),
+      
+      # Status
+      status = case_when(
+        is.na(valor_oficial) ~ "Sem oficial",
+        is.na(valor_sistema) ~ "Sem sistema",
+        abs(diferenca) < 1 ~ "OK",
+        abs(dif_pct) < 0.01 ~ "OK",
+        abs(dif_pct) < 0.1 ~ "Atencao",
+        TRUE ~ "DIVERGENTE"
+      )
+    ) %>%
+    select(item, descricao, celula, 
+           oficial = valor_oficial, 
+           sistema = sistema_milhar, 
+           diferenca, dif_pct, status)
+}
+
+# ----------------------------------------------------------------------------
+# FUNCAO: Exibir resultado da validacao
+# ----------------------------------------------------------------------------
+
+exibir_validacao <- function(df, titulo) {
+  
+  cat(sprintf("\n========== %s ==========\n", titulo))
+  
+  # Contagem por status
+  resumo <- df %>% count(status)
+  for (i in 1:nrow(resumo)) {
+    cat(sprintf("  %s: %d\n", resumo$status[i], resumo$n[i]))
+  }
+  
+  # Tabela com formatacao
+  df %>%
+    mutate(
+      oficial = ifelse(is.na(oficial), "-", format(round(oficial), big.mark = ".", decimal.mark = ",")),
+      sistema = ifelse(is.na(sistema), "-", format(round(sistema), big.mark = ".", decimal.mark = ",")),
+      diferenca = ifelse(is.na(diferenca), "-", format(round(diferenca), big.mark = ".", decimal.mark = ",")),
+      dif_pct = ifelse(is.na(dif_pct), "-", paste0(format(dif_pct, nsmall = 4), "%"))
+    ) %>%
+    datatable(
+      caption = titulo,
+      options = list(pageLength = 50, dom = 'Bfrtip'),
+      rownames = FALSE
+    ) %>%
+    formatStyle(
+      'status',
+      backgroundColor = styleEqual(
+        c("OK", "Atencao", "DIVERGENTE", "Sem oficial", "Sem sistema"),
+        c("#90EE90", "#FFFF99", "#FF6B6B", "#D3D3D3", "#D3D3D3")
+      )
+    )
+}
+
+# ============================================================================
+# EXECUCAO DA VALIDACAO
+# ============================================================================
+
+# 1. Ler valores oficiais
+cat("=== LEITURA DOS ARQUIVOS OFICIAIS ===\n")
+rreo_oficial <- ler_valores_oficiais(arquivo_rreo_a14, mapa_rreo_a14)
+rgf_oficial <- ler_valores_oficiais(arquivo_rgf_a06, mapa_rgf_a06)
+
+# 2. Preparar valores do sistema
+# ADAPTE esta secao conforme a estrutura do seu df_criterios_consolidado
+# Exemplo:
+
+# sistema_rreo <- tribble(
+#   ~item, ~valor,
+#   "previsao_inicial", sum(df_criterios_consolidado %>% filter(...) %>% pull(valor)),
+#   "receitas_realizadas", sum(...),
+#   ...
+# )
+
+# 3. Comparar e exibir
+# comparacao_rreo <- comparar_com_sistema(rreo_oficial, sistema_rreo)
+# exibir_validacao(comparacao_rreo, "VALIDACAO RREO ANEXO 14")
+
+# comparacao_rgf <- comparar_com_sistema(rgf_oficial, sistema_rgf)
+# exibir_validacao(comparacao_rgf, "VALIDACAO RGF ANEXO 06")
+
+# ============================================================================
+# VISUALIZACAO RAPIDA DOS VALORES OFICIAIS
+# ============================================================================
+
+cat("\n=== VALORES OFICIAIS RREO A14 (em milhares) ===\n")
+rreo_oficial %>%
+  filter(!is.na(valor_oficial)) %>%
+  mutate(valor_formatado = format(valor_oficial, big.mark = ".", decimal.mark = ",")) %>%
+  select(item, descricao, celula, valor_formatado) %>%
+  print(n = 50)
+
+cat("\n=== VALORES OFICIAIS RGF A06 (em milhares) ===\n")
+rgf_oficial %>%
+  filter(!is.na(valor_oficial)) %>%
+  mutate(valor_formatado = format(valor_oficial, big.mark = ".", decimal.mark = ",")) %>%
+  select(item, descricao, celula, valor_formatado) %>%
+  print(n = 30)
+```
+
+# Validação RREO
+
+```{r}
+# Validacao RREO A14 e RGF A06 - Sistema vs Oficial (R$ milhares)
+
+#| echo: true
+#| output: true
+
+# Funcao auxiliar para extrair valor com seguranca
+extrair_valor <- function(df, filtro_col, filtro_valor, coluna_valor = "Valor") {
+  tryCatch({
+    resultado <- df %>% filter(!!sym(filtro_col) == filtro_valor)
+    if (nrow(resultado) == 0) return(NA_real_)
+    val <- resultado[[coluna_valor]][1]
+    if (is.null(val) || length(val) == 0) return(NA_real_)
+    return(as.numeric(val))
+  }, error = function(e) NA_real_)
+}
+
+# Funcao para ler celula do Excel
+ler_celula <- function(arquivo, celula, sheet = 1) {
+  tryCatch({
+    read_excel(arquivo, sheet = sheet, range = celula, col_names = FALSE)[[1]][1]
+  }, error = function(e) NA_real_)
+}
+
+# MAPEAMENTO COMPLETO RREO A14
+mapa_rreo_a14 <- tribble(
+  ~item, ~celula, ~descricao, ~fonte,
+  # Balanco Orcamentario - Receitas (Anexo 1)
+  "bo_previsao_inicial",    "B10", "BO - Previsao Inicial Receita", "A01",
+  "bo_previsao_atualizada", "B11", "BO - Previsao Atualizada", "A01",
+  "bo_receitas_realizadas", "B12", "BO - Receitas Realizadas", "A01",
+  "bo_saldos_anteriores",   "B14", "BO - Saldos Exerc. Anteriores", "A01",
+  
+  # Balanco Orcamentario - Despesas (Anexo 2)
+  "bo_dotacao_inicial",     "B17", "BO - Dotacao Inicial", "A02",
+  "bo_dotacao_atualizada",  "B18", "BO - Dotacao Atualizada", "A02",
+  "bo_despesas_empenhadas", "B19", "BO - Despesas Empenhadas", "A02",
+  "bo_despesas_liquidadas", "B20", "BO - Despesas Liquidadas", "A02",
+  "bo_despesas_pagas",      "E21", "BO - Despesas Pagas", "A02",
+  "bo_superavit",           "B22", "BO - Superavit Orcamentario", "A02",
+  
+  # Despesas por Funcao (Anexo 2 - exceto refinanciamento)
+  "funcao_empenhadas",      "B25", "Funcao - Desp. Empenhadas", "A02",
+  "funcao_liquidadas",      "B26", "Funcao - Desp. Liquidadas", "A02",
+  
+  # RCL (Anexo 3)
+  "rcl",                    "B29", "Receita Corrente Liquida", "A03",
+  
+  # RGPS (Anexo 4)
+  "rgps_receitas",          "B32", "RGPS - Receitas", "A04",
+  "rgps_despesas",          "B33", "RGPS - Despesas", "A04",
+  "rgps_resultado",         "B34", "RGPS - Resultado", "A04",
+  
+  # RPPS Civil (Anexo 4)
+  "rpps_receitas",          "B36", "RPPS Civil - Receitas", "A04",
+  "rpps_despesas",          "B37", "RPPS Civil - Despesas", "A04",
+  "rpps_resultado",         "B38", "RPPS Civil - Resultado", "A04",
+  
+  # Militares (Anexo 4)
+  "militar_receitas",       "B40", "Militares - Receitas", "A04",
+  "militar_despesas",       "B41", "Militares - Despesas", "A04",
+  "militar_resultado",      "B42", "Militares - Resultado", "A04",
+  
+  # FCDF (Anexo 4)
+  "fcdf_receitas",          "B44", "FCDF - Receitas", "A04",
+  "fcdf_despesas",          "B45", "FCDF - Despesas", "A04",
+  "fcdf_resultado",         "B46", "FCDF - Resultado", "A04",
+  
+  # Resultados (Anexo 6)
+  "resultado_nominal",      "B58", "Resultado Nominal", "A06",
+  "resultado_primario",     "B59", "Resultado Primario", "A06",
+  
+  # Restos a Pagar Processados (Anexo 7)
+  "rpp_inscricao",          "B62", "RP Proc - Inscricao", "A07",
+  "rpp_cancelamento",       "C62", "RP Proc - Cancelamento", "A07",
+  "rpp_pagamento",          "D62", "RP Proc - Pagamento", "A07",
+  "rpp_saldo",              "E62", "RP Proc - Saldo", "A07",
+  
+  # Restos a Pagar Nao Processados (Anexo 7)
+  "rpnp_inscricao",         "B68", "RPNP - Inscricao", "A07",
+  "rpnp_cancelamento",      "C68", "RPNP - Cancelamento", "A07",
+  "rpnp_pagamento",         "D68", "RPNP - Pagamento", "A07",
+  "rpnp_saldo",             "E68", "RPNP - Saldo", "A07",
+  
+  # MDE (Anexo 8)
+  "mde_aplicado",           "B77", "MDE - Valor Aplicado", "A08",
+  "mde_minimo",             "C77", "MDE - Minimo a Aplicar", "A08",
+  "fundeb_complementacao",  "B79", "Complementacao FUNDEB", "A08",
+  
+  # ASPS (Anexo 12)
+  "asps_aplicado",          "B82", "ASPS - Valor Aplicado", "A12",
+  "asps_minimo",            "C82", "ASPS - Minimo a Aplicar", "A12"
+)
+
+# COLETAR VALORES DO SISTEMA - RREO
+cat("Coletando valores do sistema RREO...\n")
+
+# RCL
+valor_rcl <- tryCatch({
+  res <- sum(rcl_12_meses$resultado, na.rm = TRUE)
+  if (length(res) == 0) NA_real_ else as.numeric(res[1])
+}, error = function(e) NA_real_)
+
+# RGPS
+valor_rgps_rec <- extrair_valor(df_resultado_rgps, "Tipo", "Receita_RGPS")
+valor_rgps_desp <- extrair_valor(df_resultado_rgps, "Tipo", "Despesa_RGPS")
+valor_rgps_res <- extrair_valor(df_resultado_rgps, "Tipo", "Resultado_RGPS")
+
+# RPPS Civil
+valor_rpps_rec <- extrair_valor(df_resultado_rpps_civil, "Tipo", "Receita_RPPS_Civil")
+valor_rpps_desp <- extrair_valor(df_resultado_rpps_civil, "Tipo", "Despesa_RPPS_Civil")
+valor_rpps_res <- extrair_valor(df_resultado_rpps_civil, "Tipo", "Resultado_RPPS_Civil")
+
+# RPPS Militar
+valor_mil_rec <- extrair_valor(df_resultado_rpps_militar, "Tipo", "Receita_RPPS_Militar")
+valor_mil_desp <- extrair_valor(df_resultado_rpps_militar, "Tipo", "Despesa_RPPS_Militar")
+valor_mil_res <- extrair_valor(df_resultado_rpps_militar, "Tipo", "Resultado_RPPS_Militar")
+
+# FCDF
+valor_fcdf_rec <- extrair_valor(df_resultado_fcdf, "Tipo", "Receita_FCDF")
+valor_fcdf_desp <- extrair_valor(df_resultado_fcdf, "Tipo", "Despesa_FCDF")
+valor_fcdf_res <- extrair_valor(df_resultado_fcdf, "Tipo", "Resultado_FCDF")
+
+# Resultado Primario
+valor_res_prim <- tryCatch({
+  res <- resultado_primario %>%
+    filter(componente == "RESULTADO PRIMÁRIO (XII - XXIII)") %>%
+    pull(valor)
+  if (length(res) == 0) NA_real_ else as.numeric(res[1])
+}, error = function(e) NA_real_)
+
+# Resultado Nominal (ajustar se tiver variavel especifica)
+valor_res_nominal <- tryCatch({
+  if (exists("valor_resultado_nominal")) valor_resultado_nominal else NA_real_
+}, error = function(e) NA_real_)
+
+# MDE - Total Despesas (usar variavel direta se existir)
+valor_mde <- tryCatch({
+  if (exists("total_despesas_mde")) {
+    as.numeric(total_despesas_mde)
+  } else {
+    # Fallback para resumo_aplicacao
+    texto <- resumo_aplicacao %>% filter(grepl("Total Despesas MDE|Total Aplicado", Item)) %>% pull(Valor)
+    if (length(texto) == 0) return(NA_real_)
+    as.numeric(gsub("[^0-9.-]", "", texto[1]))
+  }
+}, error = function(e) NA_real_)
+
+# MDE - Minimo (18% RLI) - usar variavel direta
+valor_mde_minimo <- tryCatch({
+  if (exists("rli_atual")) {
+    as.numeric(rli_atual)
+  } else {
+    texto <- resumo_aplicacao %>% filter(grepl("18%|Base de Cálculo|RLI", Item)) %>% pull(Valor)
+    if (length(texto) == 0) return(NA_real_)
+    as.numeric(gsub("[^0-9.-]", "", texto[1]))
+  }
+}, error = function(e) NA_real_)
+
+# FUNDEB - Complementacao (100%)
+valor_fundeb <- tryCatch({
+  if (exists("complementacao_fundeb")) {
+    as.numeric(complementacao_fundeb)
+  } else {
+    texto <- resumo_aplicacao %>% filter(grepl("Complementação FUNDEB|FUNDEB", Item)) %>% pull(Valor)
+    if (length(texto) == 0) return(NA_real_)
+    as.numeric(gsub("[^0-9.-]", "", texto[1]))
+  }
+}, error = function(e) NA_real_)
+
+# Balanco Orcamentario - Receitas
+# Previsao Inicial (codigo 1)
+valor_bo_prev_ini <- tryCatch({
+  dados_receita %>% 
+    filter(item_informacao_codigo == "1") %>% 
+    summarise(v = sum(saldo_r_item_informacao, na.rm = TRUE)) %>% 
+    pull(v)
+}, error = function(e) NA_real_)
+
+# Previsao Atualizada = Previsao Inicial (mesmo valor no TG)
+valor_bo_prev_atu <- valor_bo_prev_ini
+
+# Receitas Realizadas (codigo 5)
+valor_bo_rec_rea <- tryCatch({
+  dados_receita %>% 
+    filter(item_informacao_codigo == "5") %>% 
+    summarise(v = sum(saldo_r_item_informacao, na.rm = TRUE)) %>% 
+    pull(v)
+}, error = function(e) NA_real_)
+
+# Balanco Orcamentario - Despesas
+# Dotacao Inicial (codigo 9)
+valor_bo_dot_ini <- tryCatch({
+  dados_despesa %>% 
+    filter(item_informacao_codigo == "9") %>% 
+    summarise(v = sum(saldo_r_item_informacao, na.rm = TRUE)) %>% 
+    pull(v)
+}, error = function(e) NA_real_)
+
+# Dotacao Atualizada (codigo 13)
+valor_bo_dot_atu <- tryCatch({
+  dados_despesa %>% 
+    filter(item_informacao_codigo == "13") %>% 
+    summarise(v = sum(saldo_r_item_informacao, na.rm = TRUE)) %>% 
+    pull(v)
+}, error = function(e) NA_real_)
+
+# Despesas Empenhadas (codigo 23)
+valor_bo_emp <- tryCatch({
+  dados_despesa %>% 
+    filter(item_informacao_codigo == "23") %>% 
+    summarise(v = sum(saldo_r_item_informacao, na.rm = TRUE)) %>% 
+    pull(v)
+}, error = function(e) NA_real_)
+
+# Despesas Liquidadas (codigo 25)
+valor_bo_liq <- tryCatch({
+  dados_despesa %>% 
+    filter(item_informacao_codigo == "25") %>% 
+    summarise(v = sum(saldo_r_item_informacao, na.rm = TRUE)) %>% 
+    pull(v)
+}, error = function(e) NA_real_)
+
+# Despesas Pagas (codigo 28) - APENAS exercicio, não RAP
+valor_bo_pag <- tryCatch({
+  dados_despesa %>% 
+    filter(item_informacao_codigo == "28") %>% 
+    summarise(v = sum(saldo_r_item_informacao, na.rm = TRUE)) %>% 
+    pull(v)
+}, error = function(e) NA_real_)
+
+# Superavit Orcamentario = Receitas Realizadas - Despesas Liquidadas
+valor_bo_superavit <- tryCatch({
+  valor_bo_rec_rea - valor_bo_liq
+}, error = function(e) NA_real_)
+
+# Despesas por Funcao (exceto refinanciamento) - usar minusculas
+valor_funcao_emp <- tryCatch({
+  dados_despesa %>% 
+    filter(item_informacao_codigo == "23", refinanciamento == "nao") %>% 
+    summarise(v = sum(saldo_r_item_informacao, na.rm = TRUE)) %>% 
+    pull(v)
+}, error = function(e) NA_real_)
+
+valor_funcao_liq <- tryCatch({
+  dados_despesa %>% 
+    filter(item_informacao_codigo == "25", refinanciamento == "nao") %>% 
+    summarise(v = sum(saldo_r_item_informacao, na.rm = TRUE)) %>% 
+    pull(v)
+}, error = function(e) NA_real_)
+
+# Restos a Pagar - usar dados_rp_anexo_07
+# RP Processados - Inscricao (soma dos dois itens de inscritos)
+valor_rpp_insc_calc <- tryCatch({
+  dados_rp_anexo_07 %>%
+    filter(mes_lancamento == mes_filtro,
+           item_informacao_nome %in% c("RP Processados Inscritos em 31 de Dezembro do Ano Anterior",
+                                       "RP Processados Inscritos em Exercícios Anteriores")) %>%
+    summarise(v = sum(saldo_r_item_informacao, na.rm = TRUE)) %>%
+    pull(v)
+}, error = function(e) NA_real_)
+
+# RP Processados - Cancelamento
+valor_rpp_cancel <- tryCatch({
+  dados_rp_anexo_07 %>%
+    filter(mes_lancamento == mes_filtro,
+           item_informacao_nome == "RP Processados Cancelados") %>%
+    summarise(v = sum(saldo_r_item_informacao, na.rm = TRUE)) %>%
+    pull(v)
+}, error = function(e) NA_real_)
+
+# RP Processados - Pagamento
+valor_rpp_pag <- tryCatch({
+  dados_rp_anexo_07 %>%
+    filter(mes_lancamento == mes_filtro,
+           item_informacao_nome == "RP Processados Pagos") %>%
+    summarise(v = sum(saldo_r_item_informacao, na.rm = TRUE)) %>%
+    pull(v)
+}, error = function(e) NA_real_)
+
+# RP Processados - Saldo
+valor_rpp_saldo <- tryCatch({
+  dados_rp_anexo_07 %>%
+    filter(mes_lancamento == mes_filtro,
+           item_informacao_nome == "RP Processados a Pagar (saldo a pagar)") %>%
+    summarise(v = sum(saldo_r_item_informacao, na.rm = TRUE)) %>%
+    pull(v)
+}, error = function(e) NA_real_)
+
+# RPNP - Inscricao (soma dos dois itens de inscritos)
+valor_rpnp_insc_calc <- tryCatch({
+  dados_rp_anexo_07 %>%
+    filter(mes_lancamento == mes_filtro,
+           item_informacao_nome %in% c("RPNP Inscritos em 31 de Dezembro do Ano Anterior",
+                                       "RPNP Inscritos em Exercícios Anteriores")) %>%
+    summarise(v = sum(saldo_r_item_informacao, na.rm = TRUE)) %>%
+    pull(v)
+}, error = function(e) NA_real_)
+
+# RPNP - Cancelamento
+valor_rpnp_cancel <- tryCatch({
+  dados_rp_anexo_07 %>%
+    filter(mes_lancamento == mes_filtro,
+           item_informacao_nome == "RPNP Cancelados") %>%
+    summarise(v = sum(saldo_r_item_informacao, na.rm = TRUE)) %>%
+    pull(v)
+}, error = function(e) NA_real_)
+
+# RPNP - Pagamento
+valor_rpnp_pag <- tryCatch({
+  dados_rp_anexo_07 %>%
+    filter(mes_lancamento == mes_filtro,
+           item_informacao_nome == "RPNP Pagos") %>%
+    summarise(v = sum(saldo_r_item_informacao, na.rm = TRUE)) %>%
+    pull(v)
+}, error = function(e) NA_real_)
+
+# RPNP - Saldo
+valor_rpnp_saldo <- tryCatch({
+  dados_rp_anexo_07 %>%
+    filter(mes_lancamento == mes_filtro,
+           item_informacao_nome == "RPNP a Pagar (saldo a pagar)") %>%
+    summarise(v = sum(saldo_r_item_informacao, na.rm = TRUE)) %>%
+    pull(v)
+}, error = function(e) NA_real_)
+
+# ASPS - Valor Aplicado (usar total_despesas_computadas se existir)
+valor_asps <- tryCatch({
+  if (exists("total_despesas_computadas")) total_despesas_computadas else NA_real_
+}, error = function(e) NA_real_)
+
+# ASPS - Minimo (15% da RCL)
+valor_asps_minimo <- tryCatch({
+  if (exists("minimo_saude")) {
+    if (is.data.frame(minimo_saude)) {
+      (minimo_saude$receitas - minimo_saude$deducoes + minimo_saude$rp_cancelado) * 0.15
+    } else {
+      as.numeric(minimo_saude)
+    }
+  } else {
+    NA_real_
+  }
+}, error = function(e) NA_real_)
+
+# Montar dataframe do sistema RREO
+sistema_rreo <- tibble(
+  item = c(
+    "bo_previsao_inicial", "bo_previsao_atualizada", "bo_receitas_realizadas", "bo_saldos_anteriores",
+    "bo_dotacao_inicial", "bo_dotacao_atualizada", "bo_despesas_empenhadas", "bo_despesas_liquidadas", 
+    "bo_despesas_pagas", "bo_superavit",
+    "funcao_empenhadas", "funcao_liquidadas",
+    "rcl",
+    "rgps_receitas", "rgps_despesas", "rgps_resultado",
+    "rpps_receitas", "rpps_despesas", "rpps_resultado",
+    "militar_receitas", "militar_despesas", "militar_resultado",
+    "fcdf_receitas", "fcdf_despesas", "fcdf_resultado",
+    "resultado_nominal", "resultado_primario",
+    "rpp_inscricao", "rpp_cancelamento", "rpp_pagamento", "rpp_saldo",
+    "rpnp_inscricao", "rpnp_cancelamento", "rpnp_pagamento", "rpnp_saldo",
+    "mde_aplicado", "mde_minimo", "fundeb_complementacao",
+    "asps_aplicado", "asps_minimo"
+  ),
+  valor = c(
+    valor_bo_prev_ini, valor_bo_prev_atu, valor_bo_rec_rea, NA_real_,
+    valor_bo_dot_ini, valor_bo_dot_atu, valor_bo_emp, valor_bo_liq,
+    valor_bo_pag, valor_bo_superavit,
+    valor_funcao_emp, valor_funcao_liq,
+    valor_rcl,
+    valor_rgps_rec, valor_rgps_desp, valor_rgps_res,
+    valor_rpps_rec, valor_rpps_desp, valor_rpps_res,
+    valor_mil_rec, valor_mil_desp, valor_mil_res,
+    valor_fcdf_rec, valor_fcdf_desp, valor_fcdf_res,
+    valor_res_nominal, valor_res_prim,
+    valor_rpp_insc_calc, valor_rpp_cancel, valor_rpp_pag, valor_rpp_saldo,
+    valor_rpnp_insc_calc, valor_rpnp_cancel, valor_rpnp_pag, valor_rpnp_saldo,
+    valor_mde, valor_mde_minimo, valor_fundeb,
+    valor_asps, valor_asps_minimo
+  )
+) %>%
+  mutate(valor_milhar = valor / 1000)
+
+# LER VALORES OFICIAIS RREO
+arquivo_rreo_a14 <- str_c(mes_pasta, "Anexo 14 - Simplificado.xlsm")
+cat(sprintf("Lendo arquivo oficial: %s\n", arquivo_rreo_a14))
+
+rreo_oficial <- mapa_rreo_a14 %>%
+  rowwise() %>%
+  mutate(valor_oficial = as.numeric(ler_celula(arquivo_rreo_a14, celula))) %>%
+  ungroup()
+
+# COMPARAR VALORES RREO
+comparacao_rreo <- rreo_oficial %>%
+  left_join(sistema_rreo %>% select(item, sistema = valor_milhar), by = "item") %>%
+  mutate(
+    diferenca = sistema - valor_oficial,
+    dif_pct = ifelse(!is.na(valor_oficial) & valor_oficial != 0,
+                     (diferenca / abs(valor_oficial)) * 100, NA_real_),
+    status = case_when(
+      is.na(valor_oficial) ~ "Sem oficial",
+      is.na(sistema) ~ "Sem sistema",
+      abs(diferenca) < 1 ~ "OK",
+      abs(dif_pct) < 0.1 ~ "OK",
+      abs(dif_pct) < 1 ~ "Verificar",
+      TRUE ~ "DIVERGENTE"
+    )
+  ) %>%
+  select(item, descricao, fonte, celula, oficial = valor_oficial, sistema, diferenca, dif_pct, status)
+
+# EXIBIR RREO
+cat("\n--- VALIDACAO RREO ANEXO 14 ---\n")
+resumo_rreo <- comparacao_rreo %>% count(status)
+for (i in 1:nrow(resumo_rreo)) cat(sprintf("  %s: %d\n", resumo_rreo$status[i], resumo_rreo$n[i]))
+
+datatable(
+  comparacao_rreo %>%
+    mutate(
+      oficial = ifelse(is.na(oficial), "-", format(round(oficial, 0), big.mark = ".", decimal.mark = ",")),
+      sistema = ifelse(is.na(sistema), "-", format(round(sistema, 0), big.mark = ".", decimal.mark = ",")),
+      diferenca = ifelse(is.na(diferenca), "-", format(round(diferenca, 0), big.mark = ".", decimal.mark = ",")),
+      dif_pct = ifelse(is.na(dif_pct), "-", paste0(format(round(dif_pct, 1), nsmall = 1), "%"))
+    ),
+  caption = "RREO Anexo 14 - Sistema vs Oficial (R$ milhares)",
+  options = list(pageLength = 50, dom = 't',
+    columnDefs = list(list(className = 'dt-right', targets = c(4, 5, 6, 7)))),
+  rownames = FALSE
+) %>%
+  formatStyle('status', backgroundColor = styleEqual(
+    c("OK", "Verificar", "DIVERGENTE", "Sem oficial", "Sem sistema"),
+    c("#90EE90", "#FFD700", "#FF6B6B", "#D3D3D3", "#D3D3D3")
+  ))
+```
+
+
+```{r}
+#| column: screen 
+datatable(
+  comparacao_rreo %>%
+    mutate(
+      oficial = ifelse(is.na(oficial), "-", format(round(oficial, 0), big.mark = ".", decimal.mark = ",")),
+      sistema = ifelse(is.na(sistema), "-", format(round(sistema, 0), big.mark = ".", decimal.mark = ",")),
+      diferenca = ifelse(is.na(diferenca), "-", format(round(diferenca, 0), big.mark = ".", decimal.mark = ",")),
+      dif_pct = ifelse(is.na(dif_pct), "-", paste0(format(round(dif_pct, 1), nsmall = 1), "%"))
+    ),
+  caption = "RREO Anexo 14 - Sistema vs Oficial (R$ milhares)",
+  options = list(pageLength = 50, dom = 't',
+    columnDefs = list(list(className = 'dt-right', targets = c(4, 5, 6, 7)))),
+  rownames = FALSE
+) %>%
+  formatStyle('status', backgroundColor = styleEqual(
+    c("OK", "Verificar", "DIVERGENTE", "Sem oficial", "Sem sistema"),
+    c("#90EE90", "#FFD700", "#FF6B6B", "#D3D3D3", "#D3D3D3")
+  ))
+```
+
+
+
+```{r}
+# Validacao RGF A06 - Sistema vs Oficial (R$ milhares)
+
+#| echo: true
+#| output: true
+#| eval: false
+
+# # MAPEAMENTO RGF A06
+# mapa_rgf_a06 <- tribble(
+#   ~item, ~celula, ~descricao, ~fonte,
+#   # RCL
+#   "rcl",                   "B10", "Receita Corrente Liquida", "RGF",
+#   
+#   # Pessoal - Executivo
+#   "dtp_executivo",         "B15", "DTP - Poder Executivo", "A01",
+#   "limite_max_exec",       "B16", "Limite Maximo - Executivo", "A01",
+#   "limite_prud_exec",      "B17", "Limite Prudencial - Executivo", "A01",
+#   "limite_alerta_exec",    "B18", "Limite Alerta - Executivo", "A01",
+#   
+#   # Pessoal - Amapa
+#   "dtp_amapa",             "B20", "DTP - Amapa", "A01",
+#   "limite_max_ap",         "B21", "Limite Maximo - Amapa", "A01",
+#   "limite_prud_ap",        "B22", "Limite Prudencial - Amapa", "A01",
+#   "limite_alerta_ap",      "B23", "Limite Alerta - Amapa", "A01",
+#   
+#   # Pessoal - Roraima
+#   "dtp_roraima",           "B25", "DTP - Roraima", "A01",
+#   "limite_max_rr",         "B26", "Limite Maximo - Roraima", "A01",
+#   "limite_prud_rr",        "B27", "Limite Prudencial - Roraima", "A01",
+#   "limite_alerta_rr",      "B28", "Limite Alerta - Roraima", "A01",
+#   
+#   # Pessoal - DF
+#   "dtp_df",                "B30", "DTP - Distrito Federal", "A01",
+#   "limite_max_df",         "B31", "Limite Maximo - DF", "A01",
+#   "limite_prud_df",        "B32", "Limite Prudencial - DF", "A01",
+#   "limite_alerta_df",      "B33", "Limite Alerta - DF", "A01",
+#   
+#   # Divida (Anexo 2)
+#   "dcl",                   "B36", "Divida Consolidada Liquida", "A02",
+#   "limite_dcl",            "B37", "Limite DCL (Resolucao SF)", "A02",
+#   
+#   # Garantias (Anexo 3)
+#   "garantias",             "B40", "Total das Garantias", "A03",
+#   "limite_garantias",      "B41", "Limite Garantias", "A03",
+#   
+#   # Operacoes de Credito (Anexo 4)
+#   "op_credito",            "B44", "Operacoes de Credito", "A04",
+#   "limite_op_credito",     "B45", "Limite Op. Credito", "A04",
+#   
+#   # Disponibilidade (Anexo 5)
+#   "rpnp_exercicio",        "B52", "RPNP do Exercicio", "A05",
+#   "disponibilidade_caixa", "C52", "Disponibilidade Caixa Liquida", "A05"
+# )
+# 
+# # COLETAR VALORES DO SISTEMA - RGF
+# cat("Coletando valores do sistema RGF...\n")
+# 
+# # RCL para RGF (mesma do RREO ou especifica)
+# valor_rcl_rgf <- tryCatch({
+#   res <- sum(rcl_12_meses$resultado, na.rm = TRUE)
+#   if (length(res) == 0) NA_real_ else as.numeric(res[1])
+# }, error = function(e) NA_real_)
+# 
+# # DTP Executivo (ajustar conforme sua variavel)
+# valor_dtp_exec <- tryCatch({
+#   if (exists("dtp_executivo")) dtp_executivo else NA_real_
+# }, error = function(e) NA_real_)
+# 
+# # DTP Amapa
+# valor_dtp_ap <- tryCatch({
+#   if (exists("dtp_amapa")) dtp_amapa else NA_real_
+# }, error = function(e) NA_real_)
+# 
+# # DTP Roraima
+# valor_dtp_rr <- tryCatch({
+#   if (exists("dtp_roraima")) dtp_roraima else NA_real_
+# }, error = function(e) NA_real_)
+# 
+# # DTP DF
+# valor_dtp_df <- tryCatch({
+#   if (exists("dtp_df")) dtp_df else NA_real_
+# }, error = function(e) NA_real_)
+# 
+# # DCL
+# valor_dcl_rgf <- tryCatch({
+#   if (exists("valor_dcl")) valor_dcl else NA_real_
+# }, error = function(e) NA_real_)
+# 
+# # Garantias
+# valor_garantias <- tryCatch({
+#   if (exists("total_garantias")) total_garantias else NA_real_
+# }, error = function(e) NA_real_)
+# 
+# # Operacoes de Credito
+# valor_op_cred <- tryCatch({
+#   if (exists("op_credito_total")) op_credito_total else NA_real_
+# }, error = function(e) NA_real_)
+# 
+# # Limites (calcular a partir da RCL)
+# rcl_rgf <- valor_rcl_rgf / 1000  # em milhares
+# limite_max_exec <- rcl_rgf * 0.379  # 37,9% para Executivo
+# limite_prud_exec <- limite_max_exec * 0.95
+# limite_alerta_exec <- limite_max_exec * 0.90
+# 
+# # Montar dataframe do sistema RGF
+# sistema_rgf <- tibble(
+#   item = c(
+#     "rcl",
+#     "dtp_executivo", "limite_max_exec", "limite_prud_exec", "limite_alerta_exec",
+#     "dtp_amapa", "limite_max_ap", "limite_prud_ap", "limite_alerta_ap",
+#     "dtp_roraima", "limite_max_rr", "limite_prud_rr", "limite_alerta_rr",
+#     "dtp_df", "limite_max_df", "limite_prud_df", "limite_alerta_df",
+#     "dcl", "limite_dcl",
+#     "garantias", "limite_garantias",
+#     "op_credito", "limite_op_credito",
+#     "rpnp_exercicio", "disponibilidade_caixa"
+#   ),
+#   valor = c(
+#     valor_rcl_rgf,
+#     valor_dtp_exec, NA_real_, NA_real_, NA_real_,
+#     valor_dtp_ap, NA_real_, NA_real_, NA_real_,
+#     valor_dtp_rr, NA_real_, NA_real_, NA_real_,
+#     valor_dtp_df, NA_real_, NA_real_, NA_real_,
+#     valor_dcl_rgf, NA_real_,
+#     valor_garantias, NA_real_,
+#     valor_op_cred, NA_real_,
+#     NA_real_, NA_real_
+#   )
+# ) %>%
+#   mutate(valor_milhar = valor / 1000)
+# 
+# # LER VALORES OFICIAIS RGF
+# arquivo_rgf_a06 <- str_c(mes_pasta, "rgf_a06_oficial.xlsx")
+# 
+# # Verificar se arquivo existe
+# if (file.exists(arquivo_rgf_a06)) {
+#   cat(sprintf("Lendo arquivo oficial: %s\n", arquivo_rgf_a06))
+#   
+#   rgf_oficial <- mapa_rgf_a06 %>%
+#     rowwise() %>%
+#     mutate(valor_oficial = as.numeric(ler_celula(arquivo_rgf_a06, celula))) %>%
+#     ungroup()
+#   
+#   # COMPARAR VALORES RGF
+#   comparacao_rgf <- rgf_oficial %>%
+#     left_join(sistema_rgf %>% select(item, sistema = valor_milhar), by = "item") %>%
+#     mutate(
+#       diferenca = sistema - valor_oficial,
+#       dif_pct = ifelse(!is.na(valor_oficial) & valor_oficial != 0,
+#                        (diferenca / abs(valor_oficial)) * 100, NA_real_),
+#       status = case_when(
+#         is.na(valor_oficial) ~ "Sem oficial",
+#         is.na(sistema) ~ "Sem sistema",
+#         abs(diferenca) < 1 ~ "OK",
+#         abs(dif_pct) < 0.1 ~ "OK",
+#         abs(dif_pct) < 1 ~ "Verificar",
+#         TRUE ~ "DIVERGENTE"
+#       )
+#     ) %>%
+#     select(item, descricao, fonte, celula, oficial = valor_oficial, sistema, diferenca, dif_pct, status)
+#   
+#   # EXIBIR RGF
+#   cat("\n--- VALIDACAO RGF ANEXO 06 ---\n")
+#   resumo_rgf <- comparacao_rgf %>% count(status)
+#   for (i in 1:nrow(resumo_rgf)) cat(sprintf("  %s: %d\n", resumo_rgf$status[i], resumo_rgf$n[i]))
+#   
+#   datatable(
+#     comparacao_rgf %>%
+#       mutate(
+#         oficial = ifelse(is.na(oficial), "-", format(round(oficial, 0), big.mark = ".", decimal.mark = ",")),
+#         sistema = ifelse(is.na(sistema), "-", format(round(sistema, 0), big.mark = ".", decimal.mark = ",")),
+#         diferenca = ifelse(is.na(diferenca), "-", format(round(diferenca, 0), big.mark = ".", decimal.mark = ",")),
+#         dif_pct = ifelse(is.na(dif_pct), "-", paste0(format(round(dif_pct, 1), nsmall = 1), "%"))
+#       ),
+#     caption = "RGF Anexo 06 - Sistema vs Oficial (R$ milhares)",
+#     options = list(pageLength = 30, dom = 't',
+#       columnDefs = list(list(className = 'dt-right', targets = c(4, 5, 6, 7)))),
+#     rownames = FALSE
+#   ) %>%
+#     formatStyle('status', backgroundColor = styleEqual(
+#       c("OK", "Verificar", "DIVERGENTE", "Sem oficial", "Sem sistema"),
+#       c("#90EE90", "#FFD700", "#FF6B6B", "#D3D3D3", "#D3D3D3")
+#     ))
+# } else {
+#   cat(sprintf("AVISO: Arquivo RGF nao encontrado: %s\n", arquivo_rgf_a06))
+#   cat("Pulando validacao do RGF.\n")
+# }
+```
+
