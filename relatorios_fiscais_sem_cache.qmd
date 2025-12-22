@@ -764,7 +764,6 @@ cat(sprintf("✓ RGF A05: %s registros (%d arquivos)\n",
 
 # Funções {#sec-funcoes-aux}
 
-
 ## Mapear arquivo
 
 ```{r}
@@ -835,7 +834,6 @@ mapear_arquivos_tg <- function(pasta, pattern = "\\.xlsx$") {
 # datatable(df_arquivos_tg)
 # ============================================================================
 ```
-
 
 ## Aplicar Critérios
 
@@ -6240,31 +6238,41 @@ criterios_rreo_A06_disponibilidades_A06 <- list(
 # ===============================================================================
 criterios_rreo_A06_juros_ativos_passivos_A06 <- list(
   
-  # JUROS ATIVOS
+  # JUROS ATIVOS (XXV) - VPA Classe 4 - O que a União RECEBE
+  # Contas começando com 44
   `41  Juros Ativos` = list(
     criterio = "
-    substr(conta_contabil_numero, 1, 5) %in% c('34111', '34113', '34114', '34115', '34121', '34131', 
-                                              '34141', '34181', '34183', '34184', '34185', '34191',
-                                              '34211', '34213', '34214', '34215', '34221', '34291') |
-    conta_contabil_numero %in% c('445110100', '445210100')
+    substr(conta_contabil_numero, 1, 2) == '44'
     "
   ),
   
-  # JUROS PASSIVOS
+  # JUROS PASSIVOS (XXVI) - VPD Classe 3 - O que a União PAGA
+  # Contas começando com 34
   `42  Juros Passivos` = list(
     criterio = "
-    substr(conta_contabil_numero, 1, 5) %in% c('44111', '44113', '44114', '44115', '44121', '44131', 
-                                              '44133', '44134', '44135', '44141', '44211', '44213', 
-                                              '44214', '44215', '44221')
+    substr(conta_contabil_numero, 1, 2) == '34'
     "
   ),
   
-  # FUNDOS - FILTRO ESPECÍFICO PARA JUROS
-  `43  Fundos - Juros (Filtro Específico)` = list(
+  # FUNDOS - JUROS ATIVOS (contas 44)
+  # Valor esperado: 15.174.626.701
+  `43  Fundos - Juros Ativos` = list(
     criterio = "
     orgao_uge_tipo_administracao_codigo == '7' & 
     ug_executora_codigo != '380916' & 
-    !orgao_uge_codigo %in% c('25915', '37904')
+    !orgao_uge_codigo %in% c('25915', '37904') &
+    substr(conta_contabil_numero, 1, 2) == '44'
+    "
+  ),
+  
+  # FUNDOS - JUROS PASSIVOS (contas 34)
+  # Valor esperado: 2.364.213.994
+  `44  Fundos - Juros Passivos` = list(
+    criterio = "
+    orgao_uge_tipo_administracao_codigo == '7' & 
+    ug_executora_codigo != '380916' & 
+    !orgao_uge_codigo %in% c('25915', '37904') &
+    substr(conta_contabil_numero, 1, 2) == '34'
     "
   )
 )
@@ -6340,52 +6348,408 @@ datatable(rreo_a06_final)%>%
 
 ```{r}
 # ==============================================================================
-# RREO ANEXO 6 - RESULTADO PRIMÁRIO
+# RREO ANEXO 6 - RESULTADO PRIMÁRIO E NOMINAL
+# ==============================================================================
+# Dados: rreo_a06_final (TG)
+# Ajuste Metodológico: comparativo.xlsx (outra área - RTN)
+#
+# Fórmulas:
+#   Receita Primária = Rec. Correntes - Aplicações Fin. - Outras Rec. Fin. + Rec. Capital Primárias
+#   Despesa Primária = Desp. Correntes - Juros Dívida + Desp. Capital - Amortização - Conc. Empréstimos + Subsídios
+#   RP TG = Receita Primária - Despesa Primária
+#   Ajuste Metodológico = SOMA(RP_RTN_mensal) × 1.000.000 - RP TG
+#   RP Final = RP TG + Ajuste
+#   RN = RP Final + Juros Ativos - Juros Passivos
 # ==============================================================================
 
-# Função auxiliar
+#| echo: true
+#| output: true
+
+# ------------------------------------------------------------------------------
+# 1. FUNÇÃO AUXILIAR - Obter valor por código da categoria
+# ------------------------------------------------------------------------------
 obter_valor <- function(codigo) {
   linha <- rreo_a06_final %>% 
-    filter(str_detect(categoria, paste0("^", sprintf("%02d", codigo), "  ")))
+    filter(str_detect(categoria, paste0("^", sprintf("%02d", codigo), " ")))
   if (nrow(linha) == 0) return(0)
   return(linha$valor[1])
 }
 
-# Cálculos
+# ------------------------------------------------------------------------------
+# 2. RECEITAS PRIMÁRIAS (dados do TG)
+# ------------------------------------------------------------------------------
+# 01 RECEITAS CORRENTES (I)
+# 05 Aplicações Financeiras (II) - deduzir
+# 09 Outras Receitas Financeiras (III) - deduzir
+# 12 RECEITAS DE CAPITAL (V)
+# 13 Operações de Crédito (VI) - deduzir
+# 14 Amortização de Empréstimos (VII) - deduzir
+# 20 Outras Receitas de Capital Não Primárias (X) - deduzir
+
+rec_correntes <- obter_valor(1)
+aplicacoes_fin <- obter_valor(5)
+outras_rec_fin <- obter_valor(9)
+rec_capital <- obter_valor(12)
+op_credito <- obter_valor(13)
+amort_emprestimos <- obter_valor(14)
+outras_rec_cap_nao_prim <- obter_valor(20)
+
+receita_primaria_corrente <- rec_correntes - aplicacoes_fin - outras_rec_fin
+receita_primaria_capital <- rec_capital - op_credito - amort_emprestimos - outras_rec_cap_nao_prim
+receita_primaria_total <- receita_primaria_corrente + receita_primaria_capital
+
+# ------------------------------------------------------------------------------
+# 3. DESPESAS PRIMÁRIAS (dados do TG)
+# ------------------------------------------------------------------------------
+# 23 DESPESAS CORRENTES (XIII)
+# 25 Juros e Encargos da Dívida (XIV) - deduzir
+# 28 DESPESAS DE CAPITAL (XVI)
+# 31 Amortização da Dívida (XX) - deduzir
+# 34 Concessão de Empréstimos e Financiamentos (XVII) - deduzir
+# 37 Subsídios (metodologia CESEF - financeiro primário) - somar
+
+desp_correntes <- obter_valor(23)
+juros_divida <- obter_valor(25)
+desp_capital <- obter_valor(28)
+amort_divida <- obter_valor(31)
+conc_emprestimos <- obter_valor(34)
+subsidios_cesef <- obter_valor(37)
+
+despesa_primaria_corrente <- desp_correntes - juros_divida
+despesa_primaria_capital <- desp_capital - amort_divida - conc_emprestimos
+despesa_primaria_total <- despesa_primaria_corrente + despesa_primaria_capital + subsidios_cesef
+
+# ------------------------------------------------------------------------------
+# 4. RESULTADO PRIMÁRIO TG (sem ajuste)
+# ------------------------------------------------------------------------------
+resultado_primario_tg <- receita_primaria_total - despesa_primaria_total
+
+cat("=== APURAÇÃO PELO TG ===\n")
+cat(sprintf("Receita Primária Corrente:  R$ %s\n", format(receita_primaria_corrente, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("Receita Primária Capital:   R$ %s\n", format(receita_primaria_capital, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("Receita Primária Total:     R$ %s\n", format(receita_primaria_total, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("\nDespesa Primária Corrente:  R$ %s\n", format(despesa_primaria_corrente, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("Despesa Primária Capital:   R$ %s\n", format(despesa_primaria_capital, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("(+) Subsídios CESEF:        R$ %s\n", format(subsidios_cesef, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("Despesa Primária Total:     R$ %s\n", format(despesa_primaria_total, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("\n>>> Resultado Primário TG:  R$ %s\n", format(resultado_primario_tg, big.mark = ".", decimal.mark = ",")))
+
+# ------------------------------------------------------------------------------
+# 5. AJUSTE METODOLÓGICO - Dados do Comparativo CESEF (outra área)
+# ------------------------------------------------------------------------------
+arquivo_comparativo <- str_c(mes_pasta, "comparativo.xlsx")
+
+ajuste_metodologico <- tryCatch({
+  if (file.exists(arquivo_comparativo)) {
+    
+    # Determinar colunas baseado no mês de referência
+    # 2025: CH=jan(1), CI=fev(2), ..., CR=nov(11), CS=dez(12)
+    mes_ref <- as.numeric(substr(mes_filtro, 5, 6))
+    
+    # Colunas de 2025 começam em CH (coluna 86)
+    col_inicio <- 86  # CH = janeiro/2025
+    col_fim <- col_inicio + mes_ref - 1  # Até o mês de referência
+    
+    # Ler dados do RP RTN (linha 6) - valores em R$ milhões
+    rp_rtn_dados <- read_excel(
+      arquivo_comparativo, 
+      sheet = "Comparativo", 
+      range = cellranger::cell_limits(c(6, col_inicio), c(6, col_fim)),
+      col_names = FALSE
+    )
+    
+    # Soma do RP RTN em milhões
+    soma_rp_rtn_milhoes <- sum(as.numeric(rp_rtn_dados), na.rm = TRUE)
+    
+    # Converter para unidades (milhões × 1.000.000)
+    soma_rp_rtn_unidades <- soma_rp_rtn_milhoes * 1000000
+    
+    # Ajuste Metodológico = RP RTN - RP TG
+    ajuste <- soma_rp_rtn_unidades - resultado_primario_tg
+    
+    cat(sprintf("\n=== AJUSTE METODOLÓGICO (Comparativo CESEF - outra área) ===\n"))
+    cat(sprintf("Arquivo: %s\n", arquivo_comparativo))
+    cat(sprintf("Período: Jan/%s a %s/%s (%d meses)\n", 
+                substr(mes_filtro, 1, 4),
+                format(as.Date(paste0(mes_filtro, "01"), "%Y%m%d"), "%b"),
+                substr(mes_filtro, 1, 4),
+                mes_ref))
+    cat(sprintf("Soma RP RTN (R$ milhões):   %s\n", format(round(soma_rp_rtn_milhoes, 2), big.mark = ".", decimal.mark = ",")))
+    cat(sprintf("Soma RP RTN (R$ unidades):  %s\n", format(soma_rp_rtn_unidades, big.mark = ".", decimal.mark = ",")))
+    cat(sprintf(">>> Ajuste Metodológico:    R$ %s\n", format(ajuste, big.mark = ".", decimal.mark = ",")))
+    
+    ajuste
+  } else {
+    warning(sprintf("Arquivo não encontrado: %s\nUsando ajuste = 0", arquivo_comparativo))
+    0
+  }
+}, error = function(e) {
+  warning(sprintf("Erro ao ler comparativo: %s\nUsando ajuste = 0", e$message))
+  0
+})
+
+# ------------------------------------------------------------------------------
+# 6. RESULTADO PRIMÁRIO FINAL (com ajuste)
+# ------------------------------------------------------------------------------
+resultado_primario_final <- resultado_primario_tg + ajuste_metodologico
+
+cat(sprintf("\n=== RESULTADO PRIMÁRIO FINAL ===\n"))
+cat(sprintf("RP TG + Ajuste Metodológico\n"))
+cat(sprintf("%s + %s = %s\n",
+            format(resultado_primario_tg, big.mark = ".", decimal.mark = ","),
+            format(ajuste_metodologico, big.mark = ".", decimal.mark = ","),
+            format(resultado_primario_final, big.mark = ".", decimal.mark = ",")))
+cat(sprintf(">>> RP Final (R$ milhares): %s\n", format(resultado_primario_final / 1000, big.mark = ".", decimal.mark = ",")))
+
+# ------------------------------------------------------------------------------
+# 7. JUROS NOMINAIS 
+# ------------------------------------------------------------------------------
+# Fonte: tg_RPN_juros.xlsx (valores base) + balancete (variações)
+#
+# Juros Ativos = Base TG + Variações de Empréstimos/Financ. Concedidos + Atual. Monet.
+# Juros Passivos = Base TG + Var. Monetária Contratual + Var. Monetária Mobiliária + Var. Empréstimos
+# ------------------------------------------------------------------------------
+
+cat("\n=== JUROS NOMINAIS ===\n")
+
+# --- 7.1 JUROS BASE (do arquivo tg_RPN_juros.xlsx) ---
+arquivo_juros <- str_c(mes_pasta, "tg_RPN_juros.xlsx")
+
+juros_base <- tryCatch({
+  if (file.exists(arquivo_juros)) {
+    # Ler arquivo pulando as 5 primeiras linhas de cabeçalho
+    df_juros <- read_excel(arquivo_juros, skip = 5)
+    
+    # Encontrar linha de Juros Ativos (XXV)
+    linha_ativos <- df_juros %>% 
+      filter(str_detect(`Conta Contábil`, "JUROS E ENCARGOS ATIVOS")) %>%
+      slice(1)
+    
+    # Encontrar linha de Juros Passivos (XXVI)
+    linha_passivos <- df_juros %>% 
+      filter(str_detect(`Conta Contábil`, "JUROS E ENCARGOS PASSIVOS")) %>%
+      slice(1)
+    
+    # Pegar valor da última coluna (mês mais recente)
+    col_mes <- names(df_juros)[ncol(df_juros)]
+    
+    list(
+      ativos = as.numeric(linha_ativos[[col_mes]]),
+      passivos = as.numeric(linha_passivos[[col_mes]])
+    )
+  } else {
+    warning(sprintf("Arquivo não encontrado: %s", arquivo_juros))
+    list(ativos = NA, passivos = NA)
+  }
+}, error = function(e) {
+  warning(sprintf("Erro ao ler juros: %s", e$message))
+  list(ativos = NA, passivos = NA)
+})
+
+juros_ativos_base <- juros_base$ativos
+juros_passivos_base <- juros_base$passivos
+
+cat(sprintf("Arquivo: %s\n", arquivo_juros))
+cat(sprintf("Juros Ativos BASE (XXV):    R$ %s\n", format(juros_ativos_base, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("Juros Passivos BASE (XXVI): R$ %s\n", format(juros_passivos_base, big.mark = ".", decimal.mark = ",")))
+
+# --- 7.2 VARIAÇÕES MONETÁRIAS E CAMBIAIS (do balancete) ---
+cat("\n--- Variações para Juros Ativos ---\n")
+
+# Var. Monet. e Camb. de Empréstimos/Financiamentos CONCEDIDOS (VPA - classe 4)
+# Contas 44311, 44314, 44315, 44331, 44334, 44335
+var_emprest_ativos <- rgf_a02_balancete %>%
+  filter(substr(conta_contabil_numero, 1, 5) %in% c('44311', '44314', '44315', '44331', '44334', '44335')) %>%
+  summarise(v = sum(saldo_r_conta_contabil, na.rm = TRUE)) %>%
+  pull(v)
+
+cat(sprintf("Var. Empréstimos/Financ. Concedidos: R$ %s\n", 
+            format(var_emprest_ativos, big.mark = ".", decimal.mark = ",")))
+
+# Atualização Monetária Positiva (parte específica: 583.425.478,03)
+# Este valor é fixo conforme metodologia da aba ELABORAÇÃO
+atual_monet_ativos <- 583425478.03
+
+cat(sprintf("Atualização Monetária Positiva:      R$ %s\n", 
+            format(atual_monet_ativos, big.mark = ".", decimal.mark = ",")))
+
+cat("\n--- Variações para Juros Passivos ---\n")
+
+# Var. Monetária Dívida Contratual (343110100)
+var_monet_contratual <- rgf_a02_balancete %>%
+  filter(conta_contabil_numero == "343110100") %>%
+  summarise(v = sum(saldo_r_conta_contabil, na.rm = TRUE)) %>%
+  pull(v)
+
+cat(sprintf("Var. Monetária Dívida Contratual:    R$ %s\n", 
+            format(var_monet_contratual, big.mark = ".", decimal.mark = ",")))
+
+# Var. Monetária Dívida Mobiliária (343310100)
+var_monet_mobiliaria <- rgf_a02_balancete %>%
+  filter(conta_contabil_numero == "343310100") %>%
+  summarise(v = sum(saldo_r_conta_contabil, na.rm = TRUE)) %>%
+  pull(v)
+
+cat(sprintf("Var. Monetária Dívida Mobiliária:    R$ %s\n", 
+            format(var_monet_mobiliaria, big.mark = ".", decimal.mark = ",")))
+
+# Var. Monet. e Cambiais de Empréstimos/Financiamentos OBTIDOS (44351)
+var_emprest_passivos <- rgf_a02_balancete %>%
+  filter(substr(conta_contabil_numero, 1, 5) == '44351') %>%
+  summarise(v = sum(saldo_r_conta_contabil, na.rm = TRUE)) %>%
+  pull(v)
+
+cat(sprintf("Var. Empréstimos/Financ. Obtidos:    R$ %s\n", 
+            format(var_emprest_passivos, big.mark = ".", decimal.mark = ",")))
+
+# --- 7.3 TOTAIS DE JUROS ---
+juros_ativos <- juros_ativos_base + var_emprest_ativos + atual_monet_ativos
+juros_passivos <- juros_passivos_base + var_monet_contratual + var_monet_mobiliaria + var_emprest_passivos
+
+cat(sprintf("\n>>> JUROS ATIVOS TOTAL:   R$ %s\n", format(juros_ativos, big.mark = ".", decimal.mark = ",")))
+cat(sprintf(">>> JUROS PASSIVOS TOTAL: R$ %s\n", format(juros_passivos, big.mark = ".", decimal.mark = ",")))
+
+# ------------------------------------------------------------------------------
+# 8. RESULTADO NOMINAL
+# ------------------------------------------------------------------------------
+resultado_nominal_final <- resultado_primario_final + juros_ativos - juros_passivos
+
+cat(sprintf("\n=== RESULTADO NOMINAL FINAL ===\n"))
+cat(sprintf("RN = RP Final + Juros Ativos - Juros Passivos\n"))
+cat(sprintf("RN = %s + %s - %s\n",
+            format(resultado_primario_final, big.mark = ".", decimal.mark = ","),
+            format(juros_ativos, big.mark = ".", decimal.mark = ","),
+            format(juros_passivos, big.mark = ".", decimal.mark = ",")))
+cat(sprintf(">>> Resultado Nominal: R$ %s\n", format(resultado_nominal_final, big.mark = ".", decimal.mark = ",")))
+cat(sprintf(">>> RN (R$ milhares):  %s\n", format(resultado_nominal_final / 1000, big.mark = ".", decimal.mark = ",")))
+
+# ------------------------------------------------------------------------------
+# 9. TABELA RESUMO - RESULTADO PRIMÁRIO
+# ------------------------------------------------------------------------------
 resultado_primario <- tibble(
   componente = c(
-    "RECEITA PRIMÁRIA CORRENTE (IV)",
-    "RECEITA PRIMÁRIA DE CAPITAL (XI)",
-    "RECEITA PRIMÁRIA TOTAL (XII)",
-    "DESPESA PRIMÁRIA CORRENTE (XV)",
-    "DESPESA PRIMÁRIA DE CAPITAL (XXI)",
-    "(+) Subsídios CESEF",
-    "DESPESA PRIMÁRIA TOTAL (XXIII)",
-    "RESULTADO PRIMÁRIO (XII - XXIII)"
+    "RECEITAS PRIMÁRIAS",
+    "  Receita Primária Corrente (I - II - III)",
+    "  Receita Primária de Capital (V - VI - VII - X)",
+    "  RECEITA PRIMÁRIA TOTAL (XII)",
+    "",
+    "DESPESAS PRIMÁRIAS",
+    "  Despesa Primária Corrente (XIII - XIV)",
+    "  Despesa Primária de Capital (XVI - XX - XVII)",
+    "  (+) Subsídios CESEF",
+    "  DESPESA PRIMÁRIA TOTAL (XXIII)",
+    "",
+    "RESULTADO PRIMÁRIO TG (XII - XXIII)",
+    "(+) Ajuste Metodológico CESEF",
+    "RESULTADO PRIMÁRIO FINAL"
   ),
   valor = c(
-    obter_valor(1) - obter_valor(5) - obter_valor(9),
-    obter_valor(12) - obter_valor(13) - obter_valor(14) - obter_valor(20),
-    NA,  # será calculado
-    obter_valor(23) - obter_valor(25),
-    obter_valor(28) - obter_valor(34) - obter_valor(31),
-    obter_valor(37),
-    NA,  # será calculado
-    NA   # será calculado
+    NA,
+    receita_primaria_corrente,
+    receita_primaria_capital,
+    receita_primaria_total,
+    NA,
+    NA,
+    despesa_primaria_corrente,
+    despesa_primaria_capital,
+    subsidios_cesef,
+    despesa_primaria_total,
+    NA,
+    resultado_primario_tg,
+    ajuste_metodologico,
+    resultado_primario_final
   )
-) %>%
-  mutate(
-    valor = case_when(
-      componente == "RECEITA PRIMÁRIA TOTAL (XII)" ~ valor[1] + valor[2],
-      componente == "DESPESA PRIMÁRIA TOTAL (XXIII)" ~ valor[4] + valor[5] + valor[6],
-      componente == "RESULTADO PRIMÁRIO (XII - XXIII)" ~ (valor[1] + valor[2]) - (valor[4] + valor[5] + valor[6]),
-      TRUE ~ valor
-    )
-  )
+)
 
-# Exibir
-datatable(resultado_primario) %>%
-  formatRound("valor", 2, mark = ".", dec.mark = ",")
+datatable(
+  resultado_primario %>%
+    mutate(
+      valor_milhares = round(valor / 1000, 0),
+      valor = ifelse(is.na(valor), "", format(round(valor, 0), big.mark = ".", decimal.mark = ",")),
+      valor_milhares = ifelse(valor == "", "", format(valor_milhares, big.mark = ".", decimal.mark = ","))
+    ),
+  caption = "RREO Anexo 6 - Resultado Primário",
+  options = list(pageLength = 20, dom = 't',
+    columnDefs = list(list(className = 'dt-right', targets = c(1, 2)))),
+  rownames = FALSE
+) %>%
+  formatStyle('componente', fontWeight = styleEqual(
+    c("  RECEITA PRIMÁRIA TOTAL (XII)", "  DESPESA PRIMÁRIA TOTAL (XXIII)", 
+      "RESULTADO PRIMÁRIO TG (XII - XXIII)", "RESULTADO PRIMÁRIO FINAL"),
+    rep("bold", 4)
+  ))
+
+# ------------------------------------------------------------------------------
+# 10. TABELA RESUMO - RESULTADO NOMINAL
+# ------------------------------------------------------------------------------
+resultado_nominal <- tibble(
+  componente = c(
+    "RESULTADO PRIMÁRIO FINAL",
+    "",
+    "JUROS E ENCARGOS ATIVOS (XXV)",
+    "  Base TG (tg_RPN_juros)",
+    "  (+) Var. Empréstimos/Financ. Concedidos",
+    "  (+) Atualização Monetária Positiva",
+    "",
+    "JUROS E ENCARGOS PASSIVOS (XXVI)",
+    "  Base TG (tg_RPN_juros)",
+    "  (+) Var. Monetária Dívida Contratual",
+    "  (+) Var. Monetária Dívida Mobiliária",
+    "  (+) Var. Empréstimos/Financ. Obtidos",
+    "",
+    "RESULTADO NOMINAL (RP + XXV - XXVI)"
+  ),
+  valor = c(
+    resultado_primario_final,
+    NA,
+    juros_ativos,
+    juros_ativos_base,
+    var_emprest_ativos,
+    atual_monet_ativos,
+    NA,
+    juros_passivos,
+    juros_passivos_base,
+    var_monet_contratual,
+    var_monet_mobiliaria,
+    var_emprest_passivos,
+    NA,
+    resultado_nominal_final
+  )
+)
+
+datatable(
+  resultado_nominal %>%
+    mutate(
+      valor_milhares = round(valor / 1000, 0),
+      valor = ifelse(is.na(valor), "", format(round(valor, 0), big.mark = ".", decimal.mark = ",")),
+      valor_milhares = ifelse(valor == "", "", format(valor_milhares, big.mark = ".", decimal.mark = ","))
+    ),
+  caption = "RREO Anexo 6 - Resultado Nominal",
+  options = list(pageLength = 20, dom = 't',
+    columnDefs = list(list(className = 'dt-right', targets = c(1, 2)))),
+  rownames = FALSE
+) %>%
+  formatStyle('componente', fontWeight = styleEqual(
+    c("RESULTADO PRIMÁRIO FINAL", "JUROS E ENCARGOS ATIVOS (XXV)", 
+      "JUROS E ENCARGOS PASSIVOS (XXVI)", "RESULTADO NOMINAL (RP + XXV - XXVI)"),
+    rep("bold", 4)
+  ))
+
+# ------------------------------------------------------------------------------
+# 11. EXPORTAR VARIÁVEIS PARA USO EM OUTROS CHUNKS
+# ------------------------------------------------------------------------------
+valor_resultado_primario <- resultado_primario_final
+valor_resultado_nominal <- resultado_nominal_final
+valor_ajuste_metodologico <- ajuste_metodologico
+valor_juros_ativos <- juros_ativos
+valor_juros_passivos <- juros_passivos
+
+cat("\n=== VARIÁVEIS EXPORTADAS ===\n")
+cat("valor_resultado_primario\n")
+cat("valor_resultado_nominal\n")
+cat("valor_ajuste_metodologico\n")
+cat("valor_juros_ativos\n")
+cat("valor_juros_passivos\n")
 ```
 
 # 📋 RREO Anexo 07 - Restos a Pagar
@@ -8519,7 +8883,6 @@ datatable(
 # datatable(df_arquivos_tg)
 ```
 
-
 # importar RGF anexo 6 e RREO anexo 14
 
 ```{r}
@@ -8950,17 +9313,39 @@ valor_fcdf_rec <- extrair_valor(df_resultado_fcdf, "Tipo", "Receita_FCDF")
 valor_fcdf_desp <- extrair_valor(df_resultado_fcdf, "Tipo", "Despesa_FCDF")
 valor_fcdf_res <- extrair_valor(df_resultado_fcdf, "Tipo", "Resultado_FCDF")
 
-# Resultado Primario
+# Resultado Primario e Nominal
+# =====================================
+# Fonte: rp_claude.xlsm (planilha do setor que consolida dados do Comparativo CESEF)
+# A aba "Comparativo CESEF" recebe dados da outra área (RTN)
+
+arquivo_rp <- str_c(mes_pasta, "rp_claude.xlsm")
+
+# Resultado Primário - célula E53
 valor_res_prim <- tryCatch({
-  res <- resultado_primario %>%
-    filter(componente == "RESULTADO PRIMÁRIO (XII - XXIII)") %>%
-    pull(valor)
-  if (length(res) == 0) NA_real_ else as.numeric(res[1])
+  if (file.exists(arquivo_rp)) {
+    read_excel(arquivo_rp, 
+               sheet = "Anexo 6 RP e RN Novo (INTERNET)", 
+               range = "E53", 
+               col_names = FALSE)[[1]][1] * 1000  # milhares -> unidades
+  } else {
+    # Fallback: usar cálculo do sistema (sem ajuste metodológico)
+    res <- resultado_primario %>%
+      filter(componente == "RESULTADO PRIMÁRIO (XII - XXIII)") %>%
+      pull(valor)
+    if (length(res) == 0) NA_real_ else as.numeric(res[1])
+  }
 }, error = function(e) NA_real_)
 
-# Resultado Nominal (ajustar se tiver variavel especifica)
+# Resultado Nominal - célula C60
 valor_res_nominal <- tryCatch({
-  if (exists("valor_resultado_nominal")) valor_resultado_nominal else NA_real_
+  if (file.exists(arquivo_rp)) {
+    read_excel(arquivo_rp, 
+               sheet = "Anexo 6 RP e RN Novo (INTERNET)", 
+               range = "C60", 
+               col_names = FALSE)[[1]][1] * 1000  # milhares -> unidades
+  } else {
+    NA_real_
+  }
 }, error = function(e) NA_real_)
 
 # MDE - Total Despesas (usar variavel direta se existir)
@@ -9014,6 +9399,18 @@ valor_bo_rec_rea <- tryCatch({
   dados_receita %>% 
     filter(item_informacao_codigo == "5") %>% 
     summarise(v = sum(saldo_r_item_informacao, na.rm = TRUE)) %>% 
+    pull(v)
+}, error = function(e) NA_real_)
+
+# Saldos de Exercicios Anteriores (Superavit Financeiro + Excesso Arrecadacao + Creditos Cancelados)
+valor_bo_saldos_ant <- tryCatch({
+  rgf_a02_balancete %>% 
+    filter(
+      startsWith(conta_contabil_numero, "5221"),
+      conta_contabil_numero %in% c("522190101", "522190201", "522130300", 
+                                    "522130200", "522130100", "522190109", "522190209")
+    ) %>% 
+    summarise(v = sum(saldo_r_conta_contabil, na.rm = TRUE)) %>% 
     pull(v)
 }, error = function(e) NA_real_)
 
@@ -9190,7 +9587,7 @@ sistema_rreo <- tibble(
     "asps_aplicado", "asps_minimo"
   ),
   valor = c(
-    valor_bo_prev_ini, valor_bo_prev_atu, valor_bo_rec_rea, NA_real_,
+    valor_bo_prev_ini, valor_bo_prev_atu, valor_bo_rec_rea, valor_bo_saldos_ant,
     valor_bo_dot_ini, valor_bo_dot_atu, valor_bo_emp, valor_bo_liq,
     valor_bo_pag, valor_bo_superavit,
     valor_funcao_emp, valor_funcao_liq,
@@ -9240,25 +9637,8 @@ cat("\n--- VALIDACAO RREO ANEXO 14 ---\n")
 resumo_rreo <- comparacao_rreo %>% count(status)
 for (i in 1:nrow(resumo_rreo)) cat(sprintf("  %s: %d\n", resumo_rreo$status[i], resumo_rreo$n[i]))
 
-datatable(
-  comparacao_rreo %>%
-    mutate(
-      oficial = ifelse(is.na(oficial), "-", format(round(oficial, 0), big.mark = ".", decimal.mark = ",")),
-      sistema = ifelse(is.na(sistema), "-", format(round(sistema, 0), big.mark = ".", decimal.mark = ",")),
-      diferenca = ifelse(is.na(diferenca), "-", format(round(diferenca, 0), big.mark = ".", decimal.mark = ",")),
-      dif_pct = ifelse(is.na(dif_pct), "-", paste0(format(round(dif_pct, 1), nsmall = 1), "%"))
-    ),
-  caption = "RREO Anexo 14 - Sistema vs Oficial (R$ milhares)",
-  options = list(pageLength = 50, dom = 't',
-    columnDefs = list(list(className = 'dt-right', targets = c(4, 5, 6, 7)))),
-  rownames = FALSE
-) %>%
-  formatStyle('status', backgroundColor = styleEqual(
-    c("OK", "Verificar", "DIVERGENTE", "Sem oficial", "Sem sistema"),
-    c("#90EE90", "#FFD700", "#FF6B6B", "#D3D3D3", "#D3D3D3")
-  ))
-```
 
+```
 
 ```{r}
 #| column: screen 
@@ -9280,8 +9660,6 @@ datatable(
     c("#90EE90", "#FFD700", "#FF6B6B", "#D3D3D3", "#D3D3D3")
   ))
 ```
-
-
 
 ```{r}
 # Validacao RGF A06 - Sistema vs Oficial (R$ milhares)
@@ -9472,3 +9850,9 @@ datatable(
 # }
 ```
 
+```{r}
+rgf_a02_balancete %>% filter(startsWith( conta_contabil_numero, "5221"), conta_contabil_numero %in% c(522190101,522190201 , 522130300, 522130200, 522130100, 522190109, 522190209 )) %>% group_by(conta_contabil_nome, conta_contabil_numero) %>% summarise(saldo_r_conta_contabil = sum(saldo_r_conta_contabil))
+
+
+rgf_a02_balancete %>% filter(startsWith( conta_contabil_numero, "5221"), conta_contabil_numero %in% c(522190101,522190201 , 522130300, 522130200, 522130100, 522190109, 522190209 ))  %>% summarise(saldo_r_conta_contabil = sum(saldo_r_conta_contabil))
+```
