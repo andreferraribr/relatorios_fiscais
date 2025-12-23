@@ -450,7 +450,8 @@ arquivos_a06 <- list(
   ndd = str_c(mes_pasta, "rreo_a06_despesas_primarias_ndd.xlsx"),
   categoria_grupo = str_c(mes_pasta, "rreo_a06_despesas_primarias_categoria_grupo.xlsx"),
   juros = str_c(mes_pasta, "rreo_a06_juros.xlsx"),
-  disponibilidades = str_c(mes_pasta, "rreo_a06_disponibilidades.xlsx")
+  disponibilidades = str_c(mes_pasta, "rreo_a06_disponibilidades.xlsx"),
+  ajustes = str_c(mes_pasta, "rreo_a06_ajustes.xlsx")
 )
 
 cat(sprintf("📥 Importando %d arquivos do Anexo 06 em paralelo...\n", length(arquivos_a06)))
@@ -476,6 +477,7 @@ dados_categoria_grupo <- dados_a06_lista$categoria_grupo
 dados_juros <- dados_a06_lista$juros
 tg_RPN_juros <- dados_juros  # Alias para compatibilidade
 tg_RPN_disponibilidades <- dados_a06_lista$disponibilidades
+dados_ajustes <- dados_a06_lista$ajustes
 
 cat("\n✅ Dados do Anexo 06 carregados:\n")
 cat(sprintf("   • NDD: %s registros\n", 
@@ -6234,49 +6236,61 @@ criterios_rreo_A06_disponibilidades_A06 <- list(
 )
 
 # ===============================================================================
-# 5. JUROS ATIVOS E PASSIVOS (dados_juros)
+# 5. JUROS ATIVOS E PASSIVOS (dados_juros) - CORRIGIDO
 # ===============================================================================
 criterios_rreo_A06_juros_ativos_passivos_A06 <- list(
   
-  # JUROS ATIVOS (XXV) - VPA Classe 4 - O que a União RECEBE
-  # Contas começando com 44
+  # JUROS ATIVOS (XXV) - VPA Classe 4
+  # Prefixos: 44111, 44113, 44114, 44115, 44121, 44131, 44133, 44134, 44135, 
+  #           44141, 44211, 44213, 44214, 44215, 44221
+  # Contas específicas: 445110100, 445210100
   `41  Juros Ativos` = list(
     criterio = "
-    substr(conta_contabil_numero, 1, 2) == '44'
+    substr(conta_contabil_numero, 1, 5) %in% c('44111', '44113', '44114', '44115', '44121', '44131', 
+                                               '44133', '44134', '44135', '44141', '44211', '44213', 
+                                               '44214', '44215', '44221') |
+    conta_contabil_numero %in% c('445110100', '445210100')
     "
   ),
   
-  # JUROS PASSIVOS (XXVI) - VPD Classe 3 - O que a União PAGA
-  # Contas começando com 34
+  # JUROS PASSIVOS (XXVI) - VPD Classe 3
+  # Prefixos: 34111, 34113, 34114, 34115, 34121, 34131, 34141, 34181, 34183, 
+  #           34184, 34185, 34191, 34211, 34213, 34214, 34215, 34221, 34291
   `42  Juros Passivos` = list(
     criterio = "
-    substr(conta_contabil_numero, 1, 2) == '34'
+    substr(conta_contabil_numero, 1, 5) %in% c('34111', '34113', '34114', '34115', '34121', '34131', 
+                                               '34141', '34181', '34183', '34184', '34185', '34191',
+                                               '34211', '34213', '34214', '34215', '34221', '34291')
     "
   ),
   
-  # FUNDOS - JUROS ATIVOS (contas 44)
+  # FUNDOS - JUROS ATIVOS (mesmos prefixos do item 41)
   # Valor esperado: 15.174.626.701
   `43  Fundos - Juros Ativos` = list(
     criterio = "
     orgao_uge_tipo_administracao_codigo == '7' & 
     ug_executora_codigo != '380916' & 
     !orgao_uge_codigo %in% c('25915', '37904') &
-    substr(conta_contabil_numero, 1, 2) == '44'
+    (substr(conta_contabil_numero, 1, 5) %in% c('44111', '44113', '44114', '44115', '44121', '44131', 
+                                                '44133', '44134', '44135', '44141', '44211', '44213', 
+                                                '44214', '44215', '44221') |
+     conta_contabil_numero %in% c('445110100', '445210100'))
     "
   ),
   
-  # FUNDOS - JUROS PASSIVOS (contas 34)
+  # FUNDOS - JUROS PASSIVOS (mesmos prefixos do item 42)
   # Valor esperado: 2.364.213.994
   `44  Fundos - Juros Passivos` = list(
     criterio = "
     orgao_uge_tipo_administracao_codigo == '7' & 
     ug_executora_codigo != '380916' & 
     !orgao_uge_codigo %in% c('25915', '37904') &
-    substr(conta_contabil_numero, 1, 2) == '34'
+    substr(conta_contabil_numero, 1, 5) %in% c('34111', '34113', '34114', '34115', '34121', '34131', 
+                                               '34141', '34181', '34183', '34184', '34185', '34191',
+                                               '34211', '34213', '34214', '34215', '34221', '34291')
     "
   )
 )
-
 
 # ===============================================================================
 # 6. SUBSÍDIOS CESEF (dados_despesa) - Item 37
@@ -6291,6 +6305,238 @@ criterios_rreo_A06_subsidios_cesef <- list(
     "
   )
 )
+
+
+# ===============================================================================
+# AJUSTES PARA O ANEXO 6 DO RREO (VPA/VPD de ajustes patrimoniais) - 2025
+# Cada item replica EXATAMENTE uma linha do grupo "Ajustes Resultado Primário/Nominal - 2025"
+# Critérios incluem TODOS os atributos visíveis nos prints (conta, UG executora, evento, etc.)
+# ===============================================================================
+criterios_rreo_A06_ajuste <- list(
+
+  # VPD - VARIAÇÕES MONETÁRIAS DA DÍVIDA CONTRATUAL
+  `50 VPD - Variações Monetárias da Dívida Contratual` = list(
+    criterio = "
+    conta_contabil_numero %in% c('34310100', '343540100', '343550100')
+    "
+  ),
+
+  # VPD - VARIAÇÕES CAMBIAIS DA DÍVIDA CONTRATUAL
+  `51 VPD - Variações Cambiais da Dívida Contratual` = list(
+    criterio = "
+    conta_contabil_numero == '343210200'
+    "
+  ),
+
+  # VPD - VARIAÇÕES MONETÁRIAS DA DÍVIDA MOBILIÁRIA
+  `52 VPD - Variações Monetárias da Dívida Mobiliária` = list(
+    criterio = "
+    (conta_contabil_numero == '343310100' & ug_executora_codigo == '170600') |
+    (conta_contabil_numero == '343340100' & ug_executora_codigo == '170512')
+    "
+  ),
+
+  # VPD - VARIAÇÕES CAMBIAIS DA DÍVIDA MOBILIÁRIA
+  `53 VPD - Variações Cambiais da Dívida Mobiliária` = list(
+    criterio = "
+    conta_contabil_numero == '343410200' &
+    ug_executora_codigo == '170600'
+    "
+  ),
+
+  # VPD - ATUALIZAÇÃO MONETÁRIA NEGATIVA
+  `54 VPD - Atualização Monetária Negativa` = list(
+    criterio = "
+    conta_contabil_numero %in% c('343910103', '343950103') &
+    ug_executora_codigo %in% c('170600', '170512', '380916', '170700')
+    "
+  ),
+
+  # VPD - INCORPORAÇÃO DE PASSIVOS
+  `55 VPD - Incorporação de Passivos` = list(
+    criterio = "
+    conta_contabil_numero %in% c('364010100', '364110100') &
+    ug_executora_codigo %in% c('170600', '170512')
+    "
+  ),
+
+  # VPD - RESULTADO NEGATIVO BACEN
+  `56 VPD - Resultado Negativo BACEN` = list(
+    criterio = "
+    conta_contabil_numero == '348110100'
+    "
+  ),
+
+  # VPD - CONSTITUIÇÃO DE SUBVENÇÕES ECONÔMICAS - COPEC
+  `57 VPD - Constituição de Subvenções Econômicas - COPEC` = list(
+    criterio = "
+    (conta_contabil_numero %in% c('395010100', '395110100')) |
+    (conta_contabil_numero %in% c('217710101', '227710101', '222210200', '212210300',
+                                  '222110200', '212110301', '212110303', '212110700',
+                                  '212210601', '212310201', '212310202', '212410201',
+                                  '217310301', '217310602', '217350402', '222310102',
+                                  '222410101', '227310301') &
+     evento_codigo == '581012' &
+     ug_executora_codigo == '170700')
+    "
+  ),
+
+  # VPD - OUTRAS VARIAÇÕES CAMBIAIS
+  `58 VPD - Outras Variações Cambiais` = list(
+    criterio = "
+    conta_contabil_numero %in% c('343910200', '343940200', '343950200') &
+    ug_executora_codigo %in% c('170512', '170700', '380916')
+    "
+  ),
+
+  # VPD - DESINCORPORAÇÃO DE ATIVOS
+  `59 VPD - Desincorporação de Ativos` = list(
+    criterio = "
+    conta_contabil_numero %in% c('365010100', '365040100', '365110100', '365140100') &
+    ug_executora_codigo %in% c('170512', '170700')
+    "
+  ),
+
+  # VPD - REVERSÃO DE SUBVENÇÕES ECONÔMICAS - COPEC
+  `60 VPD - Reversão de Subvenções Econômicas - COPEC` = list(
+    criterio = "
+    conta_contabil_numero %in% c('395010100', '395110100') &
+    evento_codigo == '541559' &
+    ug_executora_codigo == '170700'
+    "
+  ),
+
+  # VPD - VAR MONET E CAMBIAIS DE EMPREST e FINANC CONCEDIDOS
+  `61 VPD - Var Monet e Cambiais de Emprest e Financ Concedidos` = list(
+    criterio = "
+    conta_contabil_numero %in% c('343510100', '343510200', '343540200', '343550200') &
+    ug_executora_codigo %in% c('170512', '170526', '170600', '170700', '380916', '170705')
+    "
+  ),
+
+  # VPA - VAR MONET E CAMBIAIS DE EMPREST e FINANC CONCEDIDOS
+  `62 VPA - Var Monet e Cambiais de Emprest e Financ Concedidos` = list(
+    criterio = "
+    conta_contabil_numero %in% c('443110100', '443310100', '443410100', '443510100') &
+    ug_executora_codigo %in% c('170512', '170526', '170600', '170700', '380916', '170705')
+    "
+  ),
+
+  # VPA - ATUALIZAÇÃO MONETÁRIA POSITIVA
+  `63 VPA - Atualização Monetária Positiva` = list(
+    criterio = "
+    conta_contabil_numero %in% c('443910101', '443940101', '443950101') &
+    ug_executora_codigo %in% c('170512', '170526', '170600', '170700', '170705')
+    "
+  ),
+
+  # VPA - OUTRAS VARIAÇÕES MONETÁRIAS
+  `64 VPA - Outras Variações Monetárias` = list(
+    criterio = "
+    conta_contabil_numero %in% c('443910100', '443940100', '443950100') &
+    ug_executora_codigo %in% c('170512', '170526', '170600', '170700',  '170705')
+    "
+  ),
+
+  # VPA - OUTRAS VARIAÇÕES CAMBIAIS
+  `65 VPA - Outras Variações Cambiais` = list(
+    criterio = "
+    conta_contabil_numero %in% c('443910200', '443940200', '443950200') &
+    ug_executora_codigo %in% c('170512', '170526', '170600', '170700', '120002',  '170705')
+    "
+  ),
+
+  # VPA - GANHOS COM DESINCORPORAÇÃO DE PASSIVOS
+  `66 VPA - Ganhos com Desincorporação de Passivos` = list(
+    criterio = "
+    conta_contabil_numero %in% c('464010100', '464040100', '464110100',
+                                '464140100', '464150100') &
+    ug_executora_codigo == '170600'
+    "
+  ),
+
+  # VPA - RESULTADO POSITIVO BACEN
+  `67 VPA - Resultado Positivo BACEN` = list(
+    criterio = "
+    conta_contabil_numero == '448110100'
+    "
+  ),
+
+  # VPA - OUTRAS VAR PATRIMONIAIS AUMENTATIVAS
+  `68 VPA - Outras Variações Patrimoniais Aumentativas` = list(
+    criterio = "
+    conta_contabil_numero %in% c('449010100', '449040100', '449100100',
+                                '449140100', '449150100') &
+    ug_executora_codigo %in% c('170512', '170526', '170705')
+    "
+  ),
+
+  # VPA - REMUNERAÇÃO DOS DEPÓSITOS BANCÁRIOS (FINANCEIRO???)
+  `69 VPA - Remuneração dos Depósitos Bancários` = list(
+    criterio = "
+    conta_contabil_numero %in% c('445110100', '445210100') &
+    (orgao_uge_tipo_administracao_codigo != '7' | ug_executora_codigo == '380916') &
+    !(evento_codigo %in% c('581798', '586798'))
+    "
+  ),
+
+  # VPA - REVERSÃO DE PROVISÕES E DE AJUSTES PARA PERDAS
+  `70 VPA - Reversão de Provisões e de Ajustes para Perdas` = list(
+    criterio = "
+    conta_contabil_numero %in% c('497110100', '497140100', '497150100',
+                                '497210100', '497240100') &
+    ug_executora_codigo %in% c('170700', '170705', '170512', '170526')
+    "
+  ),
+
+  # VPA - OUTROS GANHOS COM INCORPORAÇÃO DE ATIVOS
+  `71 VPA - Outros Ganhos com Incorporação de Ativos` = list(
+    criterio = "
+    conta_contabil_numero %in% c('463920100', '463940100') &
+    ug_executora_codigo %in% c('170512')
+    "
+  ),
+
+  # (-) CRÉDITO EMPENHADO EM LIQUIDAÇÃO (EXCETO CODIV)
+  `72 Crédito Empenhado em Liquidação (exceto CODIV)` = list(
+    criterio = "
+    conta_contabil_numero == '622130200' &
+    ug_executora_codigo == '170600'
+    "
+  ),
+
+  # APLICAÇÕES FINANCEIRAS - FECHAMENTO CÂMBIO
+  `73 Aplicações Financeiras - Fechamento Câmbio` = list(
+    criterio = "
+    conta_contabil_numero == '111215100'
+    "
+  ),
+
+  # JUROS E ENCARGOS PASSIVOS - OUTRAS VPD FINANCEIRAS
+  `74 Juros e Encargos Passivos - Outras VPD Financeiras` = list(
+    criterio = "
+    conta_contabil_numero %in% c('349910100', '349940100', '349950100') &
+    ug_executora_codigo %in% c('170512', '170500')
+    "
+  ),
+
+  # PASSIVO DÍVIDA PÚBLICA REF FIES E MANTENEDORAS
+  `75 Passivo Dívida Pública REF FIES e Mantenedoras` = list(
+    criterio = "
+    conta_contabil_numero == '222110101' &
+    evento_codigo == '591738'
+    "
+  ),
+
+  # AJUSTES DE EXERCÍCIOS ANTERIORES
+  `76 Ajustes de Exercícios Anteriores` = list(
+    criterio = "
+    conta_contabil_numero == '237110300' &
+    ug_executora_codigo %in% c('170512', '170700')
+    "
+  )
+)
+
 ```
 
 ![ajustar totalização](subsitio_cesef.png)
@@ -6324,6 +6570,10 @@ rreo_a06_consolidado <- bind_rows(
   aplicar_criterios(
     df = tg_RPN_disponibilidades,
     criterios = criterios_rreo_A06_disponibilidades_A06
+  ),
+  aplicar_criterios(
+    df = dados_ajustes,
+    criterios = criterios_rreo_A06_ajuste
   )
 )
 
@@ -6504,7 +6754,7 @@ cat(sprintf(">>> RP Final (R$ milhares): %s\n", format(resultado_primario_final 
 # ------------------------------------------------------------------------------
 # 7. JUROS NOMINAIS 
 # ------------------------------------------------------------------------------
-# Fonte: tg_RPN_juros.xlsx (valores base) + balancete (variações)
+# Fonte: rreo_a06_juros.xlsx (valores base) + balancete (variações)
 #
 # Juros Ativos = Base TG + Variações de Empréstimos/Financ. Concedidos + Atual. Monet.
 # Juros Passivos = Base TG + Var. Monetária Contratual + Var. Monetária Mobiliária + Var. Empréstimos
@@ -6512,8 +6762,8 @@ cat(sprintf(">>> RP Final (R$ milhares): %s\n", format(resultado_primario_final 
 
 cat("\n=== JUROS NOMINAIS ===\n")
 
-# --- 7.1 JUROS BASE (do arquivo tg_RPN_juros.xlsx) ---
-arquivo_juros <- str_c(mes_pasta, "tg_RPN_juros.xlsx")
+# --- 7.1 JUROS BASE (do arquivo rreo_a06_juros.xlsx) ---
+arquivo_juros <- str_c(mes_pasta, "rreo_a06_juros.xlsx")
 
 juros_base <- tryCatch({
   if (file.exists(arquivo_juros)) {
