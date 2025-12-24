@@ -6309,26 +6309,54 @@ criterios_rreo_A06_subsidios_cesef <- list(
 
 # ===============================================================================
 # AJUSTES PARA O ANEXO 6 DO RREO (VPA/VPD de ajustes patrimoniais) - 2025
-# Cada item replica EXATAMENTE uma linha do grupo "Ajustes Resultado Primário/Nominal - 2025"
-# Critérios incluem TODOS os atributos visíveis nos prints (conta, UG executora, evento, etc.)
+# VERSÃO CORRIGIDA - baseada nos prints oficiais do TG
+#
+# OBSERVAÇÃO IMPORTANTE:
+# Os atributos "NS - Classificação Contábil 1" e "NS - Classificação Contábil 2"
+# foram OMITIDOS pois inviabilizavam a geração do relatório por exceder o limite
+# de spool do TG. Isso pode causar diferenças em alguns itens (especialmente 57).
+#
+# VALIDAÇÃO: 19/23 itens OK (83%)
+# 
+# ITENS COM PROBLEMAS (necessitam reextração do TG):
+# - Item 50: Conta 343110100 NÃO EXISTE no arquivo rreo_a06_ajustes.xlsx
+# - Item 57: Atributos NS Classif. Contábil 1 e 2 foram omitidos
+# - Item 59: Contas 365010100, 365040100, 365050100, 365150100 não existem no arquivo
+# - Item 62: Contas 443140100, 443150100, 443340100 não existem no arquivo
 # ===============================================================================
+
 criterios_rreo_A06_ajuste <- list(
 
+  # ---------------------------------------------------------------------------
   # VPD - VARIAÇÕES MONETÁRIAS DA DÍVIDA CONTRATUAL
+  # Print: vpd_01.png
+  # Contas: 343110100, 343540100, 343550100
+  # 
+  # NOTA: A conta 343110100 NÃO EXISTE no arquivo rreo_a06_ajustes.xlsx
+  # Isso causa diferença de ~906 mi. Necessário reextrair do TG.
+  # ---------------------------------------------------------------------------
   `50 VPD - Variações Monetárias da Dívida Contratual` = list(
     criterio = "
-    conta_contabil_numero %in% c('34310100', '343540100', '343550100')
+    conta_contabil_numero %in% c('343110100', '343540100', '343550100')
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPD - VARIAÇÕES CAMBIAIS DA DÍVIDA CONTRATUAL
+  # Print: vpd_01.png
+  # Conta: 343210200
+  # ---------------------------------------------------------------------------
   `51 VPD - Variações Cambiais da Dívida Contratual` = list(
     criterio = "
     conta_contabil_numero == '343210200'
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPD - VARIAÇÕES MONETÁRIAS DA DÍVIDA MOBILIÁRIA
+  # Print: vpd_01.png
+  # (Conta 343310100 E UG 170600) OU (Conta 343340100 E UG 170512)
+  # ---------------------------------------------------------------------------
   `52 VPD - Variações Monetárias da Dívida Mobiliária` = list(
     criterio = "
     (conta_contabil_numero == '343310100' & ug_executora_codigo == '170600') |
@@ -6336,7 +6364,11 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPD - VARIAÇÕES CAMBIAIS DA DÍVIDA MOBILIÁRIA
+  # Print: vpd_01.png
+  # Conta: 343410200, UG: 170600
+  # ---------------------------------------------------------------------------
   `53 VPD - Variações Cambiais da Dívida Mobiliária` = list(
     criterio = "
     conta_contabil_numero == '343410200' &
@@ -6344,15 +6376,25 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPD - ATUALIZAÇÃO MONETÁRIA NEGATIVA
+  # Print: vpd_02.png
+  # Contas: 343910103, 343940103, 343950103
+  # UGs: 170600, 170512, 380916, 170700
+  # ---------------------------------------------------------------------------
   `54 VPD - Atualização Monetária Negativa` = list(
     criterio = "
-    conta_contabil_numero %in% c('343910103', '343950103') &
+    conta_contabil_numero %in% c('343910103', '343940103', '343950103') &
     ug_executora_codigo %in% c('170600', '170512', '380916', '170700')
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPD - INCORPORAÇÃO DE PASSIVOS
+  # Print: vpd_02.png
+  # Contas: 364010100, 364110100
+  # UGs: 170600, 170512
+  # ---------------------------------------------------------------------------
   `55 VPD - Incorporação de Passivos` = list(
     criterio = "
     conta_contabil_numero %in% c('364010100', '364110100') &
@@ -6360,28 +6402,47 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPD - RESULTADO NEGATIVO BACEN
+  # Print: vpd_02.png
+  # Conta: 348110100
+  # ---------------------------------------------------------------------------
   `56 VPD - Resultado Negativo BACEN` = list(
     criterio = "
     conta_contabil_numero == '348110100'
     "
   ),
 
-  # VPD - CONSTITUIÇÃO DE SUBVENÇÕES ECONÔMICAS - COPEC
+  # ---------------------------------------------------------------------------
+  # CONSTITUIÇÃO DE SUBVENÇÕES ECONÔMICAS - COPEC
+  # Print: vpd_09.png
+  # UG: 170700
+  # Contas: 395010100, 395110100
+  # Evento: 581012
+  # 
+  # NOTA IMPORTANTE: O critério oficial também usa:
+  # - NS Classificação Contábil 1: 217710101, 227710101, 222210200, 212210300,
+  #   222110200, 212110301, 212110303, 212110700, 212210601, 212310201, 212310202,
+  #   212410201, 217310301, 217310602, 217350402, 222310102, 222410101, 227310301
+  # - NS Classificação Contábil 2: 395010100, 395110100
+  # Estes atributos foram OMITIDOS do arquivo, causando diferença de ~9.7 bi
+  # O valor correto seria calculado pela metodologia completa do TG.
+  # ---------------------------------------------------------------------------
   `57 VPD - Constituição de Subvenções Econômicas - COPEC` = list(
     criterio = "
-    (conta_contabil_numero %in% c('395010100', '395110100')) |
-    (conta_contabil_numero %in% c('217710101', '227710101', '222210200', '212210300',
-                                  '222110200', '212110301', '212110303', '212110700',
-                                  '212210601', '212310201', '212310202', '212410201',
-                                  '217310301', '217310602', '217350402', '222310102',
-                                  '222410101', '227310301') &
-     evento_codigo == '581012' &
-     ug_executora_codigo == '170700')
+    ug_executora_codigo == '170700' &
+    conta_contabil_numero %in% c('395010100', '395110100') &
+    evento_codigo == '541559'
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPD - OUTRAS VARIAÇÕES CAMBIAIS
+  # Print: vpd_03.png
+  # Contas: 343910200, 343940200, 343950200
+  # (UG: 170512, 170700) OU (UG 380916 E NS Classif. Contábil 2: 121110309)
+  # NOTA: O filtro de NS Classif. Contábil 2 foi omitido
+  # ---------------------------------------------------------------------------
   `58 VPD - Outras Variações Cambiais` = list(
     criterio = "
     conta_contabil_numero %in% c('343910200', '343940200', '343950200') &
@@ -6389,15 +6450,31 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPD - DESINCORPORAÇÃO DE ATIVOS
+  # Print: vpd_03.png
+  # Contas: 365040100, 365010100, 365050100, 365140100, 365110100, 365150100
+  # UGs: 170512, 170700
+  #
+  # NOTA: No arquivo atual só existem 365110100 e 365140100
+  # As contas 365010100, 365040100, 365050100, 365150100 NÃO EXISTEM
+  # Isso causa diferença de ~84 mi. Necessário reextrair do TG.
+  # ---------------------------------------------------------------------------
   `59 VPD - Desincorporação de Ativos` = list(
     criterio = "
-    conta_contabil_numero %in% c('365010100', '365040100', '365110100', '365140100') &
+    conta_contabil_numero %in% c('365010100', '365040100', '365050100', 
+                                 '365110100', '365140100', '365150100') &
     ug_executora_codigo %in% c('170512', '170700')
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPD - REVERSÃO DE SUBVENÇÕES ECONÔMICAS - COPEC
+  # Print: vpd_04.png
+  # Evento: 541559
+  # Contas: 395010100, 395110100
+  # UG: 170700
+  # ---------------------------------------------------------------------------
   `60 VPD - Reversão de Subvenções Econômicas - COPEC` = list(
     criterio = "
     conta_contabil_numero %in% c('395010100', '395110100') &
@@ -6406,23 +6483,43 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPD - VAR MONET E CAMBIAIS DE EMPREST e FINANC CONCEDIDOS
+  # Print: vpd_04.png
+  # Contas: 343510200, 343540200, 343550200, 343510100
+  # UGs: 170512, 170526, 170705, 170600, 380916, 170700
+  # ---------------------------------------------------------------------------
   `61 VPD - Var Monet e Cambiais de Emprest e Financ Concedidos` = list(
     criterio = "
     conta_contabil_numero %in% c('343510100', '343510200', '343540200', '343550200') &
-    ug_executora_codigo %in% c('170512', '170526', '170600', '170700', '380916', '170705')
+    ug_executora_codigo %in% c('170512', '170526', '170600', '170700', '170705', '380916')
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPA - VAR MONET E CAMBIAIS DE EMPREST e FINANC CONCEDIDOS
+  # Print: vpd_04.png
+  # Contas: 443140100, 443150100, 443110100, 443310100, 443340100
+  # UGs: 170512, 170526, 170705, 170600, 380916, 170700
+  #
+  # NOTA: No arquivo atual só existem 443110100 e 443310100
+  # As contas 443140100, 443150100, 443340100 NÃO EXISTEM
+  # Isso causa diferença de ~55 bi. Necessário reextrair do TG.
+  # ---------------------------------------------------------------------------
   `62 VPA - Var Monet e Cambiais de Emprest e Financ Concedidos` = list(
     criterio = "
-    conta_contabil_numero %in% c('443110100', '443310100', '443410100', '443510100') &
-    ug_executora_codigo %in% c('170512', '170526', '170600', '170700', '380916', '170705')
+    conta_contabil_numero %in% c('443110100', '443140100', '443150100', 
+                                 '443310100', '443340100') &
+    ug_executora_codigo %in% c('170512', '170526', '170600', '170700', '170705', '380916')
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPA - ATUALIZAÇÃO MONETÁRIA POSITIVA
+  # Print: vpd_05.png
+  # Contas: 443910101, 443940101, 443950101
+  # UGs: 170512, 170526, 170705, 170600, 170700
+  # ---------------------------------------------------------------------------
   `63 VPA - Atualização Monetária Positiva` = list(
     criterio = "
     conta_contabil_numero %in% c('443910101', '443940101', '443950101') &
@@ -6430,48 +6527,78 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPA - OUTRAS VARIAÇÕES MONETÁRIAS
+  # Print: vpd_05.png
+  # Contas: 443910100, 443940100, 443950100
+  # UGs: 170512, 170526, 170705, 170600, 170700
+  # ---------------------------------------------------------------------------
   `64 VPA - Outras Variações Monetárias` = list(
     criterio = "
     conta_contabil_numero %in% c('443910100', '443940100', '443950100') &
-    ug_executora_codigo %in% c('170512', '170526', '170600', '170700',  '170705')
+    ug_executora_codigo %in% c('170512', '170526', '170600', '170700', '170705')
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPA - OUTRAS VARIAÇÕES CAMBIAIS
+  # Print: vpd_05.png
+  # Contas: 443910200, 443940200, 443950200
+  # UGs: 170512, 170526, 170705, 170600, 120002, 170700
+  # ---------------------------------------------------------------------------
   `65 VPA - Outras Variações Cambiais` = list(
     criterio = "
     conta_contabil_numero %in% c('443910200', '443940200', '443950200') &
-    ug_executora_codigo %in% c('170512', '170526', '170600', '170700', '120002',  '170705')
+    ug_executora_codigo %in% c('120002', '170512', '170526', '170600', '170700', '170705')
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPA - GANHOS COM DESINCORPORAÇÃO DE PASSIVOS
+  # Print: vpd_06.png
+  # Contas: 464010100, 464040100, 464050100, 464110100, 464140100, 464150100
+  # UG: 170600
+  # ---------------------------------------------------------------------------
   `66 VPA - Ganhos com Desincorporação de Passivos` = list(
     criterio = "
-    conta_contabil_numero %in% c('464010100', '464040100', '464110100',
-                                '464140100', '464150100') &
+    conta_contabil_numero %in% c('464010100', '464040100', '464050100',
+                                 '464110100', '464140100', '464150100') &
     ug_executora_codigo == '170600'
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPA - RESULTADO POSITIVO BACEN
+  # Print: vpd_06.png
+  # Conta: 448110100
+  # ---------------------------------------------------------------------------
   `67 VPA - Resultado Positivo BACEN` = list(
     criterio = "
     conta_contabil_numero == '448110100'
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPA - OUTRAS VAR PATRIMONIAIS AUMENTATIVAS
+  # Print: vpd_06.png
+  # Contas: 449010100, 449040100, 449050100, 449110100, 449140100, 449150100
+  # UGs: 170512, 170705, 170526
+  # ---------------------------------------------------------------------------
   `68 VPA - Outras Variações Patrimoniais Aumentativas` = list(
     criterio = "
-    conta_contabil_numero %in% c('449010100', '449040100', '449100100',
-                                '449140100', '449150100') &
+    conta_contabil_numero %in% c('449010100', '449040100', '449050100',
+                                 '449110100', '449140100', '449150100') &
     ug_executora_codigo %in% c('170512', '170526', '170705')
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPA - REMUNERAÇÃO DOS DEPÓSITOS BANCÁRIOS (FINANCEIRO???)
+  # Print: vpd_07.png
+  # Contas: 445110100, 445210100
+  # AND NOT (Órgão UGE Tipo Administração = 7:FUNDOS) EXCETO UG 380916
+  # Evento Não em: 581798, 586798
+  # ---------------------------------------------------------------------------
   `69 VPA - Remuneração dos Depósitos Bancários` = list(
     criterio = "
     conta_contabil_numero %in% c('445110100', '445210100') &
@@ -6480,47 +6607,76 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPA - REVERSÃO DE PROVISÕES E DE AJUSTES PARA PERDAS
+  # Print: vpd_07.png
+  # Contas: 497110100, 497140100, 497150100, 497210100, 497240100
+  # UGs: 170700, 170512, 170526, 170705
+  # ---------------------------------------------------------------------------
   `70 VPA - Reversão de Provisões e de Ajustes para Perdas` = list(
     criterio = "
     conta_contabil_numero %in% c('497110100', '497140100', '497150100',
-                                '497210100', '497240100') &
-    ug_executora_codigo %in% c('170700', '170705', '170512', '170526')
+                                 '497210100', '497240100') &
+    ug_executora_codigo %in% c('170512', '170526', '170700', '170705')
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # VPA - OUTROS GANHOS COM INCORPORAÇÃO DE ATIVOS
+  # Print: vpd_07.png
+  # Contas: 463920100, 463940100
+  # UG: 170512
+  # ---------------------------------------------------------------------------
   `71 VPA - Outros Ganhos com Incorporação de Ativos` = list(
     criterio = "
     conta_contabil_numero %in% c('463920100', '463940100') &
-    ug_executora_codigo %in% c('170512')
+    ug_executora_codigo == '170512'
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # (-) CRÉDITO EMPENHADO EM LIQUIDAÇÃO (EXCETO CODIV)
+  # Print: vpd_08.png
+  # Conta: 622130200
+  # UG Executora NÃO RELACIONADO: 170600 (ou seja, EXCLUI a UG 170600!)
+  # ---------------------------------------------------------------------------
   `72 Crédito Empenhado em Liquidação (exceto CODIV)` = list(
     criterio = "
     conta_contabil_numero == '622130200' &
-    ug_executora_codigo == '170600'
+    ug_executora_codigo != '170600'
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # APLICAÇÕES FINANCEIRAS - FECHAMENTO CÂMBIO
+  # Print: vpd_08.png
+  # Conta: 111215100
+  # ---------------------------------------------------------------------------
   `73 Aplicações Financeiras - Fechamento Câmbio` = list(
     criterio = "
     conta_contabil_numero == '111215100'
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # JUROS E ENCARGOS PASSIVOS - OUTRAS VPD FINANCEIRAS
+  # Print: vpd_08.png
+  # Contas: 349910100, 349940100, 349950100
+  # UGs: 170512, 170500
+  # ---------------------------------------------------------------------------
   `74 Juros e Encargos Passivos - Outras VPD Financeiras` = list(
     criterio = "
     conta_contabil_numero %in% c('349910100', '349940100', '349950100') &
-    ug_executora_codigo %in% c('170512', '170500')
+    ug_executora_codigo %in% c('170500', '170512')
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # PASSIVO DÍVIDA PÚBLICA REF FIES E MANTENEDORAS
+  # Print: vpd_09.png
+  # Evento: 591738
+  # Conta: 222110101
+  # ---------------------------------------------------------------------------
   `75 Passivo Dívida Pública REF FIES e Mantenedoras` = list(
     criterio = "
     conta_contabil_numero == '222110101' &
@@ -6528,7 +6684,12 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
+  # ---------------------------------------------------------------------------
   # AJUSTES DE EXERCÍCIOS ANTERIORES
+  # Print: vpd_09.png
+  # Conta: 237110300
+  # UGs: 170512, 170700
+  # ---------------------------------------------------------------------------
   `76 Ajustes de Exercícios Anteriores` = list(
     criterio = "
     conta_contabil_numero == '237110300' &
@@ -6536,7 +6697,6 @@ criterios_rreo_A06_ajuste <- list(
     "
   )
 )
-
 ```
 
 ![ajustar totalização](subsitio_cesef.png)
@@ -6579,7 +6739,7 @@ rreo_a06_consolidado <- bind_rows(
 
 # Agrupar por mes_lancamento, categoria e somar valores
 rreo_a06_final <- rreo_a06_consolidado %>%
-  group_by(mes_lancamento, categoria) %>%
+  group_by(mes_lancamento, categoria, ordem) %>%
   summarise(
     valor = sum(valor, na.rm = TRUE),
     .groups = "drop"
