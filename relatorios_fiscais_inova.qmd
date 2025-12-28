@@ -207,8 +207,6 @@ print(paste("📅 Mês de referência definido:", mes_filtro))
 ## 🧾 Dados de Receita
 
 ```{r dados_receita}
-
-
 #| echo: true
 #| eval: true
 #| include: false
@@ -349,8 +347,6 @@ print(dados_despesa %>% count(refinanciamento, sort = TRUE))
 
 ```{r dados_rp}
 #| echo: true
-
-
 #| include: false
 
 # ============================================================================
@@ -437,8 +433,6 @@ cat(sprintf("   • Tempo de importação: %.1f segundos\n",
 
 ```{r dados_rreo_a06_resultado_primario}
 #| echo: true
-
-
 #| include: false
 
 # ============================================================================
@@ -492,9 +486,7 @@ cat(sprintf("   • Disponibilidades: %s registros\n",
 
 ## 📊 Dados RCL - RREO Anexo 03
 
-```{r importar-dados-rcl}
-
-
+```{r importar-dados-rcll}
 #| include: false
 
 cat("📥 Importando dados RCL (RREO A03)...\n")
@@ -584,8 +576,6 @@ cat("\n✅ Importação RCL concluída com sucesso!\n")
 ## 👥 Dados RGF Anexo 01 - Despesa com Pessoal
 
 ```{r importar-dados-rgf-a01}
-
-
 #| include: false
 
 cat("📥 Importando dados RGF A01 (Despesa Pessoal)...\n")
@@ -675,8 +665,6 @@ cat(sprintf("✓ RGF A02: %d arquivos importados\n", length(arq_rgf_a02)))
 ## 🔐 Dados RGF Anexo 03 - Garantias e Contragarantias
 
 ```{r importar-dados-rgf-a03}
-
-
 #| include: false
 
 cat("📥 Importando dados RGF A03 (Garantias)...\n")
@@ -696,7 +684,6 @@ cat(sprintf("✓ RGF A03: %s registros\n",
 ## 💳 Dados RGF Anexo 04 - Operações de Crédito
 
 ```{r importar-dados-rgf-a04}
-
 #| include: false
 #| column: screen
 
@@ -1396,7 +1383,6 @@ calcular_operacoes <- function(dados_consolidados = NULL, ...) {
 
 # RGF - Relatório de Gestão Fiscal
 
-
 # 📋 RGF Anexo 01 - Despesa com Pessoal {#sec-rgf-a01}
 
 ## Ficha Técnica
@@ -1530,65 +1516,6 @@ estrutura <- tibble::tribble(
 )
 
 knitr::kable(estrutura, col.names = c("Ordem", "Item", "Grupo"))
-```
-
-## Importação dos Dados
-
-```{r importar-rgf-a01}
-#| code-fold: true
-#| code-summary: "Ver código de importação"
-
-# =============================================================================
-# IMPORTAÇÃO DOS DADOS RGF ANEXO 01
-# =============================================================================
-# Este chunk importa todos os arquivos mensais de despesa com pessoal.
-# Os arquivos seguem o padrão: rgf_a01_[mês].xlsx
-# =============================================================================
-
-cat("📥 Importando dados RGF Anexo 01 (Despesa com Pessoal)...\n")
-
-# -----------------------------------------------------------------------------
-# 1. Listar arquivos disponíveis
-# -----------------------------------------------------------------------------
-# Busca todos os arquivos que começam com "rgf_a01_" na pasta do mês
-
-arq_rgf_a01 <- list.files(
-  path = mes_pasta, 
-  pattern = "rgf_a01_", 
-  full.names = TRUE
-)
-
-cat(sprintf("   Encontrados %d arquivos\n", length(arq_rgf_a01)))
-
-# -----------------------------------------------------------------------------
-# 2. Importar arquivos em paralelo
-# -----------------------------------------------------------------------------
-# Usa a função importar_excel_paralelo() definida no setup
-# - skip = 5: pula as 5 primeiras linhas (cabeçalho do TG)
-# - .progress = TRUE: mostra barra de progresso
-
-rgf_a01 <- importar_excel_paralelo(arq_rgf_a01, skip = 5, .progress = TRUE)
-
-# -----------------------------------------------------------------------------
-# 3. Converter colunas e criar data_lancamento
-# -----------------------------------------------------------------------------
-
-rgf_a01 <- rgf_a01 %>%
-  mutate(
-    # Garantir que valores numéricos estão corretos
-    movim_liquido_r_item_informacao = as.numeric(movim_liquido_r_item_informacao),
-    mes_lancamento = as.numeric(mes_lancamento),
-    
-    # Criar data do lançamento (último dia do mês)
-    # Exemplo: 202501 -> 2025-01-31
-    data_lancamento = ceiling_date(
-      ymd(paste0(mes_lancamento, "01")), 
-      "month"
-    ) - days(1)
-  )
-
-cat(sprintf("✅ RGF A01: %s registros importados\n", 
-            format(nrow(rgf_a01), big.mark = ".", decimal.mark = ",")))
 ```
 
 ## Categorização por Região/Poder
@@ -2168,22 +2095,20 @@ knitr::kable(notas, col.names = c("Item", "Descrição"))
 
 ## Observações Importantes
 
-::: {.callout-warning}
+::: callout-warning
 ### Falsos Positivos na Detecção de Termos
 
 O padrão `PEN` captura tanto **PENSÕES** (correto) quanto termos como **COMPENSAÇÕES** e **DEPENDÊNCIAS** (falsos positivos). Atenção especial deve ser dada à análise de:
 
-- REFORMA - pode capturar "REFORMA AGRÁRIA" (falso positivo)
-- PEN - captura "COMPENSAÇÕES" indevidamente
+-   REFORMA - pode capturar "REFORMA AGRÁRIA" (falso positivo)
+-   PEN - captura "COMPENSAÇÕES" indevidamente
 :::
 
-::: {.callout-note}
+::: callout-note
 ### Filtros do Tesouro Gerencial
 
 O Tesouro Gerencial usa o operador **"Contém"** para detecção de termos, que é equivalente ao padrão sem word boundaries (`\\b`) em R. Isso pode gerar falsos positivos que devem ser tratados manualmente.
 :::
-
-
 
 # 📋 RGF Anexo 02 - Dívida Consolidada Líquida {#sec-rgf-a02}
 
@@ -2333,92 +2258,6 @@ estrutura <- tibble::tribble(
 )
 
 knitr::kable(estrutura, col.names = c("Ordem", "Item", "Sinal"))
-```
-
-## Importação dos Dados
-
-```{r importar-rgf-a02}
-#| code-fold: true
-#| code-summary: "Ver código de importação"
-
-# =============================================================================
-# IMPORTAÇÃO DOS DADOS RGF ANEXO 02
-# =============================================================================
-# Este anexo utiliza MÚLTIPLAS bases de dados do Tesouro Gerencial.
-# Cada arquivo tem filtros específicos aplicados na extração.
-# =============================================================================
-
-cat("📥 Importando dados RGF Anexo 02 (DCL)...\n")
-
-# -----------------------------------------------------------------------------
-# Função auxiliar para processar arquivos RGF A02
-# -----------------------------------------------------------------------------
-
-processar_arquivo_rgf_a02 <- function(file_path, skip_rows = 5) {
-  
-  # Ler arquivo Excel
-  df <- read_excel(file_path, skip = skip_rows, col_types = "text") %>%
-    clean_names()
-  
-  # Processar mes_lancamento se existir
-  if ("mes_lancamento" %in% names(df)) {
-    df <- df %>%
-      mutate(
-        mes_lancamento = as.numeric(mes_lancamento),
-        data_lancamento = ceiling_date(
-          ymd(paste0(mes_lancamento, "01")), 
-          "month"
-        ) - days(1)
-      )
-  }
-  
-  # Converter colunas numéricas automaticamente
-  numeric_patterns <- c("^saldo_r", "^movim_liquido_r")
-  cols_to_convert <- names(df)[str_detect(names(df), 
-                                           paste(numeric_patterns, collapse = "|"))]
-  
-  for (col in cols_to_convert) {
-    df <- df %>% mutate(!!sym(col) := as.numeric(!!sym(col)))
-  }
-  
-  return(df)
-}
-
-# -----------------------------------------------------------------------------
-# Listar e importar todos os arquivos rgf_a02_*.xlsx
-# -----------------------------------------------------------------------------
-
-arq_rgf_a02 <- list.files(
-  path = mes_pasta,
-  pattern = "^rgf_a02_.*\\.xlsx$",
-  full.names = TRUE
-)
-
-cat(sprintf("   Encontrados %d arquivos\n", length(arq_rgf_a02)))
-
-# Processar em paralelo
-rgf_a02_list <- future_map(
-  arq_rgf_a02,
-  processar_arquivo_rgf_a02,
-  .progress = TRUE,
-  .options = furrr_options(seed = TRUE)
-)
-
-# Nomear os dataframes com base no nome do arquivo
-names(rgf_a02_list) <- basename(arq_rgf_a02) %>% str_remove("\\.xlsx$")
-
-# Colocar cada dataframe no ambiente global
-list2env(rgf_a02_list, envir = .GlobalEnv)
-
-cat(sprintf("✅ RGF A02: %d arquivos importados\n", length(arq_rgf_a02)))
-
-# Exibir resumo dos arquivos
-cat("\n📊 Resumo dos arquivos importados:\n")
-for (nome in names(rgf_a02_list)) {
-  n_registros <- nrow(rgf_a02_list[[nome]])
-  cat(sprintf("   • %s: %s registros\n", nome, 
-              format(n_registros, big.mark = ".", decimal.mark = ",")))
-}
 ```
 
 ## Critérios de Classificação
@@ -3419,28 +3258,27 @@ knitr::kable(notas, col.names = c("Item", "Descrição"))
 
 ## Observações Importantes
 
-::: {.callout-warning}
+::: callout-warning
 ### Complexidade do Anexo
 
 O RGF Anexo 02 é o demonstrativo mais complexo, utilizando **13 bases de dados diferentes** do Tesouro Gerencial, cada uma com filtros específicos. A correta extração dos dados no TG é fundamental para a precisão dos cálculos.
 :::
 
-::: {.callout-note}
+::: callout-note
 ### Sobre o Balancete
 
 O arquivo `rgf_a02_balancete.xlsx` (renomeado para "balancete") é utilizado em diversos anexos além do RGF A02. Por isso, foi sugerida a renomeação para um nome mais genérico que reflita seu uso compartilhado.
 :::
 
-::: {.callout-tip}
+::: callout-tip
 ### Verificação dos Resultados
 
 Para validar os valores, compare com o demonstrativo oficial publicado no SICONFI. As principais fontes de divergência são:
 
-- Diferenças de data/mês de referência
-- Filtros incorretos na extração do TG
-- Contas contábeis atualizadas no PCASP
+-   Diferenças de data/mês de referência
+-   Filtros incorretos na extração do TG
+-   Contas contábeis atualizadas no PCASP
 :::
-
 
 # 📋 RGF Anexo 03 - Garantias e Contragarantias {#sec-rgf-a03}
 
@@ -3587,44 +3425,6 @@ contas_correntes <- tibble::tribble(
 )
 
 knitr::kable(contas_correntes, col.names = c("Conta Corrente", "Beneficiário", "Tipo de Operação"))
-```
-
-## Importação dos Dados
-
-```{r importar-rgf-a03}
-#| code-fold: true
-#| code-summary: "Ver código de importação"
-
-# =============================================================================
-# IMPORTAÇÃO DOS DADOS RGF ANEXO 03
-# =============================================================================
-# Arquivo único com dados de garantias e contragarantias
-# =============================================================================
-
-cat("📥 Importando dados RGF Anexo 03 (Garantias)...\n")
-
-# -----------------------------------------------------------------------------
-# Importar arquivo
-# -----------------------------------------------------------------------------
-
-rgf_a03 <- read_excel(
-  str_c(mes_pasta, "rgf_a03.xlsx"), 
-  skip = 5
-) %>%
-  clean_names() %>%
-  mutate(
-    # Converter mês para numérico
-    mes_lancamento = as.numeric(mes_lancamento),
-    
-    # Criar data do lançamento (último dia do mês)
-    data_lancamento = ceiling_date(
-      ymd(paste0(mes_lancamento, "01")), 
-      "month"
-    ) - days(1)
-  )
-
-cat(sprintf("✅ RGF A03: %s registros importados\n", 
-            format(nrow(rgf_a03), big.mark = ".", decimal.mark = ",")))
 ```
 
 ## Critérios de Classificação
@@ -4012,27 +3812,23 @@ knitr::kable(notas, col.names = c("Item", "Descrição"))
 
 ## Observações Importantes
 
-::: {.callout-note}
+::: callout-note
 ### Limite de Garantias (LRF)
 
 O limite de garantias conforme a LRF é de **60% da RCL** para a União. O valor atual deve ser comparado com este limite no RGF Anexo 06 (Demonstrativo Simplificado).
 :::
 
-::: {.callout-tip}
+::: callout-tip
 ### Contas Contábeis
 
 As principais contas contábeis utilizadas são:
 
-- **812110104**: Garantias internas
-- **812110204**: Garantias externas
-- **812110110**: Seguros-garantia
-- **811110304**: Contragarantias internas
-- **811110404**: Contragarantias externas
+-   **812110104**: Garantias internas
+-   **812110204**: Garantias externas
+-   **812110110**: Seguros-garantia
+-   **811110304**: Contragarantias internas
+-   **811110404**: Contragarantias externas
 :::
-
-
-
-
 
 # 📋 RGF Anexo 04 - Operações de Crédito {#sec-rgf-a04}
 
@@ -4156,87 +3952,6 @@ estrutura <- tibble::tribble(
 )
 
 knitr::kable(estrutura, col.names = c("Ordem", "Item", "Grupo"))
-```
-
-## Importação dos Dados
-
-```{r importar-rgf-a04}
-#| code-fold: true
-#| code-summary: "Ver código de importação"
-
-# =============================================================================
-# IMPORTAÇÃO DOS DADOS RGF ANEXO 04
-# =============================================================================
-# O anexo utiliza 3 bases de dados:
-#   1. rgf_a04_receitas - Receitas de operações de crédito
-#   2. rgf_a04_despesas - Aplicação dos recursos
-#   3. rgf_a02_balancete - Operações extraorçamentárias (compartilhado com A02)
-# =============================================================================
-
-cat("📥 Importando dados RGF Anexo 04 (Operações de Crédito)...\n")
-
-# -----------------------------------------------------------------------------
-# Lista de arquivos específicos do A04
-# -----------------------------------------------------------------------------
-
-arquivos_a04 <- list(
-  receitas = str_c(mes_pasta, "rgf_a04_receitas.xlsx"),
-  despesas = str_c(mes_pasta, "rgf_a04_despesas.xlsx")
-)
-
-# -----------------------------------------------------------------------------
-# Importar em paralelo
-# -----------------------------------------------------------------------------
-
-dados_a04_lista <- future_map(
-  arquivos_a04,
-  function(arquivo) {
-    read_excel(arquivo, skip = 5) %>%
-      clean_names() %>%
-      mutate(
-        mes_lancamento = as.numeric(mes_lancamento),
-        data_lancamento = ceiling_date(
-          ymd(paste0(mes_lancamento, "01")), 
-          "month"
-        ) - days(1)
-      )
-  },
-  .progress = TRUE
-)
-
-# Atribuir aos objetos
-rgf_a04_receitas <- dados_a04_lista$receitas
-rgf_a04_despesas <- dados_a04_lista$despesas
-
-cat(sprintf("✅ RGF A04 Receitas: %s registros\n", 
-            format(nrow(rgf_a04_receitas), big.mark = ".", decimal.mark = ",")))
-cat(sprintf("✅ RGF A04 Despesas: %s registros\n", 
-            format(nrow(rgf_a04_despesas), big.mark = ".", decimal.mark = ",")))
-
-# -----------------------------------------------------------------------------
-# Verificar se rgf_a02_balancete já foi importado
-# -----------------------------------------------------------------------------
-# O balancete é compartilhado com o RGF A02 para operações extraorçamentárias
-
-if (!exists("rgf_a02_balancete")) {
-  cat("⚠️ rgf_a02_balancete não encontrado. Importando...\n")
-  rgf_a02_balancete <- read_excel(
-    str_c(mes_pasta, "rgf_a02_balancete.xlsx"), 
-    skip = 5
-  ) %>%
-    clean_names() %>%
-    mutate(
-      mes_lancamento = as.numeric(mes_lancamento),
-      data_lancamento = ceiling_date(
-        ymd(paste0(mes_lancamento, "01")), 
-        "month"
-      ) - days(1)
-    )
-  cat(sprintf("✅ Balancete: %s registros\n", 
-              format(nrow(rgf_a02_balancete), big.mark = ".", decimal.mark = ",")))
-} else {
-  cat("✅ rgf_a02_balancete já disponível\n")
-}
 ```
 
 ## Critérios de Classificação
@@ -4762,30 +4477,28 @@ knitr::kable(notas, col.names = c("Item", "Descrição"))
 
 ## Observações Importantes
 
-::: {.callout-note}
+::: callout-note
 ### Limite de Operações de Crédito (LRF)
 
 O limite de operações de crédito conforme a LRF é de **16% da RCL** para a União. O valor deve ser comparado com este limite no RGF Anexo 06 (Demonstrativo Simplificado).
 :::
 
-::: {.callout-warning}
+::: callout-warning
 ### Operações Extraorçamentárias
 
 As operações extraorçamentárias (linhas 03-05, 07, 10, 13-14) utilizam dados do **balancete** (rgf_a02_balancete), que é compartilhado com o RGF Anexo 02. Certifique-se de que este arquivo foi importado antes de processar o Anexo 04.
 :::
 
-::: {.callout-tip}
+::: callout-tip
 ### Naturezas de Receita
 
 As principais naturezas de receita utilizadas são:
 
-- **2111**: Operações de Crédito Internas - Mobiliárias
-- **2112**: Operações de Crédito Internas - Contratuais
-- **2121**: Operações de Crédito Externas - Mobiliárias
-- **2122**: Operações de Crédito Externas - Contratuais
+-   **2111**: Operações de Crédito Internas - Mobiliárias
+-   **2112**: Operações de Crédito Internas - Contratuais
+-   **2121**: Operações de Crédito Externas - Mobiliárias
+-   **2122**: Operações de Crédito Externas - Contratuais
 :::
-
-
 
 # 📋 RGF Anexo 05 - Disponibilidades de Caixa {#sec-rgf-a05}
 
@@ -4932,51 +4645,6 @@ colunas <- tibble::tribble(
 )
 
 knitr::kable(colunas, col.names = c("Coluna", "Descrição"))
-```
-
-## Importação dos Dados
-
-```{r importar-rgf-a05}
-#| code-fold: true
-#| code-summary: "Ver código de importação"
-
-# =============================================================================
-# IMPORTAÇÃO DOS DADOS RGF ANEXO 05
-# =============================================================================
-# O anexo utiliza múltiplos arquivos segmentados por fonte de recursos
-# =============================================================================
-
-cat("📥 Importando dados RGF Anexo 05 (Disponibilidades)...\n")
-
-# -----------------------------------------------------------------------------
-# Buscar todos os arquivos rgf_a05
-# -----------------------------------------------------------------------------
-
-arq_rgf_a05 <- list.files(
-  path = mes_pasta, 
-  pattern = 'rgf_a05', 
-  full.names = TRUE
-)
-
-cat(sprintf("   Encontrados %d arquivos\n", length(arq_rgf_a05)))
-
-# -----------------------------------------------------------------------------
-# Importar em paralelo
-# -----------------------------------------------------------------------------
-
-rgf_a05 <- importar_excel_paralelo(arq_rgf_a05, skip = 5, .progress = TRUE) %>%
-  mutate(
-    saldo_r_conta_contabil = as.numeric(saldo_r_conta_contabil),
-    mes_lancamento = as.numeric(mes_lancamento),
-    data_lancamento = ceiling_date(
-      ymd(paste0(mes_lancamento, "01")), 
-      "month"
-    ) - days(1)
-  )
-
-cat(sprintf("✅ RGF A05: %s registros (%d arquivos)\n", 
-            format(nrow(rgf_a05), big.mark = ".", decimal.mark = ","), 
-            length(arq_rgf_a05)))
 ```
 
 ## Preparação dos Dados
@@ -5666,39 +5334,38 @@ knitr::kable(notas, col.names = c("Item", "Descrição"))
 
 ## Observações Importantes
 
-::: {.callout-warning}
+::: callout-warning
 ### Complexidade do Anexo
 
 O RGF Anexo 05 é um dos anexos mais complexos, envolvendo:
 
-- **Múltiplos arquivos** segmentados por fonte de recursos
-- **Classificação de linhas** baseada em fontes
-- **Duas abrangências** (União e Executivo)
-- **22 critérios** de classificação
-- **Arquivo externo** de disponibilidade inicial
+-   **Múltiplos arquivos** segmentados por fonte de recursos
+-   **Classificação de linhas** baseada em fontes
+-   **Duas abrangências** (União e Executivo)
+-   **22 critérios** de classificação
+-   **Arquivo externo** de disponibilidade inicial
 :::
 
-::: {.callout-note}
+::: callout-note
 ### Arquivo de Disponibilidade Inicial
 
 O arquivo `disponibilidade_inicial.xlsx` deve conter duas abas:
 
-- **uniao**: Disponibilidade inicial para a União
-- **executivo**: Disponibilidade inicial para o Poder Executivo
+-   **uniao**: Disponibilidade inicial para a União
+-   **executivo**: Disponibilidade inicial para o Poder Executivo
 
 Cada aba deve ter as colunas: `linhas` e `disponibilidade_inicial`
 :::
 
-::: {.callout-tip}
+::: callout-tip
 ### Principais Contas Contábeis
 
-- **111***: Disponibilidades (caixa e equivalentes)
-- **2***: Passivos (obrigações)
-- **631***: Restos a Pagar não processados
-- **632***: Restos a Pagar processados
-- **894***: TEDs a liberar/receber
+-   **111**\*: Disponibilidades (caixa e equivalentes)
+-   **2**\*: Passivos (obrigações)
+-   **631**\*: Restos a Pagar não processados
+-   **632**\*: Restos a Pagar processados
+-   **894**\*: TEDs a liberar/receber
 :::
-
 
 # 📋 RREO Anexo 01 - Balanço Orçamentário {#sec-rreo-a01}
 
@@ -5891,155 +5558,6 @@ estrutura_despesas <- tibble::tribble(
 )
 
 knitr::kable(estrutura_despesas, col.names = c("Ordem", "Item", "Grupo"))
-```
-
-## Importação dos Dados
-
-### Receitas
-
-```{r importar-receitas-rreo-a01}
-#| code-fold: true
-#| code-summary: "Ver código de importação - Receitas"
-
-# =============================================================================
-# IMPORTAÇÃO DOS DADOS DE RECEITAS
-# =============================================================================
-# Dois arquivos principais:
-#   1. tg_receita_liquida.xlsx - Receitas realizadas
-#   2. tg_receita_previsao.xlsx - Previsão de receitas
-# =============================================================================
-
-cat("📥 Importando dados de receitas...\n")
-
-# -----------------------------------------------------------------------------
-# Definir arquivos a importar
-# -----------------------------------------------------------------------------
-
-arquivos_receita <- c(
-  str_c(mes_pasta, "tg_receita_liquida.xlsx"),
-  str_c(mes_pasta, "tg_receita_previsao.xlsx")
-)
-
-# -----------------------------------------------------------------------------
-# Importar em paralelo
-# -----------------------------------------------------------------------------
-
-dados_receita <- importar_excel_paralelo(
-  arquivos = arquivos_receita, 
-  skip = 5, 
-  .progress = TRUE
-) %>%
-  # Filtrar apenas orçamento fiscal
-  filter(orgao_uge_orcam_fiscal_s_n == "PERTENCE") %>%
-  mutate(
-    # Conversão de data
-    mes_lancamento = as.numeric(mes_lancamento),
-    data_lancamento = ceiling_date(
-      ymd(paste0(mes_lancamento, "01")), 
-      "month"
-    ) - days(1),
-    
-    # Variáveis derivadas - tipo_modalidade
-    tipo_modalidade = ifelse(
-      nre1_categoria_economica_codigo %in% c(7, 8), 
-      "intra", 
-      "exceto intra"
-    ),
-    
-    # Variáveis derivadas - refinanciamento
-    refinanciamento = ifelse(
-      natureza_receita_codigo_completo %in% c(81110201, 21110201, 21210201), 
-      "sim", 
-      "nao"
-    )
-  )
-
-cat(sprintf("✅ Dados de receita: %s registros\n", 
-            format(nrow(dados_receita), big.mark = ".", decimal.mark = ",")))
-```
-
-### Despesas
-
-```{r importar-despesas-rreo-a01}
-#| code-fold: true
-#| code-summary: "Ver código de importação - Despesas"
-
-# =============================================================================
-# IMPORTAÇÃO DOS DADOS DE DESPESAS
-# =============================================================================
-# Múltiplos arquivos com padrão 'tg_despesa_*'
-# =============================================================================
-
-cat("📥 Importando dados de despesas...\n")
-
-# -----------------------------------------------------------------------------
-# Buscar todos os arquivos de despesa
-# -----------------------------------------------------------------------------
-
-arq_despesa <- list.files(
-  path = mes_pasta, 
-  pattern = 'tg_despesa', 
-  full.names = TRUE
-)
-
-cat(sprintf("   Encontrados %d arquivos\n", length(arq_despesa)))
-
-# -----------------------------------------------------------------------------
-# Importar em paralelo
-# -----------------------------------------------------------------------------
-
-dados_despesa <- importar_excel_paralelo(
-  arquivos = arq_despesa, 
-  skip = 5, 
-  .progress = TRUE
-) %>%
-  # Filtrar apenas orçamento fiscal
-  filter(orgao_uge_orcam_fiscal_s_n == "PERTENCE") %>%
-  mutate(
-    # Converter colunas numéricas
-    across(contains("saldo"), as.numeric),
-    across(contains("valor"), as.numeric),
-    mes_lancamento = as.numeric(mes_lancamento),
-    
-    # Conversão de data
-    data_lancamento = ceiling_date(
-      ymd(paste0(mes_lancamento, "01")), 
-      "month"
-    ) - days(1),
-    
-    # Variáveis derivadas - tipo_modalidade
-    tipo_modalidade = ifelse(
-      modalidade_aplicacao_codigo == 91,
-      "intra",
-      "exceto intra"
-    ),
-    
-    # Variáveis derivadas - refinanciamento
-    refinanciamento = case_when(
-      grupo_despesa_codigo_grupo == 6 &
-        elemento_despesa_codigo %in% c(76, 77) &
-        subfuncao_governo_codigo %in% c(841, 842, 843, 844, 846) &
-        fonte_recursos_codigo == "443" ~ "sim",
-      TRUE ~ "nao"
-    ),
-    
-    # Variáveis derivadas - poder
-    poder = case_when(
-      orgao_uge_orgao_maximo_codigo %in% c(59000) ~ "MINISTÉRIO PÚBLICO DA UNIÃO",
-      orgao_uge_orgao_maximo_codigo %in% c(29000) ~ "DEFENSORIA PÚBLICA",
-      TRUE ~ orgao_uge_poder_nome
-    ),
-    
-    # Variáveis derivadas - transferencia
-    transferencia = ifelse(
-      modalidade_aplicacao_codigo %in% c('30', '31', '32', '35', '36', '40', '41', '42', '45', '46'), 
-      "_transferencia", 
-      "aplicacao_direta"
-    )
-  )
-
-cat(sprintf("✅ Dados de despesa: %s registros\n", 
-            format(nrow(dados_despesa), big.mark = ".", decimal.mark = ",")))
 ```
 
 ## Critérios de Classificação
@@ -6923,46 +6441,37 @@ knitr::kable(notas, col.names = c("Item", "Descrição"))
 
 ## Observações Importantes
 
-::: {.callout-note}
+::: callout-note
 ### Itens de Informação
 
 Os principais itens de informação utilizados são:
 
-**Receitas:**
-- **1**: Previsão Inicial
-- **2**: Previsão Atualizada
-- **5**: Receita Realizada
+**Receitas:** - **1**: Previsão Inicial - **2**: Previsão Atualizada - **5**: Receita Realizada
 
-**Despesas:**
-- **9**: Dotação Inicial
-- **23**: Dotação Atualizada
-- **10**: Despesas Empenhadas
-- **18**: Despesas Liquidadas
-- **25**: Despesas Pagas
+**Despesas:** - **9**: Dotação Inicial - **23**: Dotação Atualizada - **10**: Despesas Empenhadas - **18**: Despesas Liquidadas - **25**: Despesas Pagas
 :::
 
-::: {.callout-warning}
+::: callout-warning
 ### Refinanciamento da Dívida
 
 As operações de refinanciamento são tratadas separadamente:
 
-- **Receitas de refinanciamento**: Naturezas que começam com 21110201, 21210201, 81110201, 81210201
-- **Despesas de refinanciamento**: Grupo 6 + Elementos 76/77 + Subfunções 841-846 + Fonte 443
+-   **Receitas de refinanciamento**: Naturezas que começam com 21110201, 21210201, 81110201, 81210201
+-   **Despesas de refinanciamento**: Grupo 6 + Elementos 76/77 + Subfunções 841-846 + Fonte 443
 
 Estas operações são incluídas apenas no "Subtotal com Refinanciamento".
 :::
 
-::: {.callout-tip}
+::: callout-tip
 ### Classificação da Despesa
 
 A classificação de despesas utiliza múltiplos atributos:
 
-- **Categoria Econômica**: 3 (Corrente), 4 (Capital), 9 (Reserva)
-- **Grupo de Despesa**: 1-6
-- **Modalidade de Aplicação**: 91 indica intra-orçamentária
-- **Elemento de Despesa**: 76/77 para refinanciamento
+-   **Categoria Econômica**: 3 (Corrente), 4 (Capital), 9 (Reserva)
+-   **Grupo de Despesa**: 1-6
+-   **Modalidade de Aplicação**: 91 indica intra-orçamentária
+-   **Elemento de Despesa**: 76/77 para refinanciamento
 :::
-
 
 # 📋 RREO Anexo 02 - Função e Subfunção
 
@@ -6974,20 +6483,129 @@ datatable(dados_despesa %>% group_by( refinanciamento) %>% filter(item_informaca
 #   DT::formatStyle(columns = colnames(.$x$data), fontSize = '75%')
 ```
 
-# 📋 RREO Anexo 03 - RCL
 
-```{r}
+
+
+# RREO Anexo 03 - Receita Corrente Liquida (RCL)
+
+## Ficha Tecnica
+
+| Campo | Informacao |
+|-------|------------|
+| Relatorio | RREO - Relatorio Resumido da Execucao Orcamentaria |
+| Anexo | Anexo 03 |
+| Nome | Demonstrativo da Receita Corrente Liquida |
+| Base Legal | LRF Art. 53, inciso I |
+| Periodicidade | Bimestral |
+| Grau de Dificuldade | Medio |
+| Ultima Atualizacao | 28/12/2025 |
+
+## Arquivos Necessarios
+
+| Arquivo | Descricao | Filtros no TG |
+|---------|-----------|---------------|
+| rreo_a03_rcl_receitas.xlsx | Receitas correntes por natureza | Orc. Fiscal e Seguridade, Categoria Economica = 1 (Correntes), Metrica = Movimento Liquido |
+| rreo_a03_rcl_despesas.xlsx | Transferencias constitucionais e legais | Orc. Fiscal e Seguridade, Naturezas 333081* e 334081*, Metrica = Movimento Liquido |
+
+## Atributos Utilizados
+
+| Atributo | Tipo | Uso | Descricao |
+|----------|------|-----|-----------|
+| nre1_categoria_economica_codigo | character | TG / Criterio | Categoria economica (1=Corrente, 2=Capital) |
+| nre2_origem_receita_codigo_origem | character | TG / Criterio | Origem da receita (1-9) |
+| natureza_receita_codigo_completo | character | TG / Criterio | Codigo completo da natureza de receita |
+| item_informacao_codigo | character | TG / Criterio | Tipo de informacao (5=Receita Realizada) |
+| natureza_despesa_codigo | character | TG / Criterio | Codigo da natureza de despesa |
+| mes_lancamento | numeric | TG / R | Mes do lancamento (YYYYMM) |
+| movim_liquido_r_item_informacao | numeric | TG / R | Valor do movimento liquido |
+| saldo_r_item_informacao | numeric | R (alias) | Alias para movim_liquido (compatibilidade) |
+| data_lancamento | Date | R | Data calculada do lancamento |
+
+## Vinculos com Outros Anexos
+
+| Anexo Relacionado | Tipo de Vinculo | Descricao |
+|-------------------|-----------------|-----------|
+| RGF Anexo 01 | Base de Calculo | RCL e o denominador para limites de despesa com pessoal |
+| RGF Anexo 02 | Base de Calculo | RCL e o denominador para limite da DCL |
+| RGF Anexo 03 | Base de Calculo | RCL e o denominador para limite de garantias |
+| RGF Anexo 04 | Base de Calculo | RCL e o denominador para limite de operacoes de credito |
+| RGF Anexo 06 | Consolidacao | Valor consolidado no demonstrativo simplificado |
+| RREO Anexo 06 | Referencia | Receitas correntes utilizadas no Resultado Primario |
+
+## Estrutura do Demonstrativo
+
+| Ordem | Item | Tipo |
+|-------|------|------|
+| 01 | RECEITAS CORRENTES (I) | Total |
+| 02 | Impostos, Taxas e Contribuicoes de Melhoria | Componente |
+| 03 | Contribuicoes | Componente |
+| 04 | Receita Patrimonial | Componente |
+| 05 | Transferencias Correntes | Componente |
+| 06 | Demais Receitas Correntes | Componente |
+| 07 | DEDUCOES (II) | Deducao |
+| 08 | Transferencias Constitucionais e Legais | Deducao |
+| 09 | Contrib. Empregador e Trab. p/ Seguridade Social | Deducao |
+| 10 | Contribuicao p/ Custeio Pensoes Militares | Deducao |
+| 11 | Contribuicao p/ RPPS (Patronal e Servidor) | Deducao |
+| 12 | Compensacao Financeira entre Regimes Previd. | Deducao |
+| 13 | Deducoes de Transferencias aos Fundos | Deducao |
+| 14 | RP NAO PROCESSADOS CANCELADOS (III) | Adicao |
+| 15 | RECEITA CORRENTE LIQUIDA (I - II + III) | RESULTADO |
+
+## Conceitos Importantes
+
+### Formula da RCL
+
+```
+RCL = RECEITAS CORRENTES 
+    - Transferencias Constitucionais e Legais
+    - Contribuicoes Previdenciarias
+    + Restos a Pagar Nao Processados Cancelados
+```
+
+### Uso da RCL
+
+A RCL e a base de calculo para os principais limites da LRF:
+
+| Limite | Percentual | Referencia Legal |
+|--------|------------|------------------|
+| Despesa com Pessoal - Uniao | 50% (total) | LRF Art. 19 |
+| Despesa com Pessoal - Executivo | 40,9% | LRF Art. 20 |
+| Divida Consolidada Liquida | Resolucao SF 40/2001 | LRF Art. 30 |
+| Garantias | 60% | LRF Art. 9, par. 4 |
+| Operacoes de Credito | 16% | Resolucao SF 43/2001 |
+
+### Periodo de Apuracao
+
+A RCL e calculada considerando os **ultimos 12 meses**, incluindo o mes de referencia. Por exemplo, para novembro/2025, considera-se de dezembro/2024 a novembro/2025.
+
+---
+
+
+
+## 🎯 Critérios de Classificação
+
+### Critérios para Receitas
+
+```{r criterios-rcl-receitas}
 #| code-fold: true
 #| output: false
 
-
-# ===============================================================================
+# =============================================================================
 # CRITÉRIOS PARA RECEITAS - ANEXO 3 RCL
-# ===============================================================================
+# =============================================================================
+# Estes critérios classificam as receitas correntes conforme a estrutura
+# do Anexo 03 do RREO
+# =============================================================================
 
 criterios_rreo_A03_rcl_receitas_rcl <- list(
   
-  # === RECEITAS CORRENTES POR ORIGEM (01-09) ===
+  # ---------------------------------------------------------------------------
+  # RECEITAS CORRENTES POR ORIGEM (01-09)
+  # ---------------------------------------------------------------------------
+  # Classificação conforme a origem da receita corrente
+  # Base: nre1_categoria_economica_codigo == 1 (Receitas Correntes)
+  # ---------------------------------------------------------------------------
   
   # IMPOSTOS, TAXAS E CONTRIBUIÇÕES DE MELHORIA
   `01  Impostos, Taxas e Contribuições de Melhoria` = list(
@@ -7034,9 +6652,14 @@ criterios_rreo_A03_rcl_receitas_rcl <- list(
     criterio = "nre1_categoria_economica_codigo == 1 & nre2_origem_receita_codigo_origem == 9"
   ),
   
-  # === ITENS ESPECÍFICOS PARA CÁLCULO DA RCL ===
+  # ---------------------------------------------------------------------------
+  # DEDUÇÕES DAS RECEITAS (ITENS 10-16)
+  # ---------------------------------------------------------------------------
+  # Estes itens são deduzidos das receitas correntes para chegar à RCL
+  # ---------------------------------------------------------------------------
   
-  # TRANSFERÊNCIAS CONSTITUCIONAIS E LEGAIS
+  # TRANSFERÊNCIAS CONSTITUCIONAIS E LEGAIS (item 10)
+  # FPE, FPM, FUNDEB, e outras transferências obrigatórias
   `10  Transferências Constitucionais e Legais` = list(
     criterio = "
     nre1_categoria_economica_codigo == 1 & nre2_origem_receita_codigo_origem == 7 & (
@@ -7047,7 +6670,8 @@ criterios_rreo_A03_rcl_receitas_rcl <- list(
     "
   ),
   
-  # CONTRIB. EMPREGADORES E TRAB. PARA SEG. SOCIAL
+  # CONTRIB. EMPREGADORES E TRAB. PARA SEGURIDADE SOCIAL (item 11)
+  # Fonte 054 - Contribuição para Seguridade Social
   `11  Contrib. Empregadores e Trabalhadores para Seguridade Social` = list(
     criterio = "
     nre1_categoria_economica_codigo == 1 & fonte_recursos_codigo == '054' & 
@@ -7058,7 +6682,8 @@ criterios_rreo_A03_rcl_receitas_rcl <- list(
     "
   ),
   
-  # CONTRIB. DO SERVIDOR PARA O PLANO DE PREVIDÊNCIA
+  # CONTRIB. DO SERVIDOR PARA O PLANO DE PREVIDÊNCIA (item 12)
+  # Fontes 055 e 056 - Contribuições Previdenciárias do Servidor
   `12  Contrib. Plano Seguridade Social do Servidor` = list(
     criterio = "
     nre1_categoria_economica_codigo == 1 & (
@@ -7068,7 +6693,8 @@ criterios_rreo_A03_rcl_receitas_rcl <- list(
     "
   ),
   
-  # COMPENSAÇÃO FINANC. ENTRE REGIMES PREVIDÊNCIA
+  # COMPENSAÇÃO FINANC. ENTRE REGIMES PREVIDÊNCIA (item 13)
+  # Compensações entre RGPS e RPPS
   `13  Compensação Financeira entre Regimes RPPS` = list(
     criterio = "
     nre1_categoria_economica_codigo == 1 & natureza_receita_codigo_completo %in% c(
@@ -7078,7 +6704,8 @@ criterios_rreo_A03_rcl_receitas_rcl <- list(
     "
   ),
   
-  # CONTRIB. DOS MILITARES PARA O CUSTEIO DAS PENSÕES
+  # CONTRIB. DOS MILITARES PARA O CUSTEIO DAS PENSÕES (item 14)
+  # Contribuições específicas dos militares
   `14  Contrib. para Custeio Pensões Militares` = list(
     criterio = "
     nre1_categoria_economica_codigo == 1 & (
@@ -7089,7 +6716,8 @@ criterios_rreo_A03_rcl_receitas_rcl <- list(
     "
   ),
   
-  # CONTRIBUIÇÕES PARA PIS/PASEP
+  # CONTRIBUIÇÕES PARA PIS/PASEP (item 15)
+  # Fontes 040 e 041 - PIS/PASEP
   `15  Contribuição para PIS/PASEP` = list(
     criterio = "
     nre1_categoria_economica_codigo == 1 & (
@@ -7101,7 +6729,8 @@ criterios_rreo_A03_rcl_receitas_rcl <- list(
     "
   ),
   
-  # DEDUÇÕES DAS RECEITAS - CORRIGIDO
+  # DEDUÇÕES DAS RECEITAS (item 16)
+  # Diversas deduções por fonte e natureza
   `16  Deduções das Receitas` = list(
     criterio = "
     nre1_categoria_economica_codigo == 1 & (
@@ -7118,22 +6747,38 @@ criterios_rreo_A03_rcl_receitas_rcl <- list(
   )
 )
 
+# Aplicar critérios de receitas
+aplicar_criterios(
+  rreo_a03_rcl_receitas, 
+  criterios_rreo_A03_rcl_receitas_rcl, 
+  group_vars = c("item_informacao_codigo")
+)
 
-aplicar_criterios(rreo_a03_rcl_receitas , criterios_rreo_A03_rcl_receitas_rcl, group_vars = c("item_informacao_codigo"))
-
-
+cat("✅ Critérios de Receitas aplicados!\n")
 ```
 
-```{r}
+### Critérios para Despesas (Deduções)
+
+```{r criterios-rcl-despesas}
 #| code-fold: true
 #| output: false
-# ===============================================================================
+
+# =============================================================================
 # CRITÉRIOS PARA DESPESAS (DEDUÇÕES) - ANEXO 3 RCL
-# ===============================================================================
+# =============================================================================
+# Estes critérios classificam as despesas que são deduzidas da RCL
+# =============================================================================
 
 criterios_rreo_A03_rcl_despesas_rcl <- list(
   
+  # ---------------------------------------------------------------------------
   # TRANSFERÊNCIAS CONSTITUCIONAIS E LEGAIS (DESPESAS)
+  # ---------------------------------------------------------------------------
+  # Ações orçamentárias de transferências obrigatórias
+  # Modalidades de aplicação: 30, 31, 32, 35, 36, 40, 41, 42, 45, 46
+  # Programa: 0903 (Transferências Constitucionais)
+  # ---------------------------------------------------------------------------
+  
   `17  Transferências Constitucionais e Legais` = list(
     criterio = "
     (
@@ -7152,7 +6797,6 @@ criterios_rreo_A03_rcl_despesas_rcl <- list(
   # OUTRAS DEDUÇÕES (DESPESAS)
   `18  Outras Deduções` = list(
     criterio = "
-    
     acao_governo_codigo %in% c('0E36', '00SB') | 
     grepl('^28846090900RX', programa_governo_codigo) | 
     (programa_governo_codigo %in% c('0903', '2030', '2080') & 
@@ -7165,6 +6809,27 @@ criterios_rreo_A03_rcl_despesas_rcl <- list(
   )
 )
 
+# Aplicar critérios de despesas
+aplicar_criterios(
+  df = rreo_a03_rcl_despesas, 
+  criterios_rreo_A03_rcl_despesas_rcl, 
+  group_vars = c("item_informacao_codigo")
+)
+
+cat("✅ Critérios de Despesas (Deduções) aplicados!\n")
+```
+
+### Critérios para RP Cancelados
+
+```{r criterios-rcl-rp-cancelado}
+#| code-fold: true
+#| output: false
+
+# =============================================================================
+# CRITÉRIOS PARA RP CANCELADOS - ANEXO 3 RCL
+# =============================================================================
+# RP cancelados de transferências constitucionais devem ser somados de volta
+# =============================================================================
 
 criterios_rreo_A03_rcl_rp_cancelado_rcl <- list(
   
@@ -7184,78 +6849,386 @@ criterios_rreo_A03_rcl_rp_cancelado_rcl <- list(
   )
 )
 
+# Aplicar critérios de RP cancelados
+aplicar_criterios(
+  df = rreo_a03_rcl_despesas, 
+  criterios_rreo_A03_rcl_rp_cancelado_rcl, 
+  group_vars = c("item_informacao_codigo")
+)
 
-aplicar_criterios(df = rreo_a03_rcl_despesas , criterios_rreo_A03_rcl_despesas_rcl, group_vars = c("item_informacao_codigo"))
-
-
-
-aplicar_criterios(df = rreo_a03_rcl_despesas, criterios_rreo_A03_rcl_rp_cancelado_rcl, group_vars = c("item_informacao_codigo"))
-```
-
-```{r}
-
-
-
-rcl <- rbind(df_criterios_rreo_A03_rcl_receitas_rcl ,df_criterios_rreo_A03_rcl_despesas_rcl%>% filter(item_informacao_codigo %in% c( "25", "27")))
-
-rcl <- rbind(rcl,df_criterios_rreo_A03_rcl_rp_cancelado_rcl%>% filter(item_informacao_codigo == "51"))
-
-rcl <- rcl   %>%
-  mutate(
-    tipo =
-      case_when(
-        ordem %in% c("01" , "02", "03", "04", "05", "06", "07", "08" , "09") ~ "receitas",
-        ordem %in% c( "11" , "12", "13", "14", "15", "17" ) ~ "deducoes",
-        ordem == "19" ~ "rp_cancelado",
-        .default = "demais"
-        
-        )
-  )
-
-
-# minimo_saude <- (rcl%>%
-#   filter(
-#     year(data_lancamento) == year(ym(mes_filtro))
-#   )  %>% group_by( tipo) %>% summarise(valor = sum(valor))  %>% pivot_wider(names_from = tipo, values_from = valor, values_fill = 0 ) %>% mutate(resultado = receitas - deducoes + rp_cancelado ) )$resultado* 0.15
-
-rcl_12_meses <- rcl %>% 
-  filter(
-    ym(mes_filtro)-months(11)< data_lancamento &
-     data_lancamento < ym(mes_filtro) +  months(1)
-      )  %>% group_by( tipo, data_lancamento) %>% summarise(valor = sum(valor))  %>% pivot_wider(names_from = tipo, values_from = valor, values_fill = 0 ) %>% mutate(resultado = receitas - deducoes + rp_cancelado ) 
-
-
-formatar_real <- function(valor, decimais = 2, prefixo = "R$ ") {
-  paste0(prefixo, 
-         format(valor, 
-                big.mark = ".",
-                decimal.mark = ",",
-                nsmall = decimais,
-                scientific = FALSE))
-}
-
-
-minimo_saude <- sum((rcl_12_meses %>% filter(year(data_lancamento) == year(ym(mes_filtro))))$resultado* 0.15)
-
-# Uso
-formatar_real(sum(rcl_12_meses$resultado))
-
-
-
-formatar_real(minimo_saude)
-
-
-formatar_real(sum((rcl_12_meses %>% filter(year(data_lancamento) == year(ym(mes_filtro))))$resultado))
-
+cat("✅ Critérios de RP Cancelados aplicados!\n")
 ```
 
 ------------------------------------------------------------------------
 
-# 📋 RREO Anexo 04 Previdência
+## 📊 Cálculo da RCL
+
+```{r calcular-rcl}
+#| code-fold: true
+
+# =============================================================================
+# CONSOLIDAR DADOS DA RCL
+# =============================================================================
+# Fórmula: RCL = Receitas Correntes - Deduções + RP Cancelados
+# =============================================================================
+
+cat("📊 Consolidando dados da RCL...\n")
+
+# -----------------------------------------------------------------------------
+# 1. COMBINAR OS RESULTADOS
+# -----------------------------------------------------------------------------
+
+# Receitas (itens 01-09)
+rcl <- df_criterios_rreo_A03_rcl_receitas_rcl
+
+# Adicionar Deduções (item 25 e 27 das despesas, item 17)
+rcl <- rbind(
+  rcl, 
+  df_criterios_rreo_A03_rcl_despesas_rcl %>% 
+    filter(item_informacao_codigo %in% c("25", "27"))
+)
+
+# Adicionar RP Cancelados (item 51)
+rcl <- rbind(
+  rcl, 
+  df_criterios_rreo_A03_rcl_rp_cancelado_rcl %>% 
+    filter(item_informacao_codigo == "51")
+)
+
+# -----------------------------------------------------------------------------
+# 2. CLASSIFICAR OS TIPOS
+# -----------------------------------------------------------------------------
+
+rcl <- rcl %>%
+  mutate(
+    tipo = case_when(
+      # Receitas correntes (itens 01-09)
+      ordem %in% c("01", "02", "03", "04", "05", "06", "07", "08", "09") ~ "receitas",
+      
+      # Deduções (itens 11-17)
+      ordem %in% c("11", "12", "13", "14", "15", "17") ~ "deducoes",
+      
+      # RP Cancelados (item 19)
+      ordem == "19" ~ "rp_cancelado",
+      
+      # Demais
+      .default = "demais"
+    )
+  )
+
+cat(sprintf("   ✓ Total de registros consolidados: %s\n", 
+            format(nrow(rcl), big.mark = ".", decimal.mark = ",")))
+
+# -----------------------------------------------------------------------------
+# 3. CALCULAR RCL DOS ÚLTIMOS 12 MESES
+# -----------------------------------------------------------------------------
+# A RCL é calculada considerando os últimos 12 meses (período móvel)
+# Fórmula: RCL = Receitas - Deduções + RP Cancelados
+# -----------------------------------------------------------------------------
+
+cat("\n📈 Calculando RCL dos últimos 12 meses...\n")
+
+# Definir período: últimos 12 meses até o mês de referência
+data_inicio <- ym(mes_filtro) - months(11)
+data_fim <- ym(mes_filtro) + months(1)
+
+rcl_12_meses <- rcl %>% 
+  filter(
+    data_lancamento > data_inicio &
+    data_lancamento < data_fim
+  ) %>%
+  group_by(tipo, data_lancamento) %>% 
+  summarise(valor = sum(valor, na.rm = TRUE), .groups = "drop") %>% 
+  pivot_wider(
+    names_from = tipo, 
+    values_from = valor, 
+    values_fill = 0
+  ) %>%
+  mutate(
+    # Fórmula da RCL: Receitas - Deduções + RP Cancelados
+    resultado = receitas - deducoes + rp_cancelado
+  )
+
+cat(sprintf("   ✓ Período: %s a %s\n", 
+            format(data_inicio, "%m/%Y"), 
+            format(ym(mes_filtro), "%m/%Y")))
+cat(sprintf("   ✓ Meses processados: %d\n", nrow(rcl_12_meses)))
+
+# -----------------------------------------------------------------------------
+# 4. CALCULAR MÍNIMO PARA SAÚDE (15% da RCL do exercício)
+# -----------------------------------------------------------------------------
+
+minimo_saude <- sum(
+  (rcl_12_meses %>% 
+     filter(year(data_lancamento) == year(ym(mes_filtro))))$resultado * 0.15
+)
+
+cat(sprintf("\n💉 Mínimo para Saúde (15%% RCL exercício): R$ %s\n",
+            format(minimo_saude, big.mark = ".", decimal.mark = ",", nsmall = 2)))
+
+# -----------------------------------------------------------------------------
+# 5. FUNÇÃO DE FORMATAÇÃO
+# -----------------------------------------------------------------------------
+
+formatar_real <- function(valor, decimais = 2, prefixo = "R$ ") {
+  paste0(
+    prefixo, 
+    format(
+      valor, 
+      big.mark = ".",
+      decimal.mark = ",",
+      nsmall = decimais,
+      scientific = FALSE
+    )
+  )
+}
+
+cat("\n✅ Cálculo da RCL concluído!\n")
+```
+
+------------------------------------------------------------------------
+
+## 📋 Resultados
+
+### RCL Total (12 meses)
+
+```{r exibir-rcl-total}
+#| column: page
+
+# =============================================================================
+# EXIBIR RCL TOTAL
+# =============================================================================
+
+cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+cat("            RECEITA CORRENTE LÍQUIDA (RCL)           \n")
+cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
+
+# RCL dos últimos 12 meses
+rcl_total_12_meses <- sum(rcl_12_meses$resultado, na.rm = TRUE)
+cat(sprintf("💰 RCL (últimos 12 meses): %s\n\n", formatar_real(rcl_total_12_meses)))
+
+# RCL do exercício corrente
+rcl_exercicio <- sum(
+  (rcl_12_meses %>% 
+     filter(year(data_lancamento) == year(ym(mes_filtro))))$resultado,
+  na.rm = TRUE
+)
+cat(sprintf("📅 RCL (exercício %s): %s\n\n", 
+            year(ym(mes_filtro)), 
+            formatar_real(rcl_exercicio)))
+
+# Mínimo Constitucional para Saúde
+cat(sprintf("💉 Mínimo Saúde (15%% RCL exercício): %s\n", 
+            formatar_real(minimo_saude)))
+
+cat("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+```
+
+### RCL Mensal (Últimos 12 meses)
+
+```{r tabela-rcl-mensal}
+#| column: screen
+
+# =============================================================================
+# TABELA - RCL MENSAL
+# =============================================================================
+# Demonstra a evolução mensal da RCL nos últimos 12 meses
+# =============================================================================
+
+# Criar tabela pivotada por mês
+tabela_rcl <- rcl %>% 
+  filter(
+    data_lancamento > (ym(mes_filtro) - months(11)) &
+    data_lancamento < (ym(mes_filtro) + months(1))
+  ) %>% 
+  group_by(ordem, nome, data_lancamento) %>% 
+  summarise(valor = sum(valor, na.rm = TRUE), .groups = "drop") %>% 
+  pivot_wider(
+    names_from = data_lancamento, 
+    values_from = valor,
+    values_fill = 0
+  )
+
+# Exibir com DT::datatable
+datatable(
+  tabela_rcl,
+  caption = "RREO Anexo 03 - Receita Corrente Líquida por Mês",
+  options = list(
+    pageLength = 25,
+    scrollX = TRUE,
+    dom = 'Bfrtip'
+  ),
+  rownames = FALSE
+) %>%
+  formatCurrency(
+    columns = 3:ncol(tabela_rcl), 
+    currency = "", 
+    mark = ".", 
+    dec.mark = ",", 
+    digits = 2
+  )
+```
+
+### Resumo por Tipo
+
+```{r resumo-rcl-tipo}
+# =============================================================================
+# RESUMO POR TIPO
+# =============================================================================
+
+resumo_tipo <- rcl_12_meses %>%
+  summarise(
+    `Receitas Correntes` = sum(receitas, na.rm = TRUE),
+    `(-) Deduções` = sum(deducoes, na.rm = TRUE),
+    `(+) RP Cancelados` = sum(rp_cancelado, na.rm = TRUE),
+    `= RCL` = sum(resultado, na.rm = TRUE)
+  ) %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = "Componente",
+    values_to = "Valor"
+  )
+
+datatable(
+  resumo_tipo,
+  caption = "Composição da RCL (últimos 12 meses)",
+  options = list(
+    pageLength = 10,
+    dom = 't'
+  ),
+  rownames = FALSE
+) %>%
+  formatCurrency(
+    columns = "Valor", 
+    currency = "R$ ", 
+    mark = ".", 
+    dec.mark = ",", 
+    digits = 2
+  )
+```
+
+------------------------------------------------------------------------
+
+## 💾 Dados Exportados
+
+Os seguintes objetos ficam disponíveis para uso em outros anexos:
+
+| Objeto         | Descrição                                           |
+|----------------|-----------------------------------------------------|
+| `rcl`          | Dados detalhados por categoria e mês                |
+| `rcl_12_meses` | RCL agregada por mês (últimos 12 meses)             |
+| `minimo_saude` | Valor do mínimo constitucional para saúde (15% RCL) |
+
+------------------------------------------------------------------------
+
+## 📑 Anexos que Utilizam a RCL
+
+A RCL calculada neste anexo é utilizada como **base de cálculo** para:
+
+### RGF - Relatório de Gestão Fiscal
+
+| Anexo | Descrição | Uso da RCL |
+|------------------|--------------------------|----------------------------|
+| **RGF A01** | Despesa com Pessoal | Limite de 60% (União) |
+| **RGF A02** | Dívida Consolidada Líquida | Limite de endividamento |
+| **RGF A03** | Garantias e Contragarantias | Limite de garantias |
+| **RGF A04** | Operações de Crédito | Limite de operações |
+| **RGF A06** | Demonstrativo Simplificado | RCL como base para todos os limites |
+
+### RREO - Outros Anexos
+
+| Anexo        | Descrição                     | Uso da RCL           |
+|--------------|-------------------------------|----------------------|
+| **RREO A12** | Receitas e Despesas com Saúde | Mínimo de 15% da RCL |
+
+------------------------------------------------------------------------
+
+## 💡 Observações Importantes
+
+1.  **Base para LRF**: A RCL é fundamental para verificar cumprimento dos limites da Lei de Responsabilidade Fiscal
+
+2.  **Cálculo**: RCL = Receitas Correntes - Transferências Constitucionais - Contribuições Previdenciárias + RP Cancelados
+
+3.  **Período**: Utiliza-se a RCL acumulada dos últimos 12 meses (período móvel)
+
+4.  **Mínimo Saúde**: 15% da RCL do **exercício corrente** (não dos últimos 12 meses)
+
+5.  **Crítico**: Todos os anexos RGF dependem deste cálculo para verificação de limites
+
+
+# 📋 RREO Anexo 04 - Demonstrativo das Receitas e Despesas Previdenciárias
+
+## 📑 Ficha Técnica
+
+| Campo | Informação |
+|-------|------------|
+| Relatório | RREO - Relatório Resumido da Execução Orçamentária |
+| Anexo | Anexo 04 |
+| Nome | Demonstrativo das Receitas e Despesas Previdenciárias |
+| Base Legal | LRF Art. 53, inciso II |
+| Periodicidade | Bimestral |
+| Grau de Dificuldade | Difícil |
+| Última Atualização | Dezembro/2025 |
+
+## 📁 Arquivos Necessários
+
+| Arquivo | Descrição | Filtros no TG |
+|---------|-----------|---------------|
+| dados_receita | Receitas orçamentárias | Base compartilhada - UOs previdenciárias |
+| dados_despesa | Despesas orçamentárias | Base compartilhada - Subfunções 272, 273, 274, 845, 846 |
+
+## 📊 Atributos Utilizados
+
+| Atributo | Tipo | Uso | Descrição |
+|----------|------|-----|-----------|
+| unidade_orcamentaria_codigo | character | TG / Critério | Código da UO (33904=INSS, 40904=FAT, 73901=FCDF) |
+| natureza_receita_codigo_completo | character | TG / Critério | Código completo da natureza de receita |
+| natureza_receita_nome | character | TG / Critério | Nome da natureza de receita |
+| nre1_categoria_economica_codigo | character | TG / Critério | Categoria econômica (1=Corrente, 2=Capital, 7/8=Intra) |
+| nre2_origem_receita_codigo_origem | character | TG / Critério | Origem da receita |
+| fonte_recursos_codigo | character | TG / Critério | Código da fonte de recursos |
+| fonte_recursos_detalhada_codigo | character | TG / Critério | Código detalhado da fonte |
+| esfera_orcamentaria_codigo | character | TG / Critério | Esfera orçamentária (2=Seguridade) |
+| funcao_governo_codigo | character | TG / Critério | Função de governo |
+| subfuncao_governo_codigo | character | TG / Critério | Subfunção (272, 273, 274, 845, 846) |
+| acao_governo_codigo | character | TG / Critério | Código da ação de governo |
+| grupo_despesa_codigo_grupo | character | TG / Critério | Grupo de despesa (1=Pessoal, 3=ODC) |
+| elemento_despesa_codigo | character | TG / Critério | Elemento de despesa (01, 03, 53-58, etc) |
+| modalidade_aplicacao_codigo | character | TG / Critério | Modalidade (91=Intra) |
+| item_informacao_codigo | character | TG / Critério | Tipo de info (5=Realizado, 25=Empenhado) |
+| mes_lancamento | numeric | TG / R | Mês do lançamento (YYYYMM) |
+| saldo_r_item_informacao | numeric | TG / R | Saldo do item de informação |
+
+## 🔗 Vínculos com Outros Anexos
+
+| Anexo Relacionado | Tipo de Vínculo | Descrição |
+|-------------------|-----------------|-----------|
+| RREO Anexo 01 | Referência | Receitas orçamentárias base |
+| RREO Anexo 02 | Referência | Despesas orçamentárias base |
+| RGF Anexo 01 | Referência | Despesa com pessoal inclui inativos e pensionistas |
+| RGF Anexo 02 | Referência | Passivo atuarial do RPPS e militares |
+| RREO Anexo 14 | Consolidação | Projeção atuarial do RPPS |
+
+## 📖 Introdução
 
 O **Anexo 04** apresenta o demonstrativo das receitas e despesas previdenciárias do Governo Federal, segregado em três sistemas:
 
+- **RGPS** - Regime Geral de Previdência Social (INSS)
+- **RPPS** - Regime Próprio de Previdência Social (Servidores Civis e Militares)
+- **FCDF** - Fundo Constitucional do Distrito Federal
+
+---
+
 ## 🏛️ REGIME GERAL DE PREVIDÊNCIA SOCIAL (RGPS)
+
+### Unidades Orçamentárias RGPS
+
+| Código UO | Nome |
+|-----------|------|
+| 33904 | Fundo do Regime Geral de Previdência Social |
+| 40904 | Fundo de Amparo ao Trabalhador (FAT) |
+| 55902 | Fundo Nacional de Assistência Social |
+| 25917 | Demais UOs vinculadas |
 
 ### 💰 Critérios de Receitas RGPS
 
@@ -7264,37 +7237,30 @@ O **Anexo 04** apresenta o demonstrativo das receitas e despesas previdenciária
 
 criterios_rreo_A04_rgps_receitas_rgps <- list(
   
-  # RECEITAS CORRENTES - DOS EMPREGADORES, TRABALHADORES E DEMAIS SEGURADOS
   `01  Receitas Correntes - Dos Empregadores, Trabalhadores e Demais Segurados` = list(
     criterio = "natureza_receita_codigo_completo %in% c('12100311', '12100312', '12100313', '12100311') & nre2_origem_receita_codigo_origem %in% c(2) | startsWith(natureza_receita_codigo_completo, '1214') "
   ),
   
-  # RECEITAS CORRENTES - DEMAIS CONTRIBUIÇÕES  
   `02  Receitas Correntes - Demais Contribuições` = list(
     criterio = "nre2_origem_receita_codigo_origem %in% c(2) & natureza_receita_codigo_completo %notin% c('12100311', '12100312', '12100313')"
   ),
   
-  # OUTRAS RECEITAS CORRENTES - COMPENSAÇÃO PREVIDENCIÁRIA RPPS/RGPS
   `03  Outras Receitas Correntes - Compensação Previdenciária RPPS/RGPS` = list(
     criterio = "nre2_origem_receita_codigo_origem %in% c(9)"
   ),
   
-  # DEMAIS RECEITAS CORRENTES
   `04  Demais Receitas Correntes` = list(
     criterio = "nre1_categoria_economica_codigo %in% c(1) & nre2_origem_receita_codigo_origem %notin% c(2,9)"
   ),
   
-  # RECEITAS DE CAPITAL - ALIENAÇÕES
   `05  Receitas de Capital - Alienações` = list(
     criterio = "nre2_origem_receita_codigo_origem %in% c(2) & nre1_categoria_economica_codigo %in% c(2)"
   ),
   
-  # DEMAIS RECEITAS DE CAPITAL
   `06  Demais Receitas de Capital` = list(
     criterio = "nre1_categoria_economica_codigo %in% c(2) & nre2_origem_receita_codigo_origem %notin% c(2)"
   ),
   
-  # RECEITAS INTRA-ORÇAMENTÁRIAS
   `07  Receitas INTRA-ORÇAMENTÁRIAS` = list(
     criterio = "nre1_categoria_economica_codigo %in% c(7, 8)"
   )
@@ -7308,43 +7274,34 @@ criterios_rreo_A04_rgps_receitas_rgps <- list(
 
 criterios_rreo_A04_rgps_despesas_rgps <- list(
   
-  # APOSENTADORIAS
   `01  Aposentadorias` = list(
     criterio = "elemento_despesa_codigo %in% c('53', '54') & grupo_despesa_codigo_grupo %in% c(3) & modalidade_aplicacao_codigo %notin% c('91')"
   ),
   
-  # PENSÕES
   `02  Pensões` = list(
     criterio = "elemento_despesa_codigo %in% c('55', '56') & grupo_despesa_codigo_grupo %in% c(3) & modalidade_aplicacao_codigo %notin% c('91')"
   ),
   
-  # OUTROS BENEFÍCIOS
   `03  Outros Benefícios` = list(
     criterio = "elemento_despesa_codigo %in% c('57', '58') & grupo_despesa_codigo_grupo %in% c(3) & modalidade_aplicacao_codigo %notin% c('91')"
   ),
   
-  # COMPENSAÇÃO PREVIDENCIÁRIA DO RGPS PARA O RPPS
   `04  Compensação Previdenciária do RGPS para o RPPS` = list(
     criterio = "elemento_despesa_codigo %notin% c('57', '58', '53', '54', '55', '56') & acao_governo_codigo %in% c('009W', '0531') & grupo_despesa_codigo_grupo %in% c(3) & modalidade_aplicacao_codigo %notin% c('91')"
   ),
   
-  # DEMAIS DESPESAS
   `05  Demais Despesas` = list(
     criterio = "elemento_despesa_codigo %notin% c('57', '58', '53', '54', '55', '56') & acao_governo_codigo %notin% c('009W', '0531') & grupo_despesa_codigo_grupo %in% c(3) & modalidade_aplicacao_codigo %notin% c('91')"
   ),
   
-  # A DETALHAR
   `06  A detalhar` = list(
     criterio = "elemento_despesa_codigo %in% c('00') & grupo_despesa_codigo_grupo %in% c(3) & modalidade_aplicacao_codigo %notin% c('91')"
   ),
   
-  # DESPESAS PREVIDENCIÁRIAS (INTRA)
   `07  Despesas Previdenciárias (INTRA)` = list(
     criterio = "grupo_despesa_codigo_grupo %in% c(3) & modalidade_aplicacao_codigo %in% c('91') & elemento_despesa_codigo %notin% c('01', '03', '05')"
   )
 )
-
-
 ```
 
 ### 📊 Processamento RGPS - Receitas
@@ -7352,14 +7309,14 @@ criterios_rreo_A04_rgps_despesas_rgps <- list(
 ```{r processar-rgps-receitas}
 #| include: false
 
-(aplicar_criterios(df = dados_receita %>% 
+aplicar_criterios(
+  df = dados_receita %>% 
     filter(
       unidade_orcamentaria_codigo %in% c(33904, 40904, 55902, 25917) | 
-      natureza_receita_codigo_completo == 79900211), criterios_rreo_A04_rgps_receitas_rgps))
-
-
-
-
+      natureza_receita_codigo_completo == 79900211
+    ), 
+  criterios_rreo_A04_rgps_receitas_rgps
+)
 ```
 
 ### 📊 Processamento RGPS - Despesas
@@ -7367,48 +7324,61 @@ criterios_rreo_A04_rgps_despesas_rgps <- list(
 ```{r processar-rgps-despesas}
 #| include: false
 
-aplicar_criterios(df = dados_despesa %>% 
-    filter(unidade_orcamentaria_codigo %in% c(33904, 40904, 55902, 25917)), criterios_rreo_A04_rgps_despesas_rgps)
-
-
- 
+aplicar_criterios(
+  df = dados_despesa %>% 
+    filter(unidade_orcamentaria_codigo %in% c(33904, 40904, 55902, 25917)), 
+  criterios_rreo_A04_rgps_despesas_rgps
+)
 ```
 
-### Resultado RGPS
+### 📊 Resultado RGPS
 
-```{r}
+```{r resultado-rgps}
+#| include: true
 
-df_resultado_rgps <- tibble(
-  Receita_RGPS = aplicar_criterios(
-    df = dados_receita %>%
-      filter(
-        unidade_orcamentaria_codigo %in% c(33904, 40904, 55902, 25917) |
-        natureza_receita_codigo_completo == 79900211,
-        item_informacao_codigo %in% c(5)
-      ), 
-    criterios_rreo_A04_rgps_receitas_rgps
-  ) %>% 
-    filter(ordem != "02") %>% 
-    summarise(valor = sum(valor)) %>% 
-    pull(valor),
-  
-  Despesa_RGPS = aplicar_criterios(
-    df = dados_despesa %>%
-      filter(
-        unidade_orcamentaria_codigo %in% c(33904, 40904, 55902, 25917),
-        item_informacao_codigo %in% c(25)
-      ), 
-    criterios_rreo_A04_rgps_despesas_rgps
-  ) %>% 
-    summarise(valor = sum(valor)) %>% 
-    pull(valor)
-) %>%
-  mutate(Resultado_RGPS = Receita_RGPS - Despesa_RGPS) %>%
-  pivot_longer(
-    cols = everything(),
-    names_to = "Tipo",
-    values_to = "Valor"
+# =============================================================================
+# CALCULO DO RESULTADO PREVIDENCIARIO RGPS
+# =============================================================================
+
+if (!exists("dados_receita") || !exists("criterios_rreo_A04_rgps_receitas_rgps")) {
+  warning("Objetos necessarios nao encontrados para calculo RGPS")
+  df_resultado_rgps <- tibble(
+    Tipo = c("Receita_RGPS", "Despesa_RGPS", "Resultado_RGPS"), 
+    Valor = c(NA_real_, NA_real_, NA_real_)
   )
+} else {
+  df_resultado_rgps <- tibble(
+    Receita_RGPS = aplicar_criterios(
+      df = dados_receita %>%
+        filter(
+          unidade_orcamentaria_codigo %in% c(33904, 40904, 55902, 25917) |
+          natureza_receita_codigo_completo == 79900211,
+          item_informacao_codigo %in% c("5", 5)
+        ), 
+      criterios_rreo_A04_rgps_receitas_rgps
+    ) %>% 
+      filter(ordem != "02") %>% 
+      summarise(valor = sum(valor, na.rm = TRUE)) %>% 
+      pull(valor),
+    
+    Despesa_RGPS = aplicar_criterios(
+      df = dados_despesa %>%
+        filter(
+          unidade_orcamentaria_codigo %in% c(33904, 40904, 55902, 25917),
+          item_informacao_codigo %in% c("25", 25)
+        ), 
+      criterios_rreo_A04_rgps_despesas_rgps
+    ) %>% 
+      summarise(valor = sum(valor, na.rm = TRUE)) %>% 
+      pull(valor)
+  ) %>%
+    mutate(Resultado_RGPS = Receita_RGPS - Despesa_RGPS) %>%
+    pivot_longer(
+      cols = everything(),
+      names_to = "Tipo",
+      values_to = "Valor"
+    )
+}
 
 # Exibir com DT::datatable formatado
 DT::datatable(
@@ -7419,116 +7389,101 @@ DT::datatable(
   DT::formatCurrency("Valor", currency = "R$ ", digits = 2, mark = ".", dec.mark = ",")
 ```
 
+---
+
 ## 👥 REGIME PRÓPRIO DE PREVIDÊNCIA SOCIAL (RPPS)
+
+### Filtros Gerais RPPS
+
+| Filtro | Valor | Descrição |
+|--------|-------|-----------|
+| UO excluída | 73901 | Operações Oficiais de Crédito (vai para FCDF) |
+| Fonte excluída | 054, 00, 000 | Fontes não previdenciárias |
 
 ### 💰 Critérios de Receitas RPPS
 
 ```{r criterios-receitas-rpps}
+#| include: false
+
 criterios_rreo_A04_rpps_receitas_civil_militar_rpps <- list(
   
- # CIVIS - RECEITA SEGURADOS - Ativo (CORRIGIDO)
-`01  CIVIS - RECEITA SEGURADOS - Ativo` = list(
-  criterio = "fonte_recursos_codigo %notin% c('00', '000') & (natureza_receita_codigo_completo %in% c('12100423', '12100421', '12100422', '12100424', '12100461', '12100462', '12100463', '12100464') | startsWith(natureza_receita_codigo_completo, '1215011') | startsWith(natureza_receita_codigo_completo, '1215014') | startsWith(natureza_receita_codigo_completo, '121503'))"
-),
-
-# CIVIS - RECEITA SEGURADOS - Inativos (CORRIGIDO)
-`02  CIVIS - RECEITA SEGURADOS - Inativos` = list(
-  criterio = "fonte_recursos_codigo %notin% c('00', '000') & (natureza_receita_codigo_completo %in% c('12100431', '12100433', '12100432', '12100434', '12100471') | startsWith(natureza_receita_codigo_completo, '1215012') | startsWith(natureza_receita_codigo_completo, '1215015'))"
-),
-
-# CIVIS - RECEITAS SEGURADOS - Pensionistas (CORRIGIDO) 
-`03  CIVIS - RECEITAS SEGURADOS - Pensionistas` = list(
-  criterio = "fonte_recursos_codigo %notin% c('00', '000') & (natureza_receita_codigo_completo %in% c('12100481', '12100441', '12100442', '12100443', '12100444') | startsWith(natureza_receita_codigo_completo, '1215013') | startsWith(natureza_receita_codigo_completo, '1215016'))"
-),
-
-# CIVIS - RECEITA PATRONAL - Ativo (CORRIGIDO)
-`04  CIVIS - RECEITA PATRONAL - Ativo` = list(
-  criterio = "fonte_recursos_codigo %notin% c('00', '000') & (natureza_receita_codigo_completo %in% c('12100411', '12100413', '12100412', '12100414', '72100411', '72100413', '72100414', '72100451', '72100452', '12100452', '12100453', '12100454') | startsWith(natureza_receita_codigo_completo, '121502') | startsWith(natureza_receita_codigo_completo, '721502'))"
-),
-
-# CIVIS - RECEITA PATRONAL - Inativos e Pensionistas (JÁ CORRETO)
-`05  CIVIS - RECEITA PATRONAL - Inativos e Pensionistas - vinculada` = list(
-  criterio = "fonte_recursos_codigo %notin% c('00', '000') & natureza_receita_codigo_completo %in% c('72100441')"
-),
+  `01  CIVIS - RECEITA SEGURADOS - Ativo` = list(
+    criterio = "fonte_recursos_codigo %notin% c('00', '000') & (natureza_receita_codigo_completo %in% c('12100423', '12100421', '12100422', '12100424', '12100461', '12100462', '12100463', '12100464') | startsWith(natureza_receita_codigo_completo, '1215011') | startsWith(natureza_receita_codigo_completo, '1215014') | startsWith(natureza_receita_codigo_completo, '121503'))"
+  ),
   
-  # DRU - FCDF
+  `02  CIVIS - RECEITA SEGURADOS - Inativos` = list(
+    criterio = "fonte_recursos_codigo %notin% c('00', '000') & (natureza_receita_codigo_completo %in% c('12100431', '12100433', '12100432', '12100434', '12100471') | startsWith(natureza_receita_codigo_completo, '1215012') | startsWith(natureza_receita_codigo_completo, '1215015'))"
+  ),
+  
+  `03  CIVIS - RECEITAS SEGURADOS - Pensionistas` = list(
+    criterio = "fonte_recursos_codigo %notin% c('00', '000') & (natureza_receita_codigo_completo %in% c('12100481', '12100441', '12100442', '12100443', '12100444') | startsWith(natureza_receita_codigo_completo, '1215013') | startsWith(natureza_receita_codigo_completo, '1215016'))"
+  ),
+  
+  `04  CIVIS - RECEITA PATRONAL - Ativo` = list(
+    criterio = "fonte_recursos_codigo %notin% c('00', '000') & (natureza_receita_codigo_completo %in% c('12100411', '12100413', '12100412', '12100414', '72100411', '72100413', '72100414', '72100451', '72100452', '12100452', '12100453', '12100454') | startsWith(natureza_receita_codigo_completo, '121502') | startsWith(natureza_receita_codigo_completo, '721502'))"
+  ),
+  
+  `05  CIVIS - RECEITA PATRONAL - Inativos e Pensionistas - vinculada` = list(
+    criterio = "fonte_recursos_codigo %notin% c('00', '000') & natureza_receita_codigo_completo %in% c('72100441')"
+  ),
+  
   `06  DRU - FCDF` = list(
     criterio = "fonte_recursos_codigo %in% c('000', '00') & endsWith(fonte_recursos_detalhada_codigo, '980001') & startsWith(natureza_receita_codigo_completo, '12151')"
   ),
   
-  # MILITARES - RECEITAS - Segurados
   `07  MILITARES - RECEITAS - Segurados` = list(
-    criterio = "fonte_recursos_codigo %notin% c('00', '000') & 
-(natureza_receita_codigo_completo %in% c('12100511', '12100512', '12100513', '12105141', '12150411', '12150412', '12150421', '12150043', '12150044') | 
-startsWith(natureza_receita_codigo_completo, '121911'))"
+    criterio = "fonte_recursos_codigo %notin% c('00', '000') & (natureza_receita_codigo_completo %in% c('12100511', '12100512', '12100513', '12105141', '12150411', '12150412', '12150421', '12150043', '12150044') | startsWith(natureza_receita_codigo_completo, '121911'))"
   )
-  
-  # # Total das Receitas RPPS
-  # `08  Total das Receitas RPPS` = list(
-  #   criterio = "unidade_orcamentaria_codigo %notin% c('33904', '40904') & fonte_recursos_codigo %notin% c('54', '00', '000', '054') & (grepl('PENSOES MILIT|PENS.MIL|RPPS|CPSS|CIV', natureza_receita_nome, ignore.case = TRUE) | startsWith(natureza_receita_codigo_completo, '1215') | startsWith(natureza_receita_codigo_completo, '7215'))"
-  # )
 )
 ```
 
 ### 💸 Critérios de Despesas RPPS
 
 ```{r criterios-despesas-rpps}
+#| include: false
+
 criterios_rreo_A04_rpps_despesas_civil_militar_rpps <- list(
   
-  # CIVIS - DESPESAS - A detalhar
   `01  CIVIS - DESPESAS - A detalhar` = list(
     criterio = "esfera_orcamentaria_codigo %in% c(2) & subfuncao_governo_codigo %in% c('272', '273', '274', '845') & grupo_despesa_codigo_grupo %in% c(1) & elemento_despesa_codigo %in% c('00') & acao_governo_codigo %in% c('0053', '0181') & funcao_governo_codigo %notin% c('10', '08')"
   ),
   
-  # CIVIS - DESPESAS - Aposentadorias
   `02  CIVIS - DESPESAS - Aposentadorias` = list(
     criterio = "esfera_orcamentaria_codigo %in% c(2) & subfuncao_governo_codigo %in% c('272', '273', '274', '845') & grupo_despesa_codigo_grupo %in% c(1) & elemento_despesa_codigo %in% c('01') & acao_governo_codigo %in% c('0053', '0181')"
   ),
   
-  # CIVIS - DESPESAS - Pensões
   `03  CIVIS - DESPESAS - Pensões` = list(
     criterio = "esfera_orcamentaria_codigo %in% c(2) & subfuncao_governo_codigo %in% c('272', '273', '274', '845') & grupo_despesa_codigo_grupo %in% c(1) & elemento_despesa_codigo %in% c('03') & acao_governo_codigo %in% c('0053', '0181')"
   ),
   
-  # CIVIS - DESPESAS - Outros Benefícios Previdenciários
   `04  CIVIS - DESPESAS - Outros Benefícios Previdenciários` = list(
     criterio = "esfera_orcamentaria_codigo %in% c(2) & subfuncao_governo_codigo %in% c('272', '273', '274', '845', '846') & grupo_despesa_codigo_grupo %in% c(1) & elemento_despesa_codigo %notin% c('00', '01', '03') & (acao_governo_codigo %in% c('0053', '0181', '0005', '0625') & funcao_governo_codigo %notin% c('10', '08') | acao_governo_codigo %in% c('0397'))"
   ),
   
-  # MILITARES - DESPESAS - A Detalhar Pensões
   `05  MILITARES - DESPESAS - A Detalhar Pensões` = list(
     criterio = "esfera_orcamentaria_codigo %in% c(2) & subfuncao_governo_codigo %in% c('272', '273', '274', '845') & grupo_despesa_codigo_grupo %in% c(1) & acao_governo_codigo %in% c('0179', '000Q') & elemento_despesa_codigo %in% c('00')"
   ),
   
-  # MILITARES - DESPESAS - Pensões
   `06  MILITARES - DESPESAS - Pensões` = list(
     criterio = "esfera_orcamentaria_codigo %in% c(2) & subfuncao_governo_codigo %in% c('272', '273', '274', '845', '846') & grupo_despesa_codigo_grupo %in% c(1) & acao_governo_codigo %in% c('0179', '00QD') & elemento_despesa_codigo %in% c('03')"
   ),
   
-  # MILITARES - DESPESAS - Outros Benefícios Pensionistas
   `07  MILITARES - DESPESAS - Outros Benefícios Pensionistas` = list(
     criterio = "esfera_orcamentaria_codigo %in% c(2) & acao_governo_codigo %in% c('214H', '218K', '0179', '00QD') & elemento_despesa_codigo %notin% c('00', '01', '03') & grupo_despesa_codigo_grupo %in% c(1)"
   ),
   
-  
-    # MILITARES - DESPESAS - A Detalhar Inativos
   `08  MILITARES - DESPESAS - A Detalhar Inativos` = list(
     criterio = "grupo_despesa_codigo_grupo %in% c(1) & elemento_despesa_codigo %in% c('00') & acao_governo_codigo %in% c('214H', '218K')"
   ),
   
-  # MILITARES - DESPESAS - Inativos
   `09  MILITARES - DESPESAS - Inativos` = list(
     criterio = "grupo_despesa_codigo_grupo %in% c(1) & elemento_despesa_codigo %in% c('01') & acao_governo_codigo %in% c('214H', '218K')"
   ),
   
-
-  
-   # MILITARES - DESPESAS - Outros Outros Benefícios Inativos
-  `10  MILITARES - DESPESAS - Outros Outros Benefícios Inativos` = list(
-    criterio = "grupo_despesa_codigo_grupo %in% c(1) & elemento_despesa_codigo %notin% c( '00', '01') & acao_governo_codigo %in% c('214H', '218K')"
+  `10  MILITARES - DESPESAS - Outros Benefícios Inativos` = list(
+    criterio = "grupo_despesa_codigo_grupo %in% c(1) & elemento_despesa_codigo %notin% c('00', '01') & acao_governo_codigo %in% c('214H', '218K')"
   ),
   
-     # MILITARES - DESPESAS - Compensação financeira entre RPPSU e os demais RPPS
   `11  MILITARES - DESPESAS - Compensação financeira entre RPPSU e os demais RPPS` = list(
     criterio = "acao_governo_codigo %in% c('00X3')"
   )
@@ -7540,98 +7495,89 @@ criterios_rreo_A04_rpps_despesas_civil_militar_rpps <- list(
 ```{r processar-rpps-receitas}
 #| include: false
 
-datatable(aplicar_criterios(df = dados_receita %>% 
-    filter(
-      unidade_orcamentaria_codigo %notin% c(73901),
-      fonte_recursos_codigo %notin% c('054')
-    ), criterios_rreo_A04_rpps_receitas_civil_militar_rpps))
-
-
-
-
+datatable(
+  aplicar_criterios(
+    df = dados_receita %>% 
+      filter(
+        unidade_orcamentaria_codigo %notin% c(73901),
+        fonte_recursos_codigo %notin% c('054')
+      ), 
+    criterios_rreo_A04_rpps_receitas_civil_militar_rpps
+  )
+)
 ```
-
-verificar linha 08 Total das Receitas RPPS.
 
 ### 📊 Processamento RPPS - Despesas
 
 ```{r processar-rpps-despesas}
 #| include: false
-# Processar despesas RPPS
 
-
-
-datatable(aplicar_criterios(df = dados_despesa %>% 
-    filter(
-      unidade_orcamentaria_codigo %notin% c(73901),
-      elemento_despesa_codigo %notin% c('04', '07', '11', '13', '16', '39', '67', '96'),
-      acao_governo_codigo != '09HB'
-    ), criterios_rreo_A04_rpps_despesas_civil_militar_rpps))
-
-
-
-
-```
-
-### Resultado RPPS
-
-```{r resultado_rpps}
-# formatar_numero(resultado_rpps <- (
-#   aplicar_criterios(df = dados_receita %>% 
-#     filter(
-#       unidade_orcamentaria_codigo %notin% c(73901),
-#       fonte_recursos_codigo %notin% c('054'),
-#            item_informacao_codigo %in% c(5)
-#     ), criterios_rreo_A04_rpps_receitas_civil_militar_rpps)%>% summarise(valor=sum(valor))
-#   -
-#   aplicar_criterios(df = dados_despesa %>% 
-#     filter(
-#       unidade_orcamentaria_codigo %notin% c(73901),
-#       elemento_despesa_codigo %notin% c('04', '07', '11', '13', '16', '39', '67', '96'),
-#       acao_governo_codigo != '09HB',
-#            item_informacao_codigo %in% c(25)
-#     ), criterios_rreo_A04_rpps_despesas_civil_militar_rpps)%>% summarise(valor=sum(valor))
-# ))
-```
-
-```{r}
-# Tabela estruturada para RPPS CIVIL (Servidores Civis)
-df_resultado_rpps_civil <- tibble(
-  Receita_RPPS_Civil = aplicar_criterios(
-    df = dados_receita %>%
-      filter(
-        unidade_orcamentaria_codigo %notin% c(73901),
-        fonte_recursos_codigo %notin% c('054'),
-        item_informacao_codigo %in% c(5)
-      ), 
-    criterios_rreo_A04_rpps_receitas_civil_militar_rpps
-  ) %>%
-    # Filtra apenas linhas de CIVIS (01 a 06)
-    filter(grepl("^0[1-6]", ordem)) %>%
-    summarise(valor = sum(valor)) %>% 
-    pull(valor),
-  
-  Despesa_RPPS_Civil = aplicar_criterios(
-    df = dados_despesa %>%
+datatable(
+  aplicar_criterios(
+    df = dados_despesa %>% 
       filter(
         unidade_orcamentaria_codigo %notin% c(73901),
         elemento_despesa_codigo %notin% c('04', '07', '11', '13', '16', '39', '67', '96'),
-        acao_governo_codigo != '09HB',
-        item_informacao_codigo %in% c(25)
+        acao_governo_codigo != '09HB'
       ), 
     criterios_rreo_A04_rpps_despesas_civil_militar_rpps
-  ) %>%
-    # Filtra apenas linhas de CIVIS (01 a 04)
-     filter(str_detect(nome, "CIVIS")) %>%
-    summarise(valor = sum(valor)) %>% 
-    pull(valor)
-) %>%
-  mutate(Resultado_RPPS_Civil = Receita_RPPS_Civil - Despesa_RPPS_Civil) %>%
-  pivot_longer(
-    cols = everything(),
-    names_to = "Tipo",
-    values_to = "Valor"
   )
+)
+```
+
+### 📊 Resultado RPPS Civil
+
+```{r resultado-rpps-civil}
+#| include: true
+
+# =============================================================================
+# CALCULO DO RESULTADO PREVIDENCIARIO RPPS CIVIL
+# =============================================================================
+
+if (!exists("dados_receita") || !exists("criterios_rreo_A04_rpps_receitas_civil_militar_rpps")) {
+  warning("Objetos necessarios nao encontrados para RPPS Civil")
+  df_resultado_rpps_civil <- tibble(
+    Tipo = c("Receita_RPPS_Civil", "Despesa_RPPS_Civil", "Resultado_RPPS_Civil"), 
+    Valor = c(NA_real_, NA_real_, NA_real_)
+  )
+} else {
+  df_resultado_rpps_civil <- tibble(
+    Receita_RPPS_Civil = aplicar_criterios(
+      df = dados_receita %>%
+        filter(
+          unidade_orcamentaria_codigo %notin% c(73901),
+          fonte_recursos_codigo %notin% c('054'),
+          item_informacao_codigo %in% c("5", 5)
+        ), 
+      criterios_rreo_A04_rpps_receitas_civil_militar_rpps
+    ) %>%
+      # Filtra apenas linhas de CIVIS (01 a 06)
+      filter(grepl("^0[1-6]", ordem)) %>%
+      summarise(valor = sum(valor, na.rm = TRUE)) %>% 
+      pull(valor),
+    
+    Despesa_RPPS_Civil = aplicar_criterios(
+      df = dados_despesa %>%
+        filter(
+          unidade_orcamentaria_codigo %notin% c(73901),
+          elemento_despesa_codigo %notin% c('04', '07', '11', '13', '16', '39', '67', '96'),
+          acao_governo_codigo != '09HB',
+          item_informacao_codigo %in% c("25", 25)
+        ), 
+      criterios_rreo_A04_rpps_despesas_civil_militar_rpps
+    ) %>%
+      # Filtra apenas linhas de CIVIS (01 a 04)
+      filter(str_detect(nome, "CIVIS")) %>%
+      summarise(valor = sum(valor, na.rm = TRUE)) %>% 
+      pull(valor)
+  ) %>%
+    mutate(Resultado_RPPS_Civil = Receita_RPPS_Civil - Despesa_RPPS_Civil) %>%
+    pivot_longer(
+      cols = everything(),
+      names_to = "Tipo",
+      values_to = "Valor"
+    )
+}
 
 # Exibir tabela formatada
 DT::datatable(
@@ -7642,44 +7588,58 @@ DT::datatable(
   DT::formatCurrency("Valor", currency = "R$ ", digits = 2, mark = ".", dec.mark = ",")
 ```
 
-```{r}
-# Tabela estruturada para RPPS MILITAR (Militares)
-df_resultado_rpps_militar <- tibble(
-  Receita_RPPS_Militar = aplicar_criterios(
-    df = dados_receita %>%
-      filter(
-        unidade_orcamentaria_codigo %notin% c(73901),
-        fonte_recursos_codigo %notin% c('054'),
-        item_informacao_codigo %in% c(5)
-      ), 
-    criterios_rreo_A04_rpps_receitas_civil_militar_rpps
-  ) %>%
-    # Filtra apenas linha de MILITARES (07)
-    filter(grepl("^07", ordem)) %>%
-    summarise(valor = sum(valor)) %>% 
-    pull(valor),
-  
-  Despesa_RPPS_Militar = aplicar_criterios(
-    df = dados_despesa %>%
-      filter(
-        unidade_orcamentaria_codigo %notin% c(73901),
-        elemento_despesa_codigo %notin% c('04', '07', '11', '13', '16', '39', '67', '96'),
-        acao_governo_codigo != '09HB',
-        item_informacao_codigo %in% c(25)
-      ), 
-    criterios_rreo_A04_rpps_despesas_civil_militar_rpps
-  ) %>%
-   
-    filter(str_detect(nome, "MILITARES")) %>%
-    summarise(valor = sum(valor)) %>% 
-    pull(valor)
-) %>%
-  mutate(Resultado_RPPS_Militar = Receita_RPPS_Militar - Despesa_RPPS_Militar) %>%
-  pivot_longer(
-    cols = everything(),
-    names_to = "Tipo",
-    values_to = "Valor"
+### 📊 Resultado RPPS Militar
+
+```{r resultado-rpps-militar}
+#| include: true
+
+# =============================================================================
+# CALCULO DO RESULTADO PREVIDENCIARIO RPPS MILITAR
+# =============================================================================
+
+if (!exists("dados_receita") || !exists("criterios_rreo_A04_rpps_receitas_civil_militar_rpps")) {
+  warning("Objetos necessarios nao encontrados para RPPS Militar")
+  df_resultado_rpps_militar <- tibble(
+    Tipo = c("Receita_RPPS_Militar", "Despesa_RPPS_Militar", "Resultado_RPPS_Militar"), 
+    Valor = c(NA_real_, NA_real_, NA_real_)
   )
+} else {
+  df_resultado_rpps_militar <- tibble(
+    Receita_RPPS_Militar = aplicar_criterios(
+      df = dados_receita %>%
+        filter(
+          unidade_orcamentaria_codigo %notin% c(73901),
+          fonte_recursos_codigo %notin% c('054'),
+          item_informacao_codigo %in% c("5", 5)
+        ), 
+      criterios_rreo_A04_rpps_receitas_civil_militar_rpps
+    ) %>%
+      # Filtra apenas linha de MILITARES (07)
+      filter(grepl("^07", ordem)) %>%
+      summarise(valor = sum(valor, na.rm = TRUE)) %>% 
+      pull(valor),
+    
+    Despesa_RPPS_Militar = aplicar_criterios(
+      df = dados_despesa %>%
+        filter(
+          unidade_orcamentaria_codigo %notin% c(73901),
+          elemento_despesa_codigo %notin% c('04', '07', '11', '13', '16', '39', '67', '96'),
+          acao_governo_codigo != '09HB',
+          item_informacao_codigo %in% c("25", 25)
+        ), 
+      criterios_rreo_A04_rpps_despesas_civil_militar_rpps
+    ) %>%
+      filter(str_detect(nome, "MILITARES")) %>%
+      summarise(valor = sum(valor, na.rm = TRUE)) %>% 
+      pull(valor)
+  ) %>%
+    mutate(Resultado_RPPS_Militar = Receita_RPPS_Militar - Despesa_RPPS_Militar) %>%
+    pivot_longer(
+      cols = everything(),
+      names_to = "Tipo",
+      values_to = "Valor"
+    )
+}
 
 # Exibir tabela formatada
 DT::datatable(
@@ -7690,40 +7650,55 @@ DT::datatable(
   DT::formatCurrency("Valor", currency = "R$ ", digits = 2, mark = ".", dec.mark = ",")
 ```
 
-```{r}
-# Tabela estruturada para RPPS (Regime Próprio de Previdência Social)
-df_resultado_rpps <- tibble(
-  Receita_RPPS = aplicar_criterios(
-    df = dados_receita %>%
-      filter(
-        unidade_orcamentaria_codigo %notin% c(73901),
-        fonte_recursos_codigo %notin% c('054'),
-        item_informacao_codigo %in% c(5)
-      ), 
-    criterios_rreo_A04_rpps_receitas_civil_militar_rpps
-  ) %>% 
-    summarise(valor = sum(valor)) %>% 
-    pull(valor),
-  
-  Despesa_RPPS = aplicar_criterios(
-    df = dados_despesa %>%
-      filter(
-        unidade_orcamentaria_codigo %notin% c(73901),
-        elemento_despesa_codigo %notin% c('04', '07', '11', '13', '16', '39', '67', '96'),
-        acao_governo_codigo != '09HB',
-        item_informacao_codigo %in% c(25)
-      ), 
-    criterios_rreo_A04_rpps_despesas_civil_militar_rpps
-  ) %>% 
-    summarise(valor = sum(valor)) %>% 
-    pull(valor)
-) %>%
-  mutate(Resultado_RPPS = Receita_RPPS - Despesa_RPPS) %>%
-  pivot_longer(
-    cols = everything(),
-    names_to = "Tipo",
-    values_to = "Valor"
+### 📊 Resultado RPPS Total
+
+```{r resultado-rpps-total}
+#| include: true
+
+# =============================================================================
+# CALCULO DO RESULTADO PREVIDENCIARIO RPPS TOTAL
+# =============================================================================
+
+if (!exists("dados_receita") || !exists("criterios_rreo_A04_rpps_receitas_civil_militar_rpps")) {
+  warning("Objetos necessarios nao encontrados para RPPS Total")
+  df_resultado_rpps <- tibble(
+    Tipo = c("Receita_RPPS", "Despesa_RPPS", "Resultado_RPPS"), 
+    Valor = c(NA_real_, NA_real_, NA_real_)
   )
+} else {
+  df_resultado_rpps <- tibble(
+    Receita_RPPS = aplicar_criterios(
+      df = dados_receita %>%
+        filter(
+          unidade_orcamentaria_codigo %notin% c(73901),
+          fonte_recursos_codigo %notin% c('054'),
+          item_informacao_codigo %in% c("5", 5)
+        ), 
+      criterios_rreo_A04_rpps_receitas_civil_militar_rpps
+    ) %>% 
+      summarise(valor = sum(valor, na.rm = TRUE)) %>% 
+      pull(valor),
+    
+    Despesa_RPPS = aplicar_criterios(
+      df = dados_despesa %>%
+        filter(
+          unidade_orcamentaria_codigo %notin% c(73901),
+          elemento_despesa_codigo %notin% c('04', '07', '11', '13', '16', '39', '67', '96'),
+          acao_governo_codigo != '09HB',
+          item_informacao_codigo %in% c("25", 25)
+        ), 
+      criterios_rreo_A04_rpps_despesas_civil_militar_rpps
+    ) %>% 
+      summarise(valor = sum(valor, na.rm = TRUE)) %>% 
+      pull(valor)
+  ) %>%
+    mutate(Resultado_RPPS = Receita_RPPS - Despesa_RPPS) %>%
+    pivot_longer(
+      cols = everything(),
+      names_to = "Tipo",
+      values_to = "Valor"
+    )
+}
 
 # Exibir tabela formatada
 DT::datatable(
@@ -7734,45 +7709,41 @@ DT::datatable(
   DT::formatCurrency("Valor", currency = "R$ ", digits = 2, mark = ".", dec.mark = ",")
 ```
 
+---
+
 ## 🏛️ REGIME PRÓPRIO DE PREVIDÊNCIA SOCIAL - FCDF
 
 ### 💰 Critérios de Receitas FCDF
 
 ```{r criterios-receitas-fcdf}
 #| include: false
-criterios_rreo_A04_rpps_receitas_fcdf<- list(
+
+criterios_rreo_A04_rpps_receitas_fcdf <- list(
   
-  # FCDF - RECEITA SEGURADOS - Ativo
   `01  FCDF - RECEITA SEGURADOS - Ativo` = list(
     criterio = "fonte_recursos_codigo %notin% c('00', '000') & (natureza_receita_codigo_completo %in% c('12100431', '12104211', '12104221', '12104231', '12104411', '12104421', '12104431', '12104611', '12104621', '12104631', '12191111', '12191321', '12191411') | startsWith(natureza_receita_codigo_completo, '121503') | startsWith(natureza_receita_codigo_completo, '1215011') | startsWith(natureza_receita_codigo_completo, '1215014'))"
   ),
   
-  # FCDF - RECEITA SEGURADOS - Inativos
   `02  FCDF - RECEITA SEGURADOS - Inativos` = list(
     criterio = "fonte_recursos_codigo %notin% c('00', '000') & (natureza_receita_codigo_completo %in% c('12104311', '12104321', '12104331', '12104341', '12104711') | startsWith(natureza_receita_codigo_completo, '1215012') | startsWith(natureza_receita_codigo_completo, '1215015'))"
   ),
   
-  # FCDF - RECEITAS SEGURADOS - Pensionistas
   `03  FCDF - RECEITAS SEGURADOS - Pensionistas` = list(
     criterio = "fonte_recursos_codigo %notin% c('00', '000') & (natureza_receita_codigo_completo %in% c('12104811', '12104411', '12104421', '12104431', '12104441', '12105121', '12105131') | startsWith(natureza_receita_codigo_completo, '1215013') | startsWith(natureza_receita_codigo_completo, '1215016'))"
   ),
   
-  # FCDF - RECEITA PATRONAL - Ativo
   `04  FCDF - RECEITA PATRONAL - Ativo` = list(
     criterio = "fonte_recursos_codigo %notin% c('00', '000') & (natureza_receita_codigo_completo %in% c('12104111', '12104131', '12104121', '12104141', '72104111', '72104121', '72104131', '72104141', '72104511', '72104521', '72104531', '72104541') | startsWith(natureza_receita_codigo_completo, '121502') | startsWith(natureza_receita_codigo_completo, '721502'))"
   ),
   
-  # FCDF - RECEITA PATRONAL - Inativos e Pensionistas - vinculada
   `05  FCDF - RECEITA PATRONAL - Inativos e Pensionistas - vinculada` = list(
     criterio = "fonte_recursos_codigo %notin% c('00', '000') & natureza_receita_codigo_completo %in% c('72104411', '12150211')"
   ),
   
-  # DRU - FCDF
   `06  DRU - FCDF` = list(
     criterio = "fonte_recursos_codigo %in% c('00', '000') & (natureza_receita_codigo_completo %in% c('12104811', '12104411', '12104421', '12104431', '12104441', '12105111', '12104211', '12104221', '12104231', '12104311', '12104321', '12104331', '12104341', '12104521', '12104531', '12104621', '12104631', '12104721', '12104731', '12104741', '12104831', '12104841') | startsWith(natureza_receita_codigo_completo, '1215') | startsWith(natureza_receita_codigo_completo, '7215'))"
   ),
   
-  # Total de Receitas RPPS FCDF
   `07  Total de Receitas RPPS FCDF` = list(
     criterio = "unidade_orcamentaria_codigo %notin% c('55902', '33904') & fonte_recursos_codigo %notin% c('54', '054') & fonte_recursos_detalhada_codigo %notin% c('010073910') & fonte_recursos_codigo %in% c('23', '56', '023', '056', '024') & (grepl('PENSI|PENSO|RPPS|CPSS', natureza_receita_nome, ignore.case = TRUE))"
   )
@@ -7783,24 +7754,21 @@ criterios_rreo_A04_rpps_receitas_fcdf<- list(
 
 ```{r criterios-despesas-fcdf}
 #| include: false
+
 criterios_rreo_A04_rpps_despesas_fcdf <- list(
   
-  # FCDF - DESPESAS - A detalhar
   `01  FCDF - DESPESAS - A detalhar` = list(
     criterio = "esfera_orcamentaria_codigo %in% c(1, 2) & subfuncao_governo_codigo %in% c('272', '273', '274', '845') & grupo_despesa_codigo_grupo %in% c(1) & elemento_despesa_codigo %in% c('00') & acao_governo_codigo %in% c('00Q2', '00QN', '00NS')"
   ),
   
-  # FCDF - DESPESAS - Aposentadorias
   `02  FCDF - DESPESAS - Aposentadorias` = list(
     criterio = "esfera_orcamentaria_codigo %in% c(1, 2) & subfuncao_governo_codigo %in% c('272', '273', '274', '845') & grupo_despesa_codigo_grupo %in% c(1) & elemento_despesa_codigo %in% c('01') & acao_governo_codigo %in% c('00Q2', '00QN', '00NS', '0312', '00NR')"
   ),
   
-  # FCDF - DESPESAS - Pensões
   `03  FCDF - DESPESAS - Pensões` = list(
     criterio = "esfera_orcamentaria_codigo %in% c(1, 2) & subfuncao_governo_codigo %in% c('272', '273', '274', '845') & grupo_despesa_codigo_grupo %in% c(1) & elemento_despesa_codigo %in% c('03') & acao_governo_codigo %in% c('00Q2', '00QN', '00NS', '0312', '00NR')"
   ),
   
-  # FCDF - DESPESAS - Outros Benefícios Previdenciários
   `04  FCDF - DESPESAS - Outros Benefícios Previdenciários` = list(
     criterio = "esfera_orcamentaria_codigo %in% c(1, 2) & subfuncao_governo_codigo %in% c('272', '273', '274', '845', '846') & grupo_despesa_codigo_grupo %in% c(1) & elemento_despesa_codigo %notin% c('00', '01', '03') & (acao_governo_codigo %in% c('00Q2', '00NS', '00QN') | (acao_governo_codigo %in% c('0005', '0625') & funcao_governo_codigo %notin% c('10', '08')))"
   )
@@ -7812,14 +7780,13 @@ criterios_rreo_A04_rpps_despesas_fcdf <- list(
 ```{r processar-fcdf-receitas}
 #| include: false
 
-datatable(aplicar_criterios(df = dados_receita %>% 
-    filter(unidade_orcamentaria_codigo %in% c(73901)),
-    criterios_rreo_A04_rpps_receitas_fcdf))
-
-
-
-
-
+datatable(
+  aplicar_criterios(
+    df = dados_receita %>% 
+      filter(unidade_orcamentaria_codigo %in% c(73901)),
+    criterios_rreo_A04_rpps_receitas_fcdf
+  )
+)
 ```
 
 ### 📊 Processamento FCDF - Despesas
@@ -7827,74 +7794,67 @@ datatable(aplicar_criterios(df = dados_receita %>%
 ```{r processar-fcdf-despesas}
 #| include: false
 
-datatable(aplicar_criterios(df = dados_despesa %>% 
-    filter(
-      unidade_orcamentaria_codigo %in% c(73901),
-      elemento_despesa_codigo %notin% c('04', '07', '11', '13', '16', '39', '67', '96'),
-      acao_governo_codigo != '09HB'
-    ),
-    criterios_rreo_A04_rpps_despesas_fcdf))
-
-
-
-
-```
-
-### Resultado FCDF
-
-```{r}
-#| include: false
-formatar_numero(resultado_fcdf <- (
-  aplicar_criterios(df = dados_receita %>% 
-    filter(unidade_orcamentaria_codigo %in% c(73901),
-           item_informacao_codigo %in% c(5)),
-    criterios_rreo_A04_rpps_receitas_fcdf)%>% summarise(valor=sum(valor))
-    -
-aplicar_criterios(df = dados_despesa %>% 
-    filter(
-      unidade_orcamentaria_codigo %in% c(73901),
-      elemento_despesa_codigo %notin% c('04', '07', '11', '13', '16', '39', '67', '96'),
-      acao_governo_codigo != '09HB',
-      item_informacao_codigo %in% c(25)
-    ),
-    criterios_rreo_A04_rpps_despesas_fcdf)%>% summarise(valor=sum(valor))
-))
-
-```
-
-```{r}
-# Tabela estruturada para FCDF (Fundo Constitucional do Distrito Federal)
-df_resultado_fcdf <- tibble(
-  Receita_FCDF = aplicar_criterios(
-    df = dados_receita %>%
-      filter(
-        unidade_orcamentaria_codigo %in% c(73901),
-        item_informacao_codigo %in% c(5)
-      ), 
-    criterios_rreo_A04_rpps_receitas_fcdf
-  ) %>% 
-    summarise(valor = sum(valor)) %>% 
-    pull(valor),
-  
-  Despesa_FCDF = aplicar_criterios(
-    df = dados_despesa %>%
+datatable(
+  aplicar_criterios(
+    df = dados_despesa %>% 
       filter(
         unidade_orcamentaria_codigo %in% c(73901),
         elemento_despesa_codigo %notin% c('04', '07', '11', '13', '16', '39', '67', '96'),
-        acao_governo_codigo != '09HB',
-        item_informacao_codigo %in% c(25)
-      ), 
+        acao_governo_codigo != '09HB'
+      ),
     criterios_rreo_A04_rpps_despesas_fcdf
-  ) %>% 
-    summarise(valor = sum(valor)) %>% 
-    pull(valor)
-) %>%
-  mutate(Resultado_FCDF = Receita_FCDF - Despesa_FCDF) %>%
-  pivot_longer(
-    cols = everything(),
-    names_to = "Tipo",
-    values_to = "Valor"
   )
+)
+```
+
+### 📊 Resultado FCDF
+
+```{r resultado-fcdf}
+#| include: true
+
+# =============================================================================
+# CALCULO DO RESULTADO PREVIDENCIARIO FCDF
+# =============================================================================
+
+if (!exists("dados_receita") || !exists("criterios_rreo_A04_rpps_receitas_fcdf")) {
+  warning("Objetos necessarios nao encontrados para FCDF")
+  df_resultado_fcdf <- tibble(
+    Tipo = c("Receita_FCDF", "Despesa_FCDF", "Resultado_FCDF"), 
+    Valor = c(NA_real_, NA_real_, NA_real_)
+  )
+} else {
+  df_resultado_fcdf <- tibble(
+    Receita_FCDF = aplicar_criterios(
+      df = dados_receita %>%
+        filter(
+          unidade_orcamentaria_codigo %in% c(73901),
+          item_informacao_codigo %in% c("5", 5)
+        ), 
+      criterios_rreo_A04_rpps_receitas_fcdf
+    ) %>% 
+      summarise(valor = sum(valor, na.rm = TRUE)) %>% 
+      pull(valor),
+    
+    Despesa_FCDF = aplicar_criterios(
+      df = dados_despesa %>%
+        filter(
+          unidade_orcamentaria_codigo %in% c(73901),
+          elemento_despesa_codigo %notin% c('04', '07', '11', '13', '16', '39', '67', '96'),
+          acao_governo_codigo != '09HB',
+          item_informacao_codigo %in% c("25", 25)
+        ), 
+      criterios_rreo_A04_rpps_despesas_fcdf
+    ) %>% 
+      summarise(valor = sum(valor, na.rm = TRUE)) %>% 
+      pull(valor)
+  ) %>%
+    mutate(Resultado_FCDF = Receita_FCDF - Despesa_FCDF) %>%
+    pivot_longer(
+      cols = everything(),
+      names_to = "Tipo",
+      values_to = "Valor"
+    )
+}
 
 # Exibir tabela formatada
 DT::datatable(
@@ -7905,7 +7865,227 @@ DT::datatable(
   DT::formatCurrency("Valor", currency = "R$ ", digits = 2, mark = ".", dec.mark = ",")
 ```
 
+---
+
+## 📊 Resumo Consolidado Previdência
+
+```{r resumo-previdencia}
+#| include: true
+
+# =============================================================================
+# RESUMO CONSOLIDADO - TODOS OS REGIMES
+# =============================================================================
+
+cat("\n")
+cat(strrep("=", 70), "\n")
+cat("RESUMO PREVIDENCIÁRIO - RREO ANEXO 04\n")
+cat(strrep("=", 70), "\n\n")
+
+# RGPS
+if (exists("df_resultado_rgps")) {
+  rgps_rec <- df_resultado_rgps %>% filter(Tipo == "Receita_RGPS") %>% pull(Valor)
+  rgps_desp <- df_resultado_rgps %>% filter(Tipo == "Despesa_RGPS") %>% pull(Valor)
+  rgps_res <- df_resultado_rgps %>% filter(Tipo == "Resultado_RGPS") %>% pull(Valor)
+  
+  cat("📊 RGPS - Regime Geral de Previdência Social\n")
+  cat(sprintf("   Receitas:  R$ %s\n", format(rgps_rec, big.mark = ".", decimal.mark = ",", nsmall = 2)))
+  cat(sprintf("   Despesas:  R$ %s\n", format(rgps_desp, big.mark = ".", decimal.mark = ",", nsmall = 2)))
+  cat(sprintf("   Resultado: R$ %s\n\n", format(rgps_res, big.mark = ".", decimal.mark = ",", nsmall = 2)))
+}
+
+# RPPS Civil
+if (exists("df_resultado_rpps_civil")) {
+  rpps_civ_rec <- df_resultado_rpps_civil %>% filter(Tipo == "Receita_RPPS_Civil") %>% pull(Valor)
+  rpps_civ_desp <- df_resultado_rpps_civil %>% filter(Tipo == "Despesa_RPPS_Civil") %>% pull(Valor)
+  rpps_civ_res <- df_resultado_rpps_civil %>% filter(Tipo == "Resultado_RPPS_Civil") %>% pull(Valor)
+  
+  cat("👥 RPPS Civil - Servidores Civis\n")
+  cat(sprintf("   Receitas:  R$ %s\n", format(rpps_civ_rec, big.mark = ".", decimal.mark = ",", nsmall = 2)))
+  cat(sprintf("   Despesas:  R$ %s\n", format(rpps_civ_desp, big.mark = ".", decimal.mark = ",", nsmall = 2)))
+  cat(sprintf("   Resultado: R$ %s\n\n", format(rpps_civ_res, big.mark = ".", decimal.mark = ",", nsmall = 2)))
+}
+
+# RPPS Militar
+if (exists("df_resultado_rpps_militar")) {
+  rpps_mil_rec <- df_resultado_rpps_militar %>% filter(Tipo == "Receita_RPPS_Militar") %>% pull(Valor)
+  rpps_mil_desp <- df_resultado_rpps_militar %>% filter(Tipo == "Despesa_RPPS_Militar") %>% pull(Valor)
+  rpps_mil_res <- df_resultado_rpps_militar %>% filter(Tipo == "Resultado_RPPS_Militar") %>% pull(Valor)
+  
+  cat("🎖️ RPPS Militar - Militares das Forças Armadas\n")
+  cat(sprintf("   Receitas:  R$ %s\n", format(rpps_mil_rec, big.mark = ".", decimal.mark = ",", nsmall = 2)))
+  cat(sprintf("   Despesas:  R$ %s\n", format(rpps_mil_desp, big.mark = ".", decimal.mark = ",", nsmall = 2)))
+  cat(sprintf("   Resultado: R$ %s\n\n", format(rpps_mil_res, big.mark = ".", decimal.mark = ",", nsmall = 2)))
+}
+
+# FCDF
+if (exists("df_resultado_fcdf")) {
+  fcdf_rec <- df_resultado_fcdf %>% filter(Tipo == "Receita_FCDF") %>% pull(Valor)
+  fcdf_desp <- df_resultado_fcdf %>% filter(Tipo == "Despesa_FCDF") %>% pull(Valor)
+  fcdf_res <- df_resultado_fcdf %>% filter(Tipo == "Resultado_FCDF") %>% pull(Valor)
+  
+  cat("🏛️ FCDF - Fundo Constitucional do DF\n")
+  cat(sprintf("   Receitas:  R$ %s\n", format(fcdf_rec, big.mark = ".", decimal.mark = ",", nsmall = 2)))
+  cat(sprintf("   Despesas:  R$ %s\n", format(fcdf_desp, big.mark = ".", decimal.mark = ",", nsmall = 2)))
+  cat(sprintf("   Resultado: R$ %s\n\n", format(fcdf_res, big.mark = ".", decimal.mark = ",", nsmall = 2)))
+}
+
+cat(strrep("=", 70), "\n")
+```
+
+---
+
+## 📚 Estrutura do Demonstrativo - Receitas
+
+### Receitas RGPS
+
+| Ordem | Item | Critério Principal |
+|-------|------|-------------------|
+| 01 | Receitas Correntes - Empregadores, Trabalhadores | natureza 12100311-13, 1214* |
+| 02 | Receitas Correntes - Demais Contribuições | origem = 2, exceto item 01 |
+| 03 | Outras Receitas - Compensação RPPS/RGPS | origem = 9 |
+| 04 | Demais Receitas Correntes | categoria = 1, exceto origens 2 e 9 |
+| 05 | Receitas de Capital - Alienações | categoria = 2, origem = 2 |
+| 06 | Demais Receitas de Capital | categoria = 2, exceto origem 2 |
+| 07 | Receitas INTRA-ORÇAMENTÁRIAS | categoria = 7 ou 8 |
+
+### Receitas RPPS (Civis)
+
+| Ordem | Item | Critério Principal |
+|-------|------|-------------------|
+| 01 | CIVIS - Segurados Ativo | natureza 12100421-24, 1215011*, 121503* |
+| 02 | CIVIS - Segurados Inativos | natureza 12100431-34, 1215012* |
+| 03 | CIVIS - Segurados Pensionistas | natureza 12100441-44, 1215013* |
+| 04 | CIVIS - Patronal Ativo | natureza 12100411-14, 721502* |
+| 05 | CIVIS - Patronal Inativos/Pensionistas | natureza 72100441 |
+| 06 | DRU - FCDF | fonte 000/00, natureza 12151* |
+| 07 | MILITARES - Segurados | natureza 12100511-13, 121911* |
+
+## 📚 Estrutura do Demonstrativo - Despesas
+
+### Despesas RGPS
+
+| Ordem | Item | Critério Principal |
+|-------|------|-------------------|
+| 01 | Aposentadorias | elemento = 53, 54; grupo = 3 |
+| 02 | Pensões | elemento = 55, 56; grupo = 3 |
+| 03 | Outros Benefícios | elemento = 57, 58; grupo = 3 |
+| 04 | Compensação RGPS para RPPS | ação = 009W, 0531; grupo = 3 |
+| 05 | Demais Despesas | grupo = 3, exceto itens anteriores |
+| 06 | A Detalhar | elemento = 00; grupo = 3 |
+| 07 | Despesas Previdenciárias (INTRA) | modalidade = 91; grupo = 3 |
+
+### Despesas RPPS
+
+| Ordem | Item | Critério Principal |
+|-------|------|-------------------|
+| 01 | CIVIS - A detalhar | subfunção 272-274/845, grupo=1, elemento=00 |
+| 02 | CIVIS - Aposentadorias | subfunção 272-274/845, grupo=1, elemento=01 |
+| 03 | CIVIS - Pensões | subfunção 272-274/845, grupo=1, elemento=03 |
+| 04 | CIVIS - Outros Benefícios | subfunção 272-274/845-846, grupo=1 |
+| 05-11 | MILITARES | ações 0179, 214H, 218K, 00QD, 00X3 |
+
+---
+
+## 📖 Conceitos Importantes
+
+### Resultado Previdenciário
+
+```
+RESULTADO PREVIDENCIÁRIO = RECEITAS PREVIDENCIÁRIAS - DESPESAS PREVIDENCIÁRIAS
+```
+
+Quando **negativo**, indica **déficit previdenciário** que deve ser coberto pelo Tesouro Nacional.
+
+### Separação RGPS x RPPS
+
+| Aspecto | RGPS | RPPS |
+|---------|------|------|
+| Público | Trabalhadores privados | Servidores públicos |
+| Gestão | INSS | Tesouro Nacional |
+| UO Principal | 33904 | Diversas por órgão |
+| Elementos | 53-58 | 01, 03 |
+| Subfunção | 122 (INSS) | 272, 273, 274 |
+
+### Códigos de Ações Previdenciárias
+
+| Código | Descrição | Regime |
+|--------|-----------|--------|
+| 0053 | Pagamento de Aposentadorias e Pensões - Civis | RPPS Civil |
+| 0181 | Pagamento de Pessoal Inativo - Civis | RPPS Civil |
+| 0179 | Pagamento de Pensões Militares | RPPS Militar |
+| 214H | Pagamento de Inativos das Forças Armadas | RPPS Militar |
+| 218K | Pagamento de Inativos - Civis do MD | RPPS Militar |
+| 00X3 | Compensação Financeira entre RPPSU e demais RPPS | RPPS |
+| 009W | Compensação Previdenciária RGPS/RPPS | RGPS |
+| 00Q2, 00QN, 00NS | Ações FCDF | FCDF |
+
+### Exclusões Importantes
+
+| Item | Motivo |
+|------|--------|
+| UO 73901 | Separado no FCDF |
+| Fonte 054 | Contribuições Sociais do RGPS - evitar duplicidade |
+| Elementos 04, 07, 11, 13, 16, 39, 67, 96 | Não são benefícios previdenciários |
+| Ação 09HB | Ação não previdenciária |
+| Função 08, 10 | Assistência Social e Saúde - não é previdência |
+
+---
+
+## 📦 Objetos Exportados
+
+| Objeto | Descrição |
+|--------|-----------|
+| criterios_rreo_A04_rgps_receitas_rgps | Critérios receitas RGPS |
+| criterios_rreo_A04_rgps_despesas_rgps | Critérios despesas RGPS |
+| criterios_rreo_A04_rpps_receitas_civil_militar_rpps | Critérios receitas RPPS |
+| criterios_rreo_A04_rpps_despesas_civil_militar_rpps | Critérios despesas RPPS |
+| criterios_rreo_A04_rpps_receitas_fcdf | Critérios receitas FCDF |
+| criterios_rreo_A04_rpps_despesas_fcdf | Critérios despesas FCDF |
+| df_resultado_rgps | Resultado Previdenciário RGPS |
+| df_resultado_rpps_civil | Resultado RPPS Civis |
+| df_resultado_rpps_militar | Resultado RPPS Militares |
+| df_resultado_rpps | Resultado RPPS Total |
+| df_resultado_fcdf | Resultado FCDF |
+
+---
+
+## 📝 Observações Adicionais
+
+1. **Período de Apuração**: O anexo apresenta valores do bimestre e acumulados no exercício.
+
+2. **Projeção Atuarial**: O RREO Anexo 14 apresenta a projeção atuarial do RPPS para os próximos 75 anos.
+
+3. **Meta Fiscal**: O resultado previdenciário impacta diretamente o Resultado Primário da União.
+
+4. **Passivo Atuarial**: O RGF Anexo 02 apresenta o passivo atuarial do RPPS e dos militares na DCL.
+
+5. **Receitas Intra-Orçamentárias**: Categoria 7 ou 8 representam transferências entre órgãos do mesmo ente.
+
+
 # 📋 RREO Anexo 06 (Resultado Primário)
+
+## 📊 Ficha Técnica
+
+| Item | Descrição |
+|------|-----------|
+| **Relatório** | RREO - Relatório Resumido da Execução Orçamentária |
+| **Anexo** | Anexo 06 - Demonstrativo dos Resultados Primário e Nominal |
+| **Base Legal** | LRF Art. 53, inciso III |
+| **Periodicidade** | Bimestral |
+| **Grau de Dificuldade** | Muito Difícil |
+
+## 📁 Arquivos Necessários
+
+| Objeto | Arquivo | Descrição |
+|--------|---------|-----------|
+| `dados_receita` | tg_receita_*.xlsx | Receitas orçamentárias |
+| `dados_categoria_grupo` | rreo_a06_despesas_primarias_categoria_grupo.xlsx | Despesas por categoria/grupo |
+| `dados_ndd` | rreo_a06_despesas_primarias_ndd.xlsx | Despesas por natureza detalhada |
+| `dados_despesa` | tg_despesa_*.xlsx | Despesas orçamentárias (subsídios CESEF) |
+| `dados_juros` | rreo_a06_juros.xlsx | VPA/VPD de juros |
+| `tg_RPN_disponibilidades` | tg_RPN_disponibilidades.xlsx | Disponibilidades financeiras |
+| `dados_ajustes` | rreo_a06_ajustes.xlsx | VPA/VPD de ajustes patrimoniais |
+| `comparativo` | comparativo.xlsx | Valores oficiais RTN para ajuste metodológico |
 
 ## Processamento Anexo 06
 
@@ -8268,8 +8448,6 @@ criterios_rreo_A06_despesas_natureza_detalhada_A06 <- list(
     criterio = "{30 - 34 - 35}"
   ),
   
-  # Item 37 removido - agora usa dados_despesa
-  
   # COTAS DOS FUNDOS GARANTIDORES
   `38  ______Cotas dos Fundos Garantidores (metodologia CESEF - primário)` = list(
     criterio = "
@@ -8304,14 +8482,11 @@ criterios_rreo_A06_disponibilidades_A06 <- list(
 )
 
 # ===============================================================================
-# 5. JUROS ATIVOS E PASSIVOS (dados_juros) - CORRIGIDO
+# 5. JUROS ATIVOS E PASSIVOS (dados_juros)
 # ===============================================================================
 criterios_rreo_A06_juros_ativos_passivos_A06 <- list(
   
   # JUROS ATIVOS (XXV) - VPA Classe 4
-  # Prefixos: 44111, 44113, 44114, 44115, 44121, 44131, 44133, 44134, 44135, 
-  #           44141, 44211, 44213, 44214, 44215, 44221
-  # Contas específicas: 445110100, 445210100
   `41  Juros Ativos` = list(
     criterio = "
     substr(conta_contabil_numero, 1, 5) %in% c('44111', '44113', '44114', '44115', '44121', '44131', 
@@ -8322,8 +8497,6 @@ criterios_rreo_A06_juros_ativos_passivos_A06 <- list(
   ),
   
   # JUROS PASSIVOS (XXVI) - VPD Classe 3
-  # Prefixos: 34111, 34113, 34114, 34115, 34121, 34131, 34141, 34181, 34183, 
-  #           34184, 34185, 34191, 34211, 34213, 34214, 34215, 34221, 34291
   `42  Juros Passivos` = list(
     criterio = "
     substr(conta_contabil_numero, 1, 5) %in% c('34111', '34113', '34114', '34115', '34121', '34131', 
@@ -8332,8 +8505,7 @@ criterios_rreo_A06_juros_ativos_passivos_A06 <- list(
     "
   ),
   
-  # FUNDOS - JUROS ATIVOS (mesmos prefixos do item 41)
-  # Valor esperado: 15.174.626.701
+  # FUNDOS - JUROS ATIVOS
   `43  Fundos - Juros Ativos` = list(
     criterio = "
     orgao_uge_tipo_administracao_codigo == '7' & 
@@ -8346,8 +8518,7 @@ criterios_rreo_A06_juros_ativos_passivos_A06 <- list(
     "
   ),
   
-  # FUNDOS - JUROS PASSIVOS (mesmos prefixos do item 42)
-  # Valor esperado: 2.364.213.994
+  # FUNDOS - JUROS PASSIVOS
   `44  Fundos - Juros Passivos` = list(
     criterio = "
     orgao_uge_tipo_administracao_codigo == '7' & 
@@ -8376,55 +8547,26 @@ criterios_rreo_A06_subsidios_cesef <- list(
 
 
 # ===============================================================================
-# AJUSTES PARA O ANEXO 6 DO RREO (VPA/VPD de ajustes patrimoniais) - 2025
-# VERSÃO CORRIGIDA - baseada nos prints oficiais do TG
-#
-# OBSERVAÇÃO IMPORTANTE:
-# Os atributos "NS - Classificação Contábil 1" e "NS - Classificação Contábil 2"
-# foram OMITIDOS pois inviabilizavam a geração do relatório por exceder o limite
-# de spool do TG. Isso pode causar diferenças em alguns itens (especialmente 57).
-#
-# VALIDAÇÃO: 19/23 itens OK (83%)
-# 
-# ITENS COM PROBLEMAS (necessitam reextração do TG):
-# - Item 50: Conta 343110100 NÃO EXISTE no arquivo rreo_a06_ajustes.xlsx
-# - Item 57: Atributos NS Classif. Contábil 1 e 2 foram omitidos
-# - Item 59: Contas 365010100, 365040100, 365050100, 365150100 não existem no arquivo
-# - Item 62: Contas 443140100, 443150100, 443340100 não existem no arquivo
+# 7. AJUSTES PARA O ANEXO 6 DO RREO (VPA/VPD de ajustes patrimoniais)
 # ===============================================================================
 
 criterios_rreo_A06_ajuste <- list(
 
-  # ---------------------------------------------------------------------------
   # VPD - VARIAÇÕES MONETÁRIAS DA DÍVIDA CONTRATUAL
-  # Print: vpd_01.png
-  # Contas: 343110100, 343540100, 343550100
-  # 
-  # NOTA: A conta 343110100 NÃO EXISTE no arquivo rreo_a06_ajustes.xlsx
-  # Isso causa diferença de ~906 mi. Necessário reextrair do TG.
-  # ---------------------------------------------------------------------------
   `50 VPD - Variações Monetárias da Dívida Contratual` = list(
     criterio = "
     conta_contabil_numero %in% c('343110100', '343540100', '343550100')
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # VPD - VARIAÇÕES CAMBIAIS DA DÍVIDA CONTRATUAL
-  # Print: vpd_01.png
-  # Conta: 343210200
-  # ---------------------------------------------------------------------------
   `51 VPD - Variações Cambiais da Dívida Contratual` = list(
     criterio = "
     conta_contabil_numero == '343210200'
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # VPD - VARIAÇÕES MONETÁRIAS DA DÍVIDA MOBILIÁRIA
-  # Print: vpd_01.png
-  # (Conta 343310100 E UG 170600) OU (Conta 343340100 E UG 170512)
-  # ---------------------------------------------------------------------------
   `52 VPD - Variações Monetárias da Dívida Mobiliária` = list(
     criterio = "
     (conta_contabil_numero == '343310100' & ug_executora_codigo == '170600') |
@@ -8432,11 +8574,7 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # VPD - VARIAÇÕES CAMBIAIS DA DÍVIDA MOBILIÁRIA
-  # Print: vpd_01.png
-  # Conta: 343410200, UG: 170600
-  # ---------------------------------------------------------------------------
   `53 VPD - Variações Cambiais da Dívida Mobiliária` = list(
     criterio = "
     conta_contabil_numero == '343410200' &
@@ -8444,12 +8582,7 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # VPD - ATUALIZAÇÃO MONETÁRIA NEGATIVA
-  # Print: vpd_02.png
-  # Contas: 343910103, 343940103, 343950103
-  # UGs: 170600, 170512, 380916, 170700
-  # ---------------------------------------------------------------------------
   `54 VPD - Atualização Monetária Negativa` = list(
     criterio = "
     conta_contabil_numero %in% c('343910103', '343940103', '343950103') &
@@ -8457,12 +8590,7 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # VPD - INCORPORAÇÃO DE PASSIVOS
-  # Print: vpd_02.png
-  # Contas: 364010100, 364110100
-  # UGs: 170600, 170512
-  # ---------------------------------------------------------------------------
   `55 VPD - Incorporação de Passivos` = list(
     criterio = "
     conta_contabil_numero %in% c('364010100', '364110100') &
@@ -8470,32 +8598,14 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # VPD - RESULTADO NEGATIVO BACEN
-  # Print: vpd_02.png
-  # Conta: 348110100
-  # ---------------------------------------------------------------------------
   `56 VPD - Resultado Negativo BACEN` = list(
     criterio = "
     conta_contabil_numero == '348110100'
     "
   ),
 
-  # ---------------------------------------------------------------------------
-  # CONSTITUIÇÃO DE SUBVENÇÕES ECONÔMICAS - COPEC
-  # Print: vpd_09.png
-  # UG: 170700
-  # Contas: 395010100, 395110100
-  # Evento: 581012
-  # 
-  # NOTA IMPORTANTE: O critério oficial também usa:
-  # - NS Classificação Contábil 1: 217710101, 227710101, 222210200, 212210300,
-  #   222110200, 212110301, 212110303, 212110700, 212210601, 212310201, 212310202,
-  #   212410201, 217310301, 217310602, 217350402, 222310102, 222410101, 227310301
-  # - NS Classificação Contábil 2: 395010100, 395110100
-  # Estes atributos foram OMITIDOS do arquivo, causando diferença de ~9.7 bi
-  # O valor correto seria calculado pela metodologia completa do TG.
-  # ---------------------------------------------------------------------------
+  # VPD - CONSTITUIÇÃO DE SUBVENÇÕES ECONÔMICAS - COPEC
   `57 VPD - Constituição de Subvenções Econômicas - COPEC` = list(
     criterio = "
     ug_executora_codigo == '170700' &
@@ -8504,13 +8614,7 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # VPD - OUTRAS VARIAÇÕES CAMBIAIS
-  # Print: vpd_03.png
-  # Contas: 343910200, 343940200, 343950200
-  # (UG: 170512, 170700) OU (UG 380916 E NS Classif. Contábil 2: 121110309)
-  # NOTA: O filtro de NS Classif. Contábil 2 foi omitido
-  # ---------------------------------------------------------------------------
   `58 VPD - Outras Variações Cambiais` = list(
     criterio = "
     conta_contabil_numero %in% c('343910200', '343940200', '343950200') &
@@ -8518,16 +8622,7 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # VPD - DESINCORPORAÇÃO DE ATIVOS
-  # Print: vpd_03.png
-  # Contas: 365040100, 365010100, 365050100, 365140100, 365110100, 365150100
-  # UGs: 170512, 170700
-  #
-  # NOTA: No arquivo atual só existem 365110100 e 365140100
-  # As contas 365010100, 365040100, 365050100, 365150100 NÃO EXISTEM
-  # Isso causa diferença de ~84 mi. Necessário reextrair do TG.
-  # ---------------------------------------------------------------------------
   `59 VPD - Desincorporação de Ativos` = list(
     criterio = "
     conta_contabil_numero %in% c('365010100', '365040100', '365050100', 
@@ -8536,13 +8631,7 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # VPD - REVERSÃO DE SUBVENÇÕES ECONÔMICAS - COPEC
-  # Print: vpd_04.png
-  # Evento: 541559
-  # Contas: 395010100, 395110100
-  # UG: 170700
-  # ---------------------------------------------------------------------------
   `60 VPD - Reversão de Subvenções Econômicas - COPEC` = list(
     criterio = "
     conta_contabil_numero %in% c('395010100', '395110100') &
@@ -8551,12 +8640,7 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # VPD - VAR MONET E CAMBIAIS DE EMPREST e FINANC CONCEDIDOS
-  # Print: vpd_04.png
-  # Contas: 343510200, 343540200, 343550200, 343510100
-  # UGs: 170512, 170526, 170705, 170600, 380916, 170700
-  # ---------------------------------------------------------------------------
   `61 VPD - Var Monet e Cambiais de Emprest e Financ Concedidos` = list(
     criterio = "
     conta_contabil_numero %in% c('343510100', '343510200', '343540200', '343550200') &
@@ -8564,16 +8648,7 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # VPA - VAR MONET E CAMBIAIS DE EMPREST e FINANC CONCEDIDOS
-  # Print: vpd_04.png
-  # Contas: 443140100, 443150100, 443110100, 443310100, 443340100
-  # UGs: 170512, 170526, 170705, 170600, 380916, 170700
-  #
-  # NOTA: No arquivo atual só existem 443110100 e 443310100
-  # As contas 443140100, 443150100, 443340100 NÃO EXISTEM
-  # Isso causa diferença de ~55 bi. Necessário reextrair do TG.
-  # ---------------------------------------------------------------------------
   `62 VPA - Var Monet e Cambiais de Emprest e Financ Concedidos` = list(
     criterio = "
     conta_contabil_numero %in% c('443110100', '443140100', '443150100', 
@@ -8582,12 +8657,7 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # VPA - ATUALIZAÇÃO MONETÁRIA POSITIVA
-  # Print: vpd_05.png
-  # Contas: 443910101, 443940101, 443950101
-  # UGs: 170512, 170526, 170705, 170600, 170700
-  # ---------------------------------------------------------------------------
   `63 VPA - Atualização Monetária Positiva` = list(
     criterio = "
     conta_contabil_numero %in% c('443910101', '443940101', '443950101') &
@@ -8595,12 +8665,7 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # VPA - OUTRAS VARIAÇÕES MONETÁRIAS
-  # Print: vpd_05.png
-  # Contas: 443910100, 443940100, 443950100
-  # UGs: 170512, 170526, 170705, 170600, 170700
-  # ---------------------------------------------------------------------------
   `64 VPA - Outras Variações Monetárias` = list(
     criterio = "
     conta_contabil_numero %in% c('443910100', '443940100', '443950100') &
@@ -8608,12 +8673,7 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # VPA - OUTRAS VARIAÇÕES CAMBIAIS
-  # Print: vpd_05.png
-  # Contas: 443910200, 443940200, 443950200
-  # UGs: 170512, 170526, 170705, 170600, 120002, 170700
-  # ---------------------------------------------------------------------------
   `65 VPA - Outras Variações Cambiais` = list(
     criterio = "
     conta_contabil_numero %in% c('443910200', '443940200', '443950200') &
@@ -8621,12 +8681,7 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # VPA - GANHOS COM DESINCORPORAÇÃO DE PASSIVOS
-  # Print: vpd_06.png
-  # Contas: 464010100, 464040100, 464050100, 464110100, 464140100, 464150100
-  # UG: 170600
-  # ---------------------------------------------------------------------------
   `66 VPA - Ganhos com Desincorporação de Passivos` = list(
     criterio = "
     conta_contabil_numero %in% c('464010100', '464040100', '464050100',
@@ -8635,23 +8690,14 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # VPA - RESULTADO POSITIVO BACEN
-  # Print: vpd_06.png
-  # Conta: 448110100
-  # ---------------------------------------------------------------------------
   `67 VPA - Resultado Positivo BACEN` = list(
     criterio = "
     conta_contabil_numero == '448110100'
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # VPA - OUTRAS VAR PATRIMONIAIS AUMENTATIVAS
-  # Print: vpd_06.png
-  # Contas: 449010100, 449040100, 449050100, 449110100, 449140100, 449150100
-  # UGs: 170512, 170705, 170526
-  # ---------------------------------------------------------------------------
   `68 VPA - Outras Variações Patrimoniais Aumentativas` = list(
     criterio = "
     conta_contabil_numero %in% c('449010100', '449040100', '449050100',
@@ -8660,13 +8706,7 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
-  # VPA - REMUNERAÇÃO DOS DEPÓSITOS BANCÁRIOS (FINANCEIRO???)
-  # Print: vpd_07.png
-  # Contas: 445110100, 445210100
-  # AND NOT (Órgão UGE Tipo Administração = 7:FUNDOS) EXCETO UG 380916
-  # Evento Não em: 581798, 586798
-  # ---------------------------------------------------------------------------
+  # VPA - REMUNERAÇÃO DOS DEPÓSITOS BANCÁRIOS
   `69 VPA - Remuneração dos Depósitos Bancários` = list(
     criterio = "
     conta_contabil_numero %in% c('445110100', '445210100') &
@@ -8675,12 +8715,7 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # VPA - REVERSÃO DE PROVISÕES E DE AJUSTES PARA PERDAS
-  # Print: vpd_07.png
-  # Contas: 497110100, 497140100, 497150100, 497210100, 497240100
-  # UGs: 170700, 170512, 170526, 170705
-  # ---------------------------------------------------------------------------
   `70 VPA - Reversão de Provisões e de Ajustes para Perdas` = list(
     criterio = "
     conta_contabil_numero %in% c('497110100', '497140100', '497150100',
@@ -8689,12 +8724,7 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # VPA - OUTROS GANHOS COM INCORPORAÇÃO DE ATIVOS
-  # Print: vpd_07.png
-  # Contas: 463920100, 463940100
-  # UG: 170512
-  # ---------------------------------------------------------------------------
   `71 VPA - Outros Ganhos com Incorporação de Ativos` = list(
     criterio = "
     conta_contabil_numero %in% c('463920100', '463940100') &
@@ -8702,12 +8732,7 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # (-) CRÉDITO EMPENHADO EM LIQUIDAÇÃO (EXCETO CODIV)
-  # Print: vpd_08.png
-  # Conta: 622130200
-  # UG Executora NÃO RELACIONADO: 170600 (ou seja, EXCLUI a UG 170600!)
-  # ---------------------------------------------------------------------------
   `72 Crédito Empenhado em Liquidação (exceto CODIV)` = list(
     criterio = "
     conta_contabil_numero == '622130200' &
@@ -8715,23 +8740,14 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # APLICAÇÕES FINANCEIRAS - FECHAMENTO CÂMBIO
-  # Print: vpd_08.png
-  # Conta: 111215100
-  # ---------------------------------------------------------------------------
   `73 Aplicações Financeiras - Fechamento Câmbio` = list(
     criterio = "
     conta_contabil_numero == '111215100'
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # JUROS E ENCARGOS PASSIVOS - OUTRAS VPD FINANCEIRAS
-  # Print: vpd_08.png
-  # Contas: 349910100, 349940100, 349950100
-  # UGs: 170512, 170500
-  # ---------------------------------------------------------------------------
   `74 Juros e Encargos Passivos - Outras VPD Financeiras` = list(
     criterio = "
     conta_contabil_numero %in% c('349910100', '349940100', '349950100') &
@@ -8739,12 +8755,7 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # PASSIVO DÍVIDA PÚBLICA REF FIES E MANTENEDORAS
-  # Print: vpd_09.png
-  # Evento: 591738
-  # Conta: 222110101
-  # ---------------------------------------------------------------------------
   `75 Passivo Dívida Pública REF FIES e Mantenedoras` = list(
     criterio = "
     conta_contabil_numero == '222110101' &
@@ -8752,12 +8763,7 @@ criterios_rreo_A06_ajuste <- list(
     "
   ),
 
-  # ---------------------------------------------------------------------------
   # AJUSTES DE EXERCÍCIOS ANTERIORES
-  # Print: vpd_09.png
-  # Conta: 237110300
-  # UGs: 170512, 170700
-  # ---------------------------------------------------------------------------
   `76 Ajustes de Exercícios Anteriores` = list(
     criterio = "
     conta_contabil_numero == '237110300' &
@@ -8767,11 +8773,33 @@ criterios_rreo_A06_ajuste <- list(
 )
 ```
 
-![ajustar totalização](subsitio_cesef.png)
+## 📊 Processamento e Consolidação
 
 ```{r processar_resultado_primario}
+#| include: true
 
+# =============================================================================
+# CONSOLIDAÇÃO DOS CRITÉRIOS RREO ANEXO 06
+# =============================================================================
 
+# Verificar objetos necessários
+objetos_necessarios <- c(
+"dados_categoria_grupo", "dados_receita", "dados_ndd", "dados_despesa",
+"dados_juros", "tg_RPN_disponibilidades", "dados_ajustes", "mes_filtro"
+)
+
+objetos_faltantes <- objetos_necessarios[!sapply(objetos_necessarios, exists)]
+
+if (length(objetos_faltantes) > 0) {
+warning(paste("Objetos necessarios nao encontrados:", paste(objetos_faltantes, collapse = ", ")))
+rreo_a06_consolidado <- tibble(
+  mes_lancamento = NA,
+  categoria = "ERRO - Objetos não encontrados",
+  ordem = "00",
+  valor = NA_real_
+)
+rreo_a06_final <- rreo_a06_consolidado
+} else {
 # Aplicar critérios e consolidar em uma única operação
 rreo_a06_consolidado <- bind_rows(
   aplicar_criterios(
@@ -8813,18 +8841,17 @@ rreo_a06_final <- rreo_a06_consolidado %>%
     .groups = "drop"
   ) %>%
   arrange(mes_lancamento, categoria)
-  
-  
+}
 
-datatable(rreo_a06_final)%>%
-  formatRound(c("valor"), 2, mark = ".", dec.mark = ",")
- 
-  
-
-
+datatable(rreo_a06_final) %>%
+formatRound(c("valor"), 2, mark = ".", dec.mark = ",")
 ```
 
-```{r}
+## 📈 Cálculo do Resultado Primário e Nominal
+
+```{r calculo-resultado-primario-nominal}
+#| include: true
+
 # ==============================================================================
 # RREO ANEXO 6 - RESULTADO PRIMÁRIO E NOMINAL
 # ==============================================================================
@@ -8842,17 +8869,26 @@ datatable(rreo_a06_final)%>%
 #   RN = RP Final + Juros Ativos - Juros Passivos
 # ==============================================================================
 
-#| echo: true
-#| output: true
+# Verificar se rreo_a06_final existe
+if (!exists("rreo_a06_final")) {
+warning("rreo_a06_final nao encontrado - criando objeto vazio")
+rreo_a06_final <- tibble(
+  mes_lancamento = NA,
+  categoria = "ERRO",
+  ordem = "00",
+  valor = 0
+)
+}
 
 # ------------------------------------------------------------------------------
 # 1. FUNÇÃO AUXILIAR - Obter valor por código da categoria
 # ------------------------------------------------------------------------------
 obter_valor <- function(codigo) {
-  linha <- rreo_a06_final %>% 
-    filter(str_detect(categoria, paste0("^", sprintf("%02d", codigo), " ")))
-  if (nrow(linha) == 0) return(0)
-  return(linha$valor[1])
+if (!exists("rreo_a06_final")) return(0)
+linha <- rreo_a06_final %>% 
+  filter(str_detect(categoria, paste0("^", sprintf("%02d", codigo), " ")))
+if (nrow(linha) == 0) return(0)
+return(linha$valor[1])
 }
 
 # ------------------------------------------------------------------------------
@@ -8895,32 +8931,32 @@ resultado_primario_tg <- receita_primaria_total - despesa_primaria_total
 arquivo_comparativo <- str_c(mes_pasta, "comparativo.xlsx")
 
 ajuste_metodologico <- tryCatch({
-  if (file.exists(arquivo_comparativo)) {
-    mes_ref <- as.numeric(substr(mes_filtro, 5, 6))
-    col_inicio <- 86  # CH = janeiro/2025
-    col_fim <- col_inicio + mes_ref - 1
-    
-    # Linha 6: I. RESULTADO PRIMÁRIO - RTN
-    rp_rtn_dados <- read_excel(
-      arquivo_comparativo, 
-      sheet = "Comparativo", 
-      range = cellranger::cell_limits(c(6, col_inicio), c(6, col_fim)),
-      col_names = FALSE
-    )
-    
-    # Somar valores RTN (em milhões) e converter para unidades
-    soma_rp_rtn <- sum(as.numeric(rp_rtn_dados), na.rm = TRUE) * 1000000
-    
-    # Ajuste = RP_RTN - RP_TG
-    ajuste <- soma_rp_rtn - resultado_primario_tg
-    ajuste
-  } else {
-    warning(sprintf("Arquivo não encontrado: %s\nUsando ajuste = 0", arquivo_comparativo))
-    0
-  }
-}, error = function(e) {
-  warning(sprintf("Erro ao ler comparativo: %s\nUsando ajuste = 0", e$message))
+if (file.exists(arquivo_comparativo)) {
+  mes_ref <- as.numeric(substr(mes_filtro, 5, 6))
+  col_inicio <- 86  # CH = janeiro/2025
+  col_fim <- col_inicio + mes_ref - 1
+  
+  # Linha 6: I. RESULTADO PRIMÁRIO - RTN
+  rp_rtn_dados <- read_excel(
+    arquivo_comparativo, 
+    sheet = "Comparativo", 
+    range = cellranger::cell_limits(c(6, col_inicio), c(6, col_fim)),
+    col_names = FALSE
+  )
+  
+  # Somar valores RTN (em milhões) e converter para unidades
+  soma_rp_rtn <- sum(as.numeric(rp_rtn_dados), na.rm = TRUE) * 1000000
+  
+  # Ajuste = RP_RTN - RP_TG
+  ajuste <- soma_rp_rtn - resultado_primario_tg
+  ajuste
+} else {
+  warning(sprintf("Arquivo não encontrado: %s\nUsando ajuste = 0", arquivo_comparativo))
   0
+}
+}, error = function(e) {
+warning(sprintf("Erro ao ler comparativo: %s\nUsando ajuste = 0", e$message))
+0
 })
 
 # ------------------------------------------------------------------------------
@@ -8957,86 +8993,86 @@ resultado_nominal_final <- resultado_primario_final + juros_ativos - juros_passi
 # 9. TABELA RESUMO FINAL
 # ------------------------------------------------------------------------------
 resultado_final <- tibble(
-  componente = c(
-    "RECEITAS PRIMÁRIAS",
-    "  Receita Primária Corrente (I - II - III)",
-    "  Receita Primária de Capital (V - VI - VII - X)",
-    "  RECEITA PRIMÁRIA TOTAL (III)",
-    "",
-    "DESPESAS PRIMÁRIAS",
-    "  Despesa Primária Corrente (XIII - XIV)",
-    "  Despesa Primária de Capital (XVI + Subsídios - XX - XVII)",
-    "  DESPESA PRIMÁRIA TOTAL (VIII)",
-    "",
-    "RESULTADO PRIMÁRIO TG (III - VIII)",
-    "(+) Ajuste Metodológico (RTN - TG)",
-    "RESULTADO PRIMÁRIO FINAL (VI)",
-    "",
-    "JUROS NOMINAIS",
-    "  Juros e Encargos Ativos (VII)",
-    "    Item 41 - Juros Ativos (base)",
-    "    Item 62 - VPA Var Monet Emprest Concedidos",
-    "    Item 63 - VPA Atualização Monetária Positiva",
-    "    Item 64 - VPA Outras Variações Monetárias",
-    "  Juros e Encargos Passivos (VIII)",
-    "    Item 42 - Juros Passivos (base)",
-    "    Item 50 - VPD Var Monetária Dívida Contratual",
-    "    Item 52 - VPD Var Monetária Dívida Mobiliária",
-    "    Item 54 - VPD Atualização Monetária Negativa",
-    "    Item 61 - VPD Var Monet Emprest Concedidos",
-    "",
-    "RESULTADO NOMINAL (IX) = VI + VII - VIII"
-  ),
-  valor = c(
-    NA,
-    receita_primaria_corrente,
-    receita_primaria_capital,
-    receita_primaria_total,
-    NA,
-    NA,
-    despesa_primaria_corrente,
-    despesa_primaria_capital,
-    despesa_primaria_total,
-    NA,
-    resultado_primario_tg,
-    ajuste_metodologico,
-    resultado_primario_final,
-    NA,
-    NA,
-    juros_ativos,
-    item_41,
-    item_62,
-    item_63,
-    item_64,
-    juros_passivos,
-    item_42,
-    item_50,
-    item_52,
-    item_54,
-    item_61,
-    NA,
-    resultado_nominal_final
-  )
+componente = c(
+  "RECEITAS PRIMÁRIAS",
+  "  Receita Primária Corrente (I - II - III)",
+  "  Receita Primária de Capital (V - VI - VII - X)",
+  "  RECEITA PRIMÁRIA TOTAL (III)",
+  "",
+  "DESPESAS PRIMÁRIAS",
+  "  Despesa Primária Corrente (XIII - XIV)",
+  "  Despesa Primária de Capital (XVI + Subsídios - XX - XVII)",
+  "  DESPESA PRIMÁRIA TOTAL (VIII)",
+  "",
+  "RESULTADO PRIMÁRIO TG (III - VIII)",
+  "(+) Ajuste Metodológico (RTN - TG)",
+  "RESULTADO PRIMÁRIO FINAL (VI)",
+  "",
+  "JUROS NOMINAIS",
+  "  Juros e Encargos Ativos (VII)",
+  "    Item 41 - Juros Ativos (base)",
+  "    Item 62 - VPA Var Monet Emprest Concedidos",
+  "    Item 63 - VPA Atualização Monetária Positiva",
+  "    Item 64 - VPA Outras Variações Monetárias",
+  "  Juros e Encargos Passivos (VIII)",
+  "    Item 42 - Juros Passivos (base)",
+  "    Item 50 - VPD Var Monetária Dívida Contratual",
+  "    Item 52 - VPD Var Monetária Dívida Mobiliária",
+  "    Item 54 - VPD Atualização Monetária Negativa",
+  "    Item 61 - VPD Var Monet Emprest Concedidos",
+  "",
+  "RESULTADO NOMINAL (IX) = VI + VII - VIII"
+),
+valor = c(
+  NA,
+  receita_primaria_corrente,
+  receita_primaria_capital,
+  receita_primaria_total,
+  NA,
+  NA,
+  despesa_primaria_corrente,
+  despesa_primaria_capital,
+  despesa_primaria_total,
+  NA,
+  resultado_primario_tg,
+  ajuste_metodologico,
+  resultado_primario_final,
+  NA,
+  NA,
+  juros_ativos,
+  item_41,
+  item_62,
+  item_63,
+  item_64,
+  juros_passivos,
+  item_42,
+  item_50,
+  item_52,
+  item_54,
+  item_61,
+  NA,
+  resultado_nominal_final
+)
 )
 
 datatable(
-  resultado_final %>%
-    mutate(
-      valor_milhares = round(valor / 1000, 0),
-      valor = ifelse(is.na(valor), "", format(round(valor, 0), big.mark = ".", decimal.mark = ",")),
-      valor_milhares = ifelse(valor == "", "", format(valor_milhares, big.mark = ".", decimal.mark = ","))
-    ),
-  caption = "RREO Anexo 6 - Resultado Primário e Nominal",
-  options = list(pageLength = 30, dom = 't',
-    columnDefs = list(list(className = 'dt-right', targets = c(1, 2)))),
-  rownames = FALSE
+resultado_final %>%
+  mutate(
+    valor_milhares = round(valor / 1000, 0),
+    valor = ifelse(is.na(valor), "", format(round(valor, 0), big.mark = ".", decimal.mark = ",")),
+    valor_milhares = ifelse(valor == "", "", format(valor_milhares, big.mark = ".", decimal.mark = ","))
+  ),
+caption = "RREO Anexo 6 - Resultado Primário e Nominal",
+options = list(pageLength = 30, dom = 't',
+  columnDefs = list(list(className = 'dt-right', targets = c(1, 2)))),
+rownames = FALSE
 ) %>%
-  formatStyle('componente', fontWeight = styleEqual(
-    c("  RECEITA PRIMÁRIA TOTAL (III)", "  DESPESA PRIMÁRIA TOTAL (VIII)", 
-      "RESULTADO PRIMÁRIO FINAL (VI)", "  Juros e Encargos Ativos (VII)",
-      "  Juros e Encargos Passivos (VIII)", "RESULTADO NOMINAL (IX) = VI + VII - VIII"),
-    rep("bold", 6)
-  ))
+formatStyle('componente', fontWeight = styleEqual(
+  c("  RECEITA PRIMÁRIA TOTAL (III)", "  DESPESA PRIMÁRIA TOTAL (VIII)", 
+    "RESULTADO PRIMÁRIO FINAL (VI)", "  Juros e Encargos Ativos (VII)",
+    "  Juros e Encargos Passivos (VIII)", "RESULTADO NOMINAL (IX) = VI + VII - VIII"),
+  rep("bold", 6)
+))
 
 # ------------------------------------------------------------------------------
 # 10. EXPORTAR VARIÁVEIS
@@ -9048,68 +9084,11 @@ valor_juros_ativos <- juros_ativos
 valor_juros_passivos <- juros_passivos
 ```
 
-```{r}
-# ==============================================================================
-# RREO ANEXO 6 - RESULTADO NOMINAL ABAIXO DA LINHA (SIMPLIFICADO)
-# ==============================================================================
-# Fórmula: RN = DCL(dez/24) - DCL(nov/25)
-# ==============================================================================
+## 📉 Resultado Nominal Abaixo da Linha
 
-#| echo: true
-#| output: true
+```{r resultado-abaixo-linha}
+#| include: true
 
-# ==============================================================================
-# RREO ANEXO 6 - RESULTADO NOMINAL ABAIXO DA LINHA E DISCREPÂNCIA
-# ==============================================================================
-# Fórmula: 
-#   RN Abaixo da Linha = DCL(dez/24) - DCL(atual)
-#   Discrepância = RN Acima da Linha - RN Abaixo da Linha
-#
-# Pré-requisitos:
-#   - valor_dcl_num (calculado no chunk da DCL, valor numérico)
-#   - resultado_nominal_final (calculado no chunk Resultado Primário e Nominal)
-# ==============================================================================
-
-#| echo: true
-#| output: true
-
-# DCL Dezembro/2024 (valor oficial em R$ milhares)
-dcl_dez_2024 <- 7177279131
-
-# DCL Atual (em R$ milhares)
-dcl_atual <- round(valor_dcl_num / 1000, 0)
-
-# Resultado Nominal Abaixo da Linha
-rn_abaixo_linha <- dcl_dez_2024 - dcl_atual
-
-# Resultado Nominal Acima da Linha (já calculado anteriormente)
-rn_acima_linha <- round(resultado_nominal_final / 1000, 0)
-
-# Discrepância
-discrepancia <- rn_acima_linha - rn_abaixo_linha
-
-# Exibir resultado
-tibble(
-  componente = c(
-    "DCL Dezembro/2024 (a)",
-    "DCL Atual (b)", 
-    "RESULTADO NOMINAL - Abaixo da Linha (a - b)",
-    "",
-    "RESULTADO NOMINAL - Acima da Linha",
-    "",
-    "DISCREPÂNCIA"
-  ),
-  valor_milhares = c(dcl_dez_2024, dcl_atual, rn_abaixo_linha, NA, rn_acima_linha, NA, discrepancia)
-) %>%
-  mutate(valor_milhares = ifelse(is.na(valor_milhares), "", 
-                                 format(valor_milhares, big.mark = ".", decimal.mark = ","))) %>%
-  knitr::kable(col.names = c("Componente", "R$ milhares"), align = c("l", "r"))
-
-
-
-```
-
-```{r}
 # ==============================================================================
 # RREO ANEXO 6 - RESULTADO NOMINAL E PRIMÁRIO ABAIXO DA LINHA
 # ==============================================================================
@@ -9117,53 +9096,46 @@ tibble(
 #   RN Abaixo da Linha (XIV) = DCL(dez/24) - DCL(atual)
 #   RN Ajustado (XIX) = XIV + XV - XI + XX + XVIII
 #   RP Abaixo da Linha = RN Ajustado - (Juros Ativos - Juros Passivos)
-#
-# Pré-requisitos:
-#   - valor_dcl_num (do chunk DCL)
-#   - resultado_nominal_final, juros_ativos, juros_passivos (do chunk RP/RN)
-#   - valores_linhas (da DCL consolidada)
-#   - rreo_a06_final (critérios consolidados)
 # ==============================================================================
-
-#| echo: true
-#| output: true
 
 # ------------------------------------------------------------------------------
 # 1. VALORES DEZEMBRO/2024 (oficiais em R$ milhares)
 # ------------------------------------------------------------------------------
 dez_2024 <- list(
-  dcl = 7177279131,
-  rp_processados = 129994061,
-  passivos_insuf = 0,
-  precatorios = 3997030,
-  aplic_fundos = 40841099
+dcl = 7177279131,
+rp_processados = 129994061,
+passivos_insuf = 0,
+precatorios = 3997030,
+aplic_fundos = 40841099
 )
 
 # ------------------------------------------------------------------------------
 # 2. FUNÇÃO AUXILIAR - Obter valor por ordem do rreo_a06_final
 # ------------------------------------------------------------------------------
 obter_item <- function(cod) {
-  linha <- rreo_a06_final %>% filter(ordem == sprintf("%02d", cod))
-  if (nrow(linha) == 0) return(0)
-  linha$valor[1] / 1000  # Converter para milhares
+if (!exists("rreo_a06_final")) return(0)
+linha <- rreo_a06_final %>% filter(ordem == sprintf("%02d", cod))
+if (nrow(linha) == 0) return(0)
+linha$valor[1] / 1000  # Converter para milhares
 }
 
 # ------------------------------------------------------------------------------
 # 3. VALORES ATUAIS (de valores_linhas, em milhares)
 # ------------------------------------------------------------------------------
 obter_ordem <- function(ordens) {
-  valores_linhas %>% 
-    filter(ordem %in% ordens) %>% 
-    summarise(v = sum(valor_total, na.rm = TRUE)) %>% 
-    pull(v) / 1000
+if (!exists("valores_linhas")) return(0)
+valores_linhas %>% 
+  filter(ordem %in% ordens) %>% 
+  summarise(v = sum(valor_total, na.rm = TRUE)) %>% 
+  pull(v) / 1000
 }
 
 atual <- list(
-  dcl = round(valor_dcl_num / 1000, 0),
-  rp_processados = obter_ordem("25"),
-  passivos_insuf = obter_ordem("10"),
-  precatorios = obter_ordem(c("08", "38")),
-  aplic_fundos = obter_ordem(c("14", "15", "16"))
+dcl = if(exists("valor_dcl_num")) round(valor_dcl_num / 1000, 0) else 0,
+rp_processados = obter_ordem("25"),
+passivos_insuf = obter_ordem("10"),
+precatorios = obter_ordem(c("08", "38")),
+aplic_fundos = obter_ordem(c("14", "15", "16"))
 )
 
 # ------------------------------------------------------------------------------
@@ -9198,8 +9170,8 @@ vpd_outras_var_cambiais <- obter_item(58)
 vpd_desincorp_ativos <- obter_item(59)
 
 total_vpds <- vpd_var_cambial_contratual + vpd_var_cambial_mobiliaria + 
-              vpd_resultado_neg_bacen + vpd_constituicao_ajustes + 
-              vpd_reversao_subvencoes + vpd_outras_var_cambiais + vpd_desincorp_ativos
+            vpd_resultado_neg_bacen + vpd_constituicao_ajustes + 
+            vpd_reversao_subvencoes + vpd_outras_var_cambiais + vpd_desincorp_ativos
 
 # 6.2 VPAs (-) - Variações Patrimoniais Aumentativas
 vpa_outras_var_cambiais <- obter_item(65)
@@ -9209,7 +9181,7 @@ vpa_ganhos_incorp_ativos <- obter_item(71)
 vpa_reversao_provisoes <- obter_item(70)
 
 total_vpas <- vpa_outras_var_cambiais + vpa_resultado_pos_bacen + 
-              vpa_outras_var_patrim + vpa_ganhos_incorp_ativos + vpa_reversao_provisoes
+            vpa_outras_var_patrim + vpa_ganhos_incorp_ativos + vpa_reversao_provisoes
 
 # 6.3 Demais Ajustes - Ajustes na DCL
 var_precatorios <- atual$precatorios - dez_2024$precatorios
@@ -9238,12 +9210,16 @@ outros_ajustes <- total_vpds - total_vpas + demais_ajustes
 # 7. RESULTADO NOMINAL AJUSTADO - ABAIXO DA LINHA (XIX)
 # ------------------------------------------------------------------------------
 rn_ajustado_abaixo <- rn_abaixo_linha + var_saldo_rpp - receita_alien_invest + 
-                      passivos_reconhecidos + outros_ajustes
+                    passivos_reconhecidos + outros_ajustes
 
 # ------------------------------------------------------------------------------
 # 8. JUROS NOMINAIS (já calculados no chunk anterior)
 # ------------------------------------------------------------------------------
-juros_nominais <- round((juros_ativos - juros_passivos) / 1000, 0)
+juros_nominais <- if(exists("juros_ativos") && exists("juros_passivos")) {
+round((juros_ativos - juros_passivos) / 1000, 0)
+} else {
+0
+}
 
 # ------------------------------------------------------------------------------
 # 9. RESULTADO PRIMÁRIO - ABAIXO DA LINHA
@@ -9253,7 +9229,11 @@ rp_abaixo_linha <- rn_ajustado_abaixo - juros_nominais
 # ------------------------------------------------------------------------------
 # 10. RESULTADO NOMINAL - ACIMA DA LINHA (já calculado)
 # ------------------------------------------------------------------------------
-rn_acima_linha <- round(resultado_nominal_final / 1000, 0)
+rn_acima_linha <- if(exists("resultado_nominal_final")) {
+round(resultado_nominal_final / 1000, 0)
+} else {
+0
+}
 
 # ------------------------------------------------------------------------------
 # 11. DISCREPÂNCIA
@@ -9264,171 +9244,102 @@ discrepancia <- rn_acima_linha - rn_ajustado_abaixo
 # 12. TABELA RESULTADO NOMINAL ABAIXO DA LINHA
 # ------------------------------------------------------------------------------
 tabela_rn_abaixo <- tibble(
-  componente = c(
-    "CÁLCULO DO RESULTADO NOMINAL - ABAIXO DA LINHA",
-    "",
-    "DCL Dezembro/2024 (a)",
-    "DCL Atual (b)",
-    "RESULTADO NOMINAL - Abaixo da Linha (XIV) = (a - b)",
-    "",
-    "VARIAÇÃO SALDO RPP (XV)",
-    "RECEITA ALIENAÇÃO INVEST. PERMANENTES (XI)",
-    "PASSIVOS RECONHECIDOS NA DC (XX)",
-    "OUTROS AJUSTES (XVIII)",
-    "",
-    "RESULTADO NOMINAL AJUSTADO - Abaixo da Linha (XIX)",
-    "",
-    "RESULTADO NOMINAL - Acima da Linha (IX)",
-    "",
-    "DISCREPÂNCIA"
-  ),
-  valor_milhares = c(
-    NA, NA,
-    dez_2024$dcl,
-    atual$dcl,
-    rn_abaixo_linha,
-    NA,
-    var_saldo_rpp,
-    receita_alien_invest,
-    passivos_reconhecidos,
-    outros_ajustes,
-    NA,
-    rn_ajustado_abaixo,
-    NA,
-    rn_acima_linha,
-    NA,
-    discrepancia
-  )
+componente = c(
+  "CÁLCULO DO RESULTADO NOMINAL - ABAIXO DA LINHA",
+  "",
+  "DCL Dezembro/2024 (a)",
+  "DCL Atual (b)",
+  "RESULTADO NOMINAL - Abaixo da Linha (XIV) = (a - b)",
+  "",
+  "VARIAÇÃO SALDO RPP (XV)",
+  "RECEITA ALIENAÇÃO INVEST. PERMANENTES (XI)",
+  "PASSIVOS RECONHECIDOS NA DC (XX)",
+  "OUTROS AJUSTES (XVIII)",
+  "",
+  "RESULTADO NOMINAL AJUSTADO - Abaixo da Linha (XIX)",
+  "",
+  "RESULTADO NOMINAL - Acima da Linha (IX)",
+  "",
+  "DISCREPÂNCIA"
+),
+valor_milhares = c(
+  NA, NA,
+  dez_2024$dcl,
+  atual$dcl,
+  rn_abaixo_linha,
+  NA,
+  var_saldo_rpp,
+  receita_alien_invest,
+  passivos_reconhecidos,
+  outros_ajustes,
+  NA,
+  rn_ajustado_abaixo,
+  NA,
+  rn_acima_linha,
+  NA,
+  discrepancia
+)
 )
 
 tabela_rn_abaixo %>%
-  mutate(valor_milhares = ifelse(is.na(valor_milhares), "", 
-                                 format(round(valor_milhares, 0), big.mark = ".", decimal.mark = ","))) %>%
-  knitr::kable(col.names = c("Componente", "R$ milhares"), align = c("l", "r"),
-               caption = "RREO Anexo 6 - Resultado Nominal Abaixo da Linha")
+mutate(valor_milhares = ifelse(is.na(valor_milhares), "", 
+                               format(round(valor_milhares, 0), big.mark = ".", decimal.mark = ","))) %>%
+knitr::kable(col.names = c("Componente", "R$ milhares"), align = c("l", "r"),
+             caption = "RREO Anexo 6 - Resultado Nominal Abaixo da Linha")
 
 # ------------------------------------------------------------------------------
-# 13. DETALHAMENTO OUTROS AJUSTES (XVIII)
-# ------------------------------------------------------------------------------
-tabela_outros_ajustes <- tibble(
-  componente = c(
-    "OUTROS AJUSTES (XVIII) - DETALHAMENTO",
-    "",
-    "(+) Variações Patrimoniais Diminutivas",
-    "    (+) Variações Cambiais Dívida Contratual (item 51)",
-    "    (+) Variações Cambiais Dívida Mobiliária (item 53)",
-    "    (+) Resultado Negativo Bacen",
-    "    (+) Constituição Ajuste Perdas [FIXO]",
-    "    (+) Reversão Provisões Subvenções - COPEC (item 57)",
-    "    (+) Outras Variações Cambiais (item 58)",
-    "    (+) Desincorporação Ativos (item 59)",
-    "",
-    "(-) Variações Patrimoniais Aumentativas",
-    "    (-) Outras Variações Cambiais (item 65)",
-    "    (-) Resultado Positivo Bacen",
-    "    (-) Outras Variações Patrimoniais (item 68)",
-    "    (-) Outros Ganhos Incorporação Ativos (item 71)",
-    "    (-) Reversão Provisões/Ajustes (item 70)",
-    "",
-    "(+) Demais Ajustes",
-    "    (+) Variação Precatórios",
-    "    (-) Variação Aplic Fundos",
-    "    (+) Juros Fundos Líquido (item 43 - item 44)",
-    "    (+) FIES (item 75)",
-    "    (-) Desp Fin Impacto Primário [FIXO]",
-    "    (-) Ajustes Exerc Anteriores (item 76)",
-    "",
-    "TOTAL OUTROS AJUSTES (XVIII)"
-  ),
-  valor_milhares = c(
-    NA, NA,
-    total_vpds,
-    vpd_var_cambial_contratual,
-    vpd_var_cambial_mobiliaria,
-    vpd_resultado_neg_bacen,
-    vpd_constituicao_ajustes,
-    vpd_reversao_subvencoes,
-    vpd_outras_var_cambiais,
-    vpd_desincorp_ativos,
-    NA,
-    total_vpas,
-    vpa_outras_var_cambiais,
-    vpa_resultado_pos_bacen,
-    vpa_outras_var_patrim,
-    vpa_ganhos_incorp_ativos,
-    vpa_reversao_provisoes,
-    NA,
-    demais_ajustes,
-    var_precatorios,
-    -var_aplic_fundos,
-    juros_fundos_liquido,
-    fies,
-    -desp_fin_impacto_primario,
-    -ajustes_exerc_anteriores,
-    NA,
-    outros_ajustes
-  )
-)
-
-tabela_outros_ajustes %>%
-  mutate(valor_milhares = ifelse(is.na(valor_milhares), "", 
-                                 format(round(valor_milhares, 0), big.mark = ".", decimal.mark = ","))) %>%
-  knitr::kable(col.names = c("Componente", "R$ milhares"), align = c("l", "r"),
-               caption = "Detalhamento dos Outros Ajustes (XVIII)")
-
-# ------------------------------------------------------------------------------
-# 14. TABELA RESULTADO PRIMÁRIO ABAIXO DA LINHA
+# 13. TABELA RESULTADO PRIMÁRIO ABAIXO DA LINHA
 # ------------------------------------------------------------------------------
 tabela_rp_abaixo <- tibble(
-  componente = c(
-    "CÁLCULO DO RESULTADO PRIMÁRIO - ABAIXO DA LINHA",
-    "",
-    "RESULTADO NOMINAL AJUSTADO - Abaixo da Linha (XIX)",
-    "(-) Juros e Encargos Ativos (VII)",
-    "(+) Juros e Encargos Passivos (VIII)",
-    "Juros Nominais (VII - VIII)",
-    "",
-    "RESULTADO PRIMÁRIO - Abaixo da Linha (XXIII) = XIX - (VII - VIII)"
-  ),
-  valor_milhares = c(
-    NA, NA,
-    rn_ajustado_abaixo,
-    round(juros_ativos / 1000, 0),
-    round(juros_passivos / 1000, 0),
-    juros_nominais,
-    NA,
-    rp_abaixo_linha
-  )
+componente = c(
+  "CÁLCULO DO RESULTADO PRIMÁRIO - ABAIXO DA LINHA",
+  "",
+  "RESULTADO NOMINAL AJUSTADO - Abaixo da Linha (XIX)",
+  "(-) Juros e Encargos Ativos (VII)",
+  "(+) Juros e Encargos Passivos (VIII)",
+  "Juros Nominais (VII - VIII)",
+  "",
+  "RESULTADO PRIMÁRIO - Abaixo da Linha (XXIII) = XIX - (VII - VIII)"
+),
+valor_milhares = c(
+  NA, NA,
+  rn_ajustado_abaixo,
+  if(exists("juros_ativos")) round(juros_ativos / 1000, 0) else 0,
+  if(exists("juros_passivos")) round(juros_passivos / 1000, 0) else 0,
+  juros_nominais,
+  NA,
+  rp_abaixo_linha
+)
 )
 
 tabela_rp_abaixo %>%
-  mutate(valor_milhares = ifelse(is.na(valor_milhares), "", 
-                                 format(round(valor_milhares, 0), big.mark = ".", decimal.mark = ","))) %>%
-  knitr::kable(col.names = c("Componente", "R$ milhares"), align = c("l", "r"),
-               caption = "RREO Anexo 6 - Resultado Primário Abaixo da Linha")
+mutate(valor_milhares = ifelse(is.na(valor_milhares), "", 
+                               format(round(valor_milhares, 0), big.mark = ".", decimal.mark = ","))) %>%
+knitr::kable(col.names = c("Componente", "R$ milhares"), align = c("l", "r"),
+             caption = "RREO Anexo 6 - Resultado Primário Abaixo da Linha")
 
 # ------------------------------------------------------------------------------
-# 15. RESUMO COMPARATIVO
+# 14. RESUMO COMPARATIVO
 # ------------------------------------------------------------------------------
 cat("\n")
 cat(strrep("=", 70), "\n")
 cat("RESUMO COMPARATIVO - ACIMA x ABAIXO DA LINHA (R$ milhares)\n")
 cat(strrep("=", 70), "\n")
 cat(sprintf("Resultado Primário - Acima da Linha:    %s\n", 
-            format(round(resultado_primario_final / 1000, 0), big.mark = ".", decimal.mark = ",")))
+          if(exists("resultado_primario_final")) format(round(resultado_primario_final / 1000, 0), big.mark = ".", decimal.mark = ",") else "N/A"))
 cat(sprintf("Resultado Primário - Abaixo da Linha:   %s\n", 
-            format(round(rp_abaixo_linha, 0), big.mark = ".", decimal.mark = ",")))
+          format(round(rp_abaixo_linha, 0), big.mark = ".", decimal.mark = ",")))
 cat(strrep("-", 70), "\n")
 cat(sprintf("Resultado Nominal - Acima da Linha:     %s\n", 
-            format(rn_acima_linha, big.mark = ".", decimal.mark = ",")))
+          format(rn_acima_linha, big.mark = ".", decimal.mark = ",")))
 cat(sprintf("Resultado Nominal Ajust - Abaixo:       %s\n", 
-            format(round(rn_ajustado_abaixo, 0), big.mark = ".", decimal.mark = ",")))
+          format(round(rn_ajustado_abaixo, 0), big.mark = ".", decimal.mark = ",")))
 cat(sprintf("Discrepância:                           %s\n", 
-            format(round(discrepancia, 0), big.mark = ".", decimal.mark = ",")))
+          format(round(discrepancia, 0), big.mark = ".", decimal.mark = ",")))
 cat(strrep("=", 70), "\n")
 
 # ------------------------------------------------------------------------------
-# 16. EXPORTAR VARIÁVEIS
+# 15. EXPORTAR VARIÁVEIS
 # ------------------------------------------------------------------------------
 valor_rn_abaixo_linha <- rn_abaixo_linha
 valor_rn_ajustado_abaixo <- rn_ajustado_abaixo
@@ -9436,8 +9347,27 @@ valor_rp_abaixo_linha <- rp_abaixo_linha
 valor_rn_acima_linha <- rn_acima_linha
 valor_discrepancia <- discrepancia
 valor_outros_ajustes <- outros_ajustes
-
 ```
+
+## 📋 Objetos Exportados
+
+| Objeto | Descrição |
+|--------|-----------|
+| `criterios_rreo_A06_receitas_A06` | Critérios para receitas primárias |
+| `criterios_rreo_A06_despesas_categoria_grupo_A06` | Critérios para despesas por categoria/grupo |
+| `criterios_rreo_A06_despesas_natureza_detalhada_A06` | Critérios para despesas por natureza detalhada |
+| `criterios_rreo_A06_disponibilidades_A06` | Critérios para disponibilidades |
+| `criterios_rreo_A06_juros_ativos_passivos_A06` | Critérios para juros ativos e passivos |
+| `criterios_rreo_A06_subsidios_cesef` | Critérios para subsídios CESEF |
+| `criterios_rreo_A06_ajuste` | Critérios para ajustes VPA/VPD |
+| `rreo_a06_final` | Dados consolidados de todos os critérios |
+| `valor_resultado_primario` | Resultado primário final |
+| `valor_resultado_nominal` | Resultado nominal final |
+| `valor_rp_abaixo_linha` | Resultado primário abaixo da linha |
+| `valor_rn_ajustado_abaixo` | Resultado nominal ajustado abaixo da linha |
+| `valor_discrepancia` | Discrepância entre acima e abaixo da linha |
+
+
 
 # 📋 RREO Anexo 07 - Restos a Pagar
 
