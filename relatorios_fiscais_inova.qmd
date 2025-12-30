@@ -5064,6 +5064,9 @@ rgf_a05_wide <- rgf_a05_wide %>%
       get_col(., "06_rp_liquidados_nao_pagos_exercicio"),
     rp_empenhados_nao_liquidados_exercicios_anteriores = 
       get_col(., "07_rp_empenhados_nao_liquidados_exercicios_anteriores"),
+    # RP Empenhados Nao Liquidados do Exercicio (so tem saldo em dezembro)
+    rp_empenhados_nao_liquidados_exercicio = 
+      get_col(., "11_rp_empenhados_nao_liquidados_exercicio"),
     
     # Obrigações
     demais_obrigacoes_new = get_col(., "21_demais_obrigacoes_new"),
@@ -5171,6 +5174,18 @@ rgf_a05_clean <- rgf_a05_clean %>%
       demais_obrigacoes_financeiras_clean
   )
 
+# -----------------------------------------------------------------------------
+# Calcular Disponibilidade APOS Inscricao de RP NP (apenas dezembro)
+# -----------------------------------------------------------------------------
+
+rgf_a05_clean <- rgf_a05_clean %>%
+  mutate(
+    # Disponibilidade apos inscricao de RP NP (subtrair RP Emp NL do Exercicio)
+    disponibilidade_apos_inscr_rp_clean = 
+      disponibilidade_antes_inscr_rp_clean - 
+      rp_empenhados_nao_liquidados_exercicio
+  )
+
 cat("✅ Cálculos concluídos\n")
 ```
 
@@ -5201,8 +5216,10 @@ rgf_a05_final <- rgf_a05_clean %>%
     rp_liquidados_nao_pagos_exercicios_anteriores,
     rp_liquidados_nao_pagos_exercicio,
     rp_empenhados_nao_liquidados_exercicios_anteriores,
+    rp_empenhados_nao_liquidados_exercicio,
     demais_obrigacoes_financeiras_clean,
-    disponibilidade_antes_inscr_rp_clean
+    disponibilidade_antes_inscr_rp_clean,
+    disponibilidade_apos_inscr_rp_clean
   ) %>%
   arrange(abrangencia, linhas)
 
@@ -5225,7 +5242,7 @@ rgf_a05_resultado_executivo <- rgf_a05_final %>%
 formatar_tabela_a05 <- function(df) {
   df %>% 
     filter(linhas != "outros") %>% 
-    adorn_totals("row") %>%
+    adorn_totals("row", name = "Total") %>%
     mutate(
       across(
         where(is.numeric) & !matches("mes_lancamento"),
@@ -5237,19 +5254,40 @@ formatar_tabela_a05 <- function(df) {
 rgf_a05_uniao_formatada <- formatar_tabela_a05(rgf_a05_resultado_uniao)
 rgf_a05_executivo_formatada <- formatar_tabela_a05(rgf_a05_resultado_executivo)
 
+
+# -----------------------------------------------------------------------------
+# Função auxiliar para identificar colunas numéricas (exceto mes_lancamento)
+# -----------------------------------------------------------------------------
+
+get_numeric_cols <- function(df) {
+  df_sem_mes <- df %>% select(-any_of("mes_lancamento"))
+  which(sapply(df_sem_mes, is.numeric))
+}
+
 # =============================================================================
 # CALCULAR TOTAIS PARA VARIÁVEIS GLOBAIS
 # =============================================================================
 
-# Total de Disponibilidade - União
+# Total de Disponibilidade ANTES - Executivo
+valor_disponibilidade_executivo <- rgf_a05_executivo_formatada %>%
+  filter(linhas == "Total") %>%
+  pull(disponibilidade_antes_inscr_rp_clean)
+
+# Total de Disponibilidade APÓS - Executivo (só dezembro)
+valor_disponibilidade_executivo_apos_rp <- rgf_a05_executivo_formatada %>%
+  filter(linhas == "Total") %>%
+  pull(disponibilidade_apos_inscr_rp_clean)
+
+# Total de Disponibilidade ANTES - União
 valor_disponibilidade_uniao <- rgf_a05_uniao_formatada %>%
   filter(linhas == "Total") %>%
   pull(disponibilidade_antes_inscr_rp_clean)
 
-# Total de Disponibilidade - Executivo
-valor_disponibilidade_executivo <- rgf_a05_executivo_formatada %>%
+# Total de Disponibilidade APÓS - União (só dezembro)
+valor_disponibilidade_uniao_apos_rp <- rgf_a05_uniao_formatada %>%
   filter(linhas == "Total") %>%
-  pull(disponibilidade_antes_inscr_rp_clean)
+  pull(disponibilidade_apos_inscr_rp_clean)
+
 
 cat(sprintf("\n✅ Disponibilidade Final - União: R$ %s\n", 
             formatar_numero(valor_disponibilidade_uniao)))
@@ -5260,6 +5298,8 @@ cat(sprintf("✅ Disponibilidade Final - Executivo: R$ %s\n",
 ### Tabela União (Todos os Poderes)
 
 ```{r tabela-uniao-rgf-a05}
+#| column: screen
+
 #| column: screen
 
 # =============================================================================
@@ -5273,11 +5313,14 @@ novos_nomes <- rgf_a05_uniao_formatada %>%
   gsub("_clean", "", .) %>%
   gsub("_", " ", .) %>%
   gsub("nao pagos", "NP", .) %>%
+  gsub("nao liquidados", "NL", .) %>%
   gsub("exercicios", "exerc.", .) %>%
   gsub("anteriores", "ant.", .) %>%
   gsub("liquidados", "liq.", .) %>%
   gsub("empenhados", "emp.", .) %>%
-  gsub("disponibilidade", "disp.", .)
+  gsub("disponibilidade", "disp.", .) %>%
+  gsub("apos", "após", .) %>%
+  gsub("antes", "antes", .)
 
 datatable(
   rgf_a05_uniao_formatada %>% select(-mes_lancamento),
@@ -5286,7 +5329,13 @@ datatable(
   options = list(scrollX = TRUE, pageLength = 15),
   rownames = FALSE
 ) %>%
-  formatCurrency(2:11, "", mark = ".", dec.mark = ",", digits = 2)
+  formatCurrency(
+    columns = get_numeric_cols(rgf_a05_uniao_formatada %>% select(-mes_lancamento)),
+    currency = "",
+    mark = ".",
+    dec.mark = ",",
+    digits = 2
+  )
 ```
 
 ### Tabela Poder Executivo
@@ -5305,7 +5354,13 @@ datatable(
   options = list(scrollX = TRUE, pageLength = 15),
   rownames = FALSE
 ) %>%
-  formatCurrency(2:11, "", mark = ".", dec.mark = ",", digits = 2)
+  formatCurrency(
+    columns = get_numeric_cols(rgf_a05_executivo_formatada %>% select(-mes_lancamento)),
+    currency = "",
+    mark = ".",
+    dec.mark = ",",
+    digits = 2
+  )
 ```
 
 ## Notas Metodológicas
@@ -6478,7 +6533,7 @@ A classificação de despesas utiliza múltiplos atributos:
 ## 📊 Ficha Técnica
 
 | Item | Descrição |
-|------|-----------|
+|--------------------------|----------------------------------------------|
 | **Relatório** | RREO - Relatório Resumido da Execução Orçamentária |
 | **Anexo** | Anexo 02 - Demonstrativo da Execução das Despesas por Função/Subfunção |
 | **Base Legal** | LRF Art. 52, inciso II, alínea "c" |
@@ -6488,13 +6543,13 @@ A classificação de despesas utiliza múltiplos atributos:
 ## 📁 Arquivos Necessários
 
 | Objeto | Arquivo | Descrição |
-|--------|---------|-----------|
-| `dados_despesa` | tg_despesa_*.xlsx | Despesas orçamentárias com classificação funcional |
+|---------------------|-----------------------|----------------------------|
+| `dados_despesa` | tg_despesa\_\*.xlsx | Despesas orçamentárias com classificação funcional |
 
 ## 📋 Atributos Utilizados
 
 | Atributo | Descrição | Uso no Anexo |
-|----------|-----------|--------------|
+|---------------------|-----------------------|-----------------------------|
 | `funcao_governo_codigo` | Código da função | Agrupamento principal (01-28) |
 | `funcao_governo_nome` | Nome da função | Descrição da função |
 | `subfuncao_governo_codigo` | Código da subfunção | Detalhamento (xxx) |
@@ -6505,30 +6560,22 @@ A classificação de despesas utiliza múltiplos atributos:
 
 ## 🔗 Vínculos com Outros Anexos
 
-| Anexo | Vínculo |
-|-------|---------|
-| RREO A01 | Totalização das despesas |
-| RREO A06 | Despesas primárias por função |
-| RGF A01 | Despesa com pessoal (função específica) |
+| Anexo    | Vínculo                                 |
+|----------|-----------------------------------------|
+| RREO A01 | Totalização das despesas                |
+| RREO A06 | Despesas primárias por função           |
+| RGF A01  | Despesa com pessoal (função específica) |
 
 ## 📐 Estrutura do Demonstrativo
 
 ### Classificação Funcional
+
 A classificação funcional segrega as dotações orçamentárias em funções e subfunções, buscando responder à indagação "em que área" de ação governamental a despesa será realizada.
 
-**Funções Principais:**
-- 01 - Legislativa
-- 02 - Judiciária
-- 03 - Essencial à Justiça
-- 04 - Administração
-- 06 - Segurança Pública
-- 08 - Assistência Social
-- 09 - Previdência Social
-- 10 - Saúde
-- 12 - Educação
-- 28 - Encargos Especiais
+**Funções Principais:** - 01 - Legislativa - 02 - Judiciária - 03 - Essencial à Justiça - 04 - Administração - 06 - Segurança Pública - 08 - Assistência Social - 09 - Previdência Social - 10 - Saúde - 12 - Educação - 28 - Encargos Especiais
 
 ### Refinanciamento da Dívida
+
 Segregação específica para operações de refinanciamento da dívida pública.
 
 ## 📊 Processamento dos Dados
@@ -6612,8 +6659,6 @@ if (exists("dados_despesa")) {
 }
 ```
 
-
-
 ## 📈 Resumo Consolidado
 
 ```{r resumo-anexo02}
@@ -6653,54 +6698,52 @@ if (exists("despesas_funcao") && exists("despesas_refinanciamento")) {
 
 ## 📋 Objetos Exportados
 
-| Objeto | Descrição |
-|--------|-----------|
+| Objeto                     | Descrição                              |
+|----------------------------|----------------------------------------|
 | `despesas_refinanciamento` | Despesas agrupadas por refinanciamento |
-| `despesas_funcao` | Despesas agrupadas por função |
+| `despesas_funcao`          | Despesas agrupadas por função          |
 
-| `valor_liquidado_total_a02` | Total da dotação atualizada |
+| `valor_liquidado_total_a02` \| Total da dotação atualizada \|
 
 ## 📌 Observações Importantes
 
-1. **Item de Informação 23**: Dotação Atualizada (LOA + Créditos Adicionais)
+1.  **Item de Informação 23**: Dotação Atualizada (LOA + Créditos Adicionais)
 
-2. **Refinanciamento**: Segregação obrigatória para operações de refinanciamento da dívida pública mobiliária
+2.  **Refinanciamento**: Segregação obrigatória para operações de refinanciamento da dívida pública mobiliária
 
-3. **Funções Típicas**:
-   - Funções 01-04: Poderes e Funções Essenciais
-   - Funções 05-28: Funções de Governo
-   - Função 28: Encargos Especiais (dívida, transferências)
+3.  **Funções Típicas**:
 
-4. **Subfunções**: Podem ser combinadas com qualquer função (matricialidade)
+    -   Funções 01-04: Poderes e Funções Essenciais
+    -   Funções 05-28: Funções de Governo
+    -   Função 28: Encargos Especiais (dívida, transferências)
 
-
-
+4.  **Subfunções**: Podem ser combinadas com qualquer função (matricialidade)
 
 # RREO Anexo 03 - Receita Corrente Liquida (RCL)
 
 ## Ficha Tecnica
 
-| Campo | Informacao |
-|-------|------------|
-| Relatorio | RREO - Relatorio Resumido da Execucao Orcamentaria |
-| Anexo | Anexo 03 |
-| Nome | Demonstrativo da Receita Corrente Liquida |
-| Base Legal | LRF Art. 53, inciso I |
-| Periodicidade | Bimestral |
-| Grau de Dificuldade | Medio |
-| Ultima Atualizacao | 28/12/2025 |
+| Campo               | Informacao                                         |
+|---------------------|----------------------------------------------------|
+| Relatorio           | RREO - Relatorio Resumido da Execucao Orcamentaria |
+| Anexo               | Anexo 03                                           |
+| Nome                | Demonstrativo da Receita Corrente Liquida          |
+| Base Legal          | LRF Art. 53, inciso I                              |
+| Periodicidade       | Bimestral                                          |
+| Grau de Dificuldade | Medio                                              |
+| Ultima Atualizacao  | 28/12/2025                                         |
 
 ## Arquivos Necessarios
 
 | Arquivo | Descricao | Filtros no TG |
-|---------|-----------|---------------|
+|-------------------|-----------------------|-------------------------------|
 | rreo_a03_rcl_receitas.xlsx | Receitas correntes por natureza | Orc. Fiscal e Seguridade, Categoria Economica = 1 (Correntes), Metrica = Movimento Liquido |
-| rreo_a03_rcl_despesas.xlsx | Transferencias constitucionais e legais | Orc. Fiscal e Seguridade, Naturezas 333081* e 334081*, Metrica = Movimento Liquido |
+| rreo_a03_rcl_despesas.xlsx | Transferencias constitucionais e legais | Orc. Fiscal e Seguridade, Naturezas 333081\* e 334081\*, Metrica = Movimento Liquido |
 
 ## Atributos Utilizados
 
 | Atributo | Tipo | Uso | Descricao |
-|----------|------|-----|-----------|
+|--------------------|----------------|----------------|----------------------|
 | nre1_categoria_economica_codigo | character | TG / Criterio | Categoria economica (1=Corrente, 2=Capital) |
 | nre2_origem_receita_codigo_origem | character | TG / Criterio | Origem da receita (1-9) |
 | natureza_receita_codigo_completo | character | TG / Criterio | Codigo completo da natureza de receita |
@@ -6714,7 +6757,7 @@ if (exists("despesas_funcao") && exists("despesas_refinanciamento")) {
 ## Vinculos com Outros Anexos
 
 | Anexo Relacionado | Tipo de Vinculo | Descricao |
-|-------------------|-----------------|-----------|
+|-----------------------------|--------------------------|------------------|
 | RGF Anexo 01 | Base de Calculo | RCL e o denominador para limites de despesa com pessoal |
 | RGF Anexo 02 | Base de Calculo | RCL e o denominador para limite da DCL |
 | RGF Anexo 03 | Base de Calculo | RCL e o denominador para limite de garantias |
@@ -6724,29 +6767,29 @@ if (exists("despesas_funcao") && exists("despesas_refinanciamento")) {
 
 ## Estrutura do Demonstrativo
 
-| Ordem | Item | Tipo |
-|-------|------|------|
-| 01 | RECEITAS CORRENTES (I) | Total |
-| 02 | Impostos, Taxas e Contribuicoes de Melhoria | Componente |
-| 03 | Contribuicoes | Componente |
-| 04 | Receita Patrimonial | Componente |
-| 05 | Transferencias Correntes | Componente |
-| 06 | Demais Receitas Correntes | Componente |
-| 07 | DEDUCOES (II) | Deducao |
-| 08 | Transferencias Constitucionais e Legais | Deducao |
-| 09 | Contrib. Empregador e Trab. p/ Seguridade Social | Deducao |
-| 10 | Contribuicao p/ Custeio Pensoes Militares | Deducao |
-| 11 | Contribuicao p/ RPPS (Patronal e Servidor) | Deducao |
-| 12 | Compensacao Financeira entre Regimes Previd. | Deducao |
-| 13 | Deducoes de Transferencias aos Fundos | Deducao |
-| 14 | RP NAO PROCESSADOS CANCELADOS (III) | Adicao |
-| 15 | RECEITA CORRENTE LIQUIDA (I - II + III) | RESULTADO |
+| Ordem | Item                                             | Tipo       |
+|-------|--------------------------------------------------|------------|
+| 01    | RECEITAS CORRENTES (I)                           | Total      |
+| 02    | Impostos, Taxas e Contribuicoes de Melhoria      | Componente |
+| 03    | Contribuicoes                                    | Componente |
+| 04    | Receita Patrimonial                              | Componente |
+| 05    | Transferencias Correntes                         | Componente |
+| 06    | Demais Receitas Correntes                        | Componente |
+| 07    | DEDUCOES (II)                                    | Deducao    |
+| 08    | Transferencias Constitucionais e Legais          | Deducao    |
+| 09    | Contrib. Empregador e Trab. p/ Seguridade Social | Deducao    |
+| 10    | Contribuicao p/ Custeio Pensoes Militares        | Deducao    |
+| 11    | Contribuicao p/ RPPS (Patronal e Servidor)       | Deducao    |
+| 12    | Compensacao Financeira entre Regimes Previd.     | Deducao    |
+| 13    | Deducoes de Transferencias aos Fundos            | Deducao    |
+| 14    | RP NAO PROCESSADOS CANCELADOS (III)              | Adicao     |
+| 15    | RECEITA CORRENTE LIQUIDA (I - II + III)          | RESULTADO  |
 
 ## Conceitos Importantes
 
 ### Formula da RCL
 
-```
+```         
 RCL = RECEITAS CORRENTES 
     - Transferencias Constitucionais e Legais
     - Contribuicoes Previdenciarias
@@ -6757,21 +6800,19 @@ RCL = RECEITAS CORRENTES
 
 A RCL e a base de calculo para os principais limites da LRF:
 
-| Limite | Percentual | Referencia Legal |
-|--------|------------|------------------|
-| Despesa com Pessoal - Uniao | 50% (total) | LRF Art. 19 |
-| Despesa com Pessoal - Executivo | 40,9% | LRF Art. 20 |
-| Divida Consolidada Liquida | Resolucao SF 40/2001 | LRF Art. 30 |
-| Garantias | 60% | LRF Art. 9, par. 4 |
-| Operacoes de Credito | 16% | Resolucao SF 43/2001 |
+| Limite                          | Percentual           | Referencia Legal     |
+|---------------------------------|----------------------|----------------------|
+| Despesa com Pessoal - Uniao     | 50% (total)          | LRF Art. 19          |
+| Despesa com Pessoal - Executivo | 40,9%                | LRF Art. 20          |
+| Divida Consolidada Liquida      | Resolucao SF 40/2001 | LRF Art. 30          |
+| Garantias                       | 60%                  | LRF Art. 9, par. 4   |
+| Operacoes de Credito            | 16%                  | Resolucao SF 43/2001 |
 
 ### Periodo de Apuracao
 
 A RCL e calculada considerando os **ultimos 12 meses**, incluindo o mes de referencia. Por exemplo, para novembro/2025, considera-se de dezembro/2024 a novembro/2025.
 
----
-
-
+------------------------------------------------------------------------
 
 ## 🎯 Critérios de Classificação
 
@@ -7345,32 +7386,31 @@ A RCL calculada neste anexo é utilizada como **base de cálculo** para:
 
 5.  **Crítico**: Todos os anexos RGF dependem deste cálculo para verificação de limites
 
-
 # 📋 RREO Anexo 04 - Demonstrativo das Receitas e Despesas Previdenciárias
 
 ## 📑 Ficha Técnica
 
-| Campo | Informação |
-|-------|------------|
-| Relatório | RREO - Relatório Resumido da Execução Orçamentária |
-| Anexo | Anexo 04 |
-| Nome | Demonstrativo das Receitas e Despesas Previdenciárias |
-| Base Legal | LRF Art. 53, inciso II |
-| Periodicidade | Bimestral |
-| Grau de Dificuldade | Difícil |
-| Última Atualização | Dezembro/2025 |
+| Campo               | Informação                                            |
+|---------------------|-------------------------------------------------------|
+| Relatório           | RREO - Relatório Resumido da Execução Orçamentária    |
+| Anexo               | Anexo 04                                              |
+| Nome                | Demonstrativo das Receitas e Despesas Previdenciárias |
+| Base Legal          | LRF Art. 53, inciso II                                |
+| Periodicidade       | Bimestral                                             |
+| Grau de Dificuldade | Difícil                                               |
+| Última Atualização  | Dezembro/2025                                         |
 
 ## 📁 Arquivos Necessários
 
 | Arquivo | Descrição | Filtros no TG |
-|---------|-----------|---------------|
+|-------------------|-----------------------|-------------------------------|
 | dados_receita | Receitas orçamentárias | Base compartilhada - UOs previdenciárias |
 | dados_despesa | Despesas orçamentárias | Base compartilhada - Subfunções 272, 273, 274, 845, 846 |
 
 ## 📊 Atributos Utilizados
 
 | Atributo | Tipo | Uso | Descrição |
-|----------|------|-----|-----------|
+|--------------------|----------------|----------------|----------------------|
 | unidade_orcamentaria_codigo | character | TG / Critério | Código da UO (33904=INSS, 40904=FAT, 73901=FCDF) |
 | natureza_receita_codigo_completo | character | TG / Critério | Código completo da natureza de receita |
 | natureza_receita_nome | character | TG / Critério | Nome da natureza de receita |
@@ -7392,7 +7432,7 @@ A RCL calculada neste anexo é utilizada como **base de cálculo** para:
 ## 🔗 Vínculos com Outros Anexos
 
 | Anexo Relacionado | Tipo de Vínculo | Descrição |
-|-------------------|-----------------|-----------|
+|-----------------------------|--------------------------|------------------|
 | RREO Anexo 01 | Referência | Receitas orçamentárias base |
 | RREO Anexo 02 | Referência | Despesas orçamentárias base |
 | RGF Anexo 01 | Referência | Despesa com pessoal inclui inativos e pensionistas |
@@ -7403,22 +7443,22 @@ A RCL calculada neste anexo é utilizada como **base de cálculo** para:
 
 O **Anexo 04** apresenta o demonstrativo das receitas e despesas previdenciárias do Governo Federal, segregado em três sistemas:
 
-- **RGPS** - Regime Geral de Previdência Social (INSS)
-- **RPPS** - Regime Próprio de Previdência Social (Servidores Civis e Militares)
-- **FCDF** - Fundo Constitucional do Distrito Federal
+-   **RGPS** - Regime Geral de Previdência Social (INSS)
+-   **RPPS** - Regime Próprio de Previdência Social (Servidores Civis e Militares)
+-   **FCDF** - Fundo Constitucional do Distrito Federal
 
----
+------------------------------------------------------------------------
 
 ## 🏛️ REGIME GERAL DE PREVIDÊNCIA SOCIAL (RGPS)
 
 ### Unidades Orçamentárias RGPS
 
-| Código UO | Nome |
-|-----------|------|
-| 33904 | Fundo do Regime Geral de Previdência Social |
-| 40904 | Fundo de Amparo ao Trabalhador (FAT) |
-| 55902 | Fundo Nacional de Assistência Social |
-| 25917 | Demais UOs vinculadas |
+| Código UO | Nome                                        |
+|-----------|---------------------------------------------|
+| 33904     | Fundo do Regime Geral de Previdência Social |
+| 40904     | Fundo de Amparo ao Trabalhador (FAT)        |
+| 55902     | Fundo Nacional de Assistência Social        |
+| 25917     | Demais UOs vinculadas                       |
 
 ### 💰 Critérios de Receitas RGPS
 
@@ -7579,16 +7619,16 @@ DT::datatable(
   DT::formatCurrency("Valor", currency = "R$ ", digits = 2, mark = ".", dec.mark = ",")
 ```
 
----
+------------------------------------------------------------------------
 
 ## 👥 REGIME PRÓPRIO DE PREVIDÊNCIA SOCIAL (RPPS)
 
 ### Filtros Gerais RPPS
 
-| Filtro | Valor | Descrição |
-|--------|-------|-----------|
-| UO excluída | 73901 | Operações Oficiais de Crédito (vai para FCDF) |
-| Fonte excluída | 054, 00, 000 | Fontes não previdenciárias |
+| Filtro         | Valor        | Descrição                                     |
+|----------------|--------------|-----------------------------------------------|
+| UO excluída    | 73901        | Operações Oficiais de Crédito (vai para FCDF) |
+| Fonte excluída | 054, 00, 000 | Fontes não previdenciárias                    |
 
 ### 💰 Critérios de Receitas RPPS
 
@@ -7899,7 +7939,7 @@ DT::datatable(
   DT::formatCurrency("Valor", currency = "R$ ", digits = 2, mark = ".", dec.mark = ",")
 ```
 
----
+------------------------------------------------------------------------
 
 ## 🏛️ REGIME PRÓPRIO DE PREVIDÊNCIA SOCIAL - FCDF
 
@@ -8055,7 +8095,7 @@ DT::datatable(
   DT::formatCurrency("Valor", currency = "R$ ", digits = 2, mark = ".", dec.mark = ",")
 ```
 
----
+------------------------------------------------------------------------
 
 ## 📊 Resumo Consolidado Previdência
 
@@ -8122,15 +8162,15 @@ if (exists("df_resultado_fcdf")) {
 cat(strrep("=", 70), "\n")
 ```
 
----
+------------------------------------------------------------------------
 
 ## 📚 Estrutura do Demonstrativo - Receitas
 
 ### Receitas RGPS
 
 | Ordem | Item | Critério Principal |
-|-------|------|-------------------|
-| 01 | Receitas Correntes - Empregadores, Trabalhadores | natureza 12100311-13, 1214* |
+|----------------|----------------|----------------------------------------|
+| 01 | Receitas Correntes - Empregadores, Trabalhadores | natureza 12100311-13, 1214\* |
 | 02 | Receitas Correntes - Demais Contribuições | origem = 2, exceto item 01 |
 | 03 | Outras Receitas - Compensação RPPS/RGPS | origem = 9 |
 | 04 | Demais Receitas Correntes | categoria = 1, exceto origens 2 e 9 |
@@ -8141,46 +8181,46 @@ cat(strrep("=", 70), "\n")
 ### Receitas RPPS (Civis)
 
 | Ordem | Item | Critério Principal |
-|-------|------|-------------------|
+|----------------|----------------|----------------------------------------|
 | 01 | CIVIS - Segurados Ativo | natureza 12100421-24, 1215011*, 121503* |
-| 02 | CIVIS - Segurados Inativos | natureza 12100431-34, 1215012* |
-| 03 | CIVIS - Segurados Pensionistas | natureza 12100441-44, 1215013* |
-| 04 | CIVIS - Patronal Ativo | natureza 12100411-14, 721502* |
+| 02 | CIVIS - Segurados Inativos | natureza 12100431-34, 1215012\* |
+| 03 | CIVIS - Segurados Pensionistas | natureza 12100441-44, 1215013\* |
+| 04 | CIVIS - Patronal Ativo | natureza 12100411-14, 721502\* |
 | 05 | CIVIS - Patronal Inativos/Pensionistas | natureza 72100441 |
-| 06 | DRU - FCDF | fonte 000/00, natureza 12151* |
-| 07 | MILITARES - Segurados | natureza 12100511-13, 121911* |
+| 06 | DRU - FCDF | fonte 000/00, natureza 12151\* |
+| 07 | MILITARES - Segurados | natureza 12100511-13, 121911\* |
 
 ## 📚 Estrutura do Demonstrativo - Despesas
 
 ### Despesas RGPS
 
-| Ordem | Item | Critério Principal |
-|-------|------|-------------------|
-| 01 | Aposentadorias | elemento = 53, 54; grupo = 3 |
-| 02 | Pensões | elemento = 55, 56; grupo = 3 |
-| 03 | Outros Benefícios | elemento = 57, 58; grupo = 3 |
-| 04 | Compensação RGPS para RPPS | ação = 009W, 0531; grupo = 3 |
-| 05 | Demais Despesas | grupo = 3, exceto itens anteriores |
-| 06 | A Detalhar | elemento = 00; grupo = 3 |
-| 07 | Despesas Previdenciárias (INTRA) | modalidade = 91; grupo = 3 |
+| Ordem | Item                             | Critério Principal                 |
+|-------|----------------------------------|------------------------------------|
+| 01    | Aposentadorias                   | elemento = 53, 54; grupo = 3       |
+| 02    | Pensões                          | elemento = 55, 56; grupo = 3       |
+| 03    | Outros Benefícios                | elemento = 57, 58; grupo = 3       |
+| 04    | Compensação RGPS para RPPS       | ação = 009W, 0531; grupo = 3       |
+| 05    | Demais Despesas                  | grupo = 3, exceto itens anteriores |
+| 06    | A Detalhar                       | elemento = 00; grupo = 3           |
+| 07    | Despesas Previdenciárias (INTRA) | modalidade = 91; grupo = 3         |
 
 ### Despesas RPPS
 
 | Ordem | Item | Critério Principal |
-|-------|------|-------------------|
+|----------------|----------------|----------------------------------------|
 | 01 | CIVIS - A detalhar | subfunção 272-274/845, grupo=1, elemento=00 |
 | 02 | CIVIS - Aposentadorias | subfunção 272-274/845, grupo=1, elemento=01 |
 | 03 | CIVIS - Pensões | subfunção 272-274/845, grupo=1, elemento=03 |
 | 04 | CIVIS - Outros Benefícios | subfunção 272-274/845-846, grupo=1 |
 | 05-11 | MILITARES | ações 0179, 214H, 218K, 00QD, 00X3 |
 
----
+------------------------------------------------------------------------
 
 ## 📖 Conceitos Importantes
 
 ### Resultado Previdenciário
 
-```
+```         
 RESULTADO PREVIDENCIÁRIO = RECEITAS PREVIDENCIÁRIAS - DESPESAS PREVIDENCIÁRIAS
 ```
 
@@ -8188,18 +8228,18 @@ Quando **negativo**, indica **déficit previdenciário** que deve ser coberto pe
 
 ### Separação RGPS x RPPS
 
-| Aspecto | RGPS | RPPS |
-|---------|------|------|
-| Público | Trabalhadores privados | Servidores públicos |
-| Gestão | INSS | Tesouro Nacional |
-| UO Principal | 33904 | Diversas por órgão |
-| Elementos | 53-58 | 01, 03 |
-| Subfunção | 122 (INSS) | 272, 273, 274 |
+| Aspecto      | RGPS                   | RPPS                |
+|--------------|------------------------|---------------------|
+| Público      | Trabalhadores privados | Servidores públicos |
+| Gestão       | INSS                   | Tesouro Nacional    |
+| UO Principal | 33904                  | Diversas por órgão  |
+| Elementos    | 53-58                  | 01, 03              |
+| Subfunção    | 122 (INSS)             | 272, 273, 274       |
 
 ### Códigos de Ações Previdenciárias
 
 | Código | Descrição | Regime |
-|--------|-----------|--------|
+|----|----|----|
 | 0053 | Pagamento de Aposentadorias e Pensões - Civis | RPPS Civil |
 | 0181 | Pagamento de Pessoal Inativo - Civis | RPPS Civil |
 | 0179 | Pagamento de Pensões Militares | RPPS Militar |
@@ -8212,19 +8252,19 @@ Quando **negativo**, indica **déficit previdenciário** que deve ser coberto pe
 ### Exclusões Importantes
 
 | Item | Motivo |
-|------|--------|
+|-------------------------------|-----------------------------------------|
 | UO 73901 | Separado no FCDF |
 | Fonte 054 | Contribuições Sociais do RGPS - evitar duplicidade |
 | Elementos 04, 07, 11, 13, 16, 39, 67, 96 | Não são benefícios previdenciários |
 | Ação 09HB | Ação não previdenciária |
 | Função 08, 10 | Assistência Social e Saúde - não é previdência |
 
----
+------------------------------------------------------------------------
 
 ## 📦 Objetos Exportados
 
 | Objeto | Descrição |
-|--------|-----------|
+|-------------------------------|-----------------------------------------|
 | criterios_rreo_A04_rgps_receitas_rgps | Critérios receitas RGPS |
 | criterios_rreo_A04_rgps_despesas_rgps | Critérios despesas RGPS |
 | criterios_rreo_A04_rpps_receitas_civil_militar_rpps | Critérios receitas RPPS |
@@ -8237,27 +8277,26 @@ Quando **negativo**, indica **déficit previdenciário** que deve ser coberto pe
 | df_resultado_rpps | Resultado RPPS Total |
 | df_resultado_fcdf | Resultado FCDF |
 
----
+------------------------------------------------------------------------
 
 ## 📝 Observações Adicionais
 
-1. **Período de Apuração**: O anexo apresenta valores do bimestre e acumulados no exercício.
+1.  **Período de Apuração**: O anexo apresenta valores do bimestre e acumulados no exercício.
 
-2. **Projeção Atuarial**: O RREO Anexo 14 apresenta a projeção atuarial do RPPS para os próximos 75 anos.
+2.  **Projeção Atuarial**: O RREO Anexo 14 apresenta a projeção atuarial do RPPS para os próximos 75 anos.
 
-3. **Meta Fiscal**: O resultado previdenciário impacta diretamente o Resultado Primário da União.
+3.  **Meta Fiscal**: O resultado previdenciário impacta diretamente o Resultado Primário da União.
 
-4. **Passivo Atuarial**: O RGF Anexo 02 apresenta o passivo atuarial do RPPS e dos militares na DCL.
+4.  **Passivo Atuarial**: O RGF Anexo 02 apresenta o passivo atuarial do RPPS e dos militares na DCL.
 
-5. **Receitas Intra-Orçamentárias**: Categoria 7 ou 8 representam transferências entre órgãos do mesmo ente.
-
+5.  **Receitas Intra-Orçamentárias**: Categoria 7 ou 8 representam transferências entre órgãos do mesmo ente.
 
 # 📋 RREO Anexo 06 (Resultado Primário)
 
 ## 📊 Ficha Técnica
 
 | Item | Descrição |
-|------|-----------|
+|--------------------------|----------------------------------------------|
 | **Relatório** | RREO - Relatório Resumido da Execução Orçamentária |
 | **Anexo** | Anexo 06 - Demonstrativo dos Resultados Primário e Nominal |
 | **Base Legal** | LRF Art. 53, inciso III |
@@ -8267,11 +8306,11 @@ Quando **negativo**, indica **déficit previdenciário** que deve ser coberto pe
 ## 📁 Arquivos Necessários
 
 | Objeto | Arquivo | Descrição |
-|--------|---------|-----------|
-| `dados_receita` | tg_receita_*.xlsx | Receitas orçamentárias |
+|---------------------|-----------------------|----------------------------|
+| `dados_receita` | tg_receita\_\*.xlsx | Receitas orçamentárias |
 | `dados_categoria_grupo` | rreo_a06_despesas_primarias_categoria_grupo.xlsx | Despesas por categoria/grupo |
 | `dados_ndd` | rreo_a06_despesas_primarias_ndd.xlsx | Despesas por natureza detalhada |
-| `dados_despesa` | tg_despesa_*.xlsx | Despesas orçamentárias (subsídios CESEF) |
+| `dados_despesa` | tg_despesa\_\*.xlsx | Despesas orçamentárias (subsídios CESEF) |
 | `dados_juros` | rreo_a06_juros.xlsx | VPA/VPD de juros |
 | `tg_RPN_disponibilidades` | tg_RPN_disponibilidades.xlsx | Disponibilidades financeiras |
 | `dados_ajustes` | rreo_a06_ajustes.xlsx | VPA/VPD de ajustes patrimoniais |
@@ -9577,7 +9616,7 @@ valor_outros_ajustes <- outros_ajustes
 ## 📋 Objetos Exportados
 
 | Objeto | Descrição |
-|--------|-----------|
+|-------------------------------|-----------------------------------------|
 | `criterios_rreo_A06_receitas_A06` | Critérios para receitas primárias |
 | `criterios_rreo_A06_despesas_categoria_grupo_A06` | Critérios para despesas por categoria/grupo |
 | `criterios_rreo_A06_despesas_natureza_detalhada_A06` | Critérios para despesas por natureza detalhada |
@@ -9592,14 +9631,12 @@ valor_outros_ajustes <- outros_ajustes
 | `valor_rn_ajustado_abaixo` | Resultado nominal ajustado abaixo da linha |
 | `valor_discrepancia` | Discrepância entre acima e abaixo da linha |
 
-
-
 # 📋 RREO Anexo 07 - Restos a Pagar
 
 ## 📊 Ficha Técnica
 
 | Item | Descrição |
-|------|-----------|
+|--------------------------|----------------------------------------------|
 | **Relatório** | RREO - Relatório Resumido da Execução Orçamentária |
 | **Anexo** | Anexo 07 - Demonstrativo dos Restos a Pagar por Poder e Órgão |
 | **Base Legal** | LRF Art. 53, inciso V |
@@ -9608,14 +9645,14 @@ valor_outros_ajustes <- outros_ajustes
 
 ## 📁 Arquivos Necessários
 
-| Objeto | Arquivo | Descrição |
-|--------|---------|-----------|
+| Objeto              | Arquivo          | Descrição                             |
+|---------------------|-----------------------|----------------------------|
 | `dados_rp_anexo_07` | rreo_a07_rp.xlsx | Restos a pagar por órgão e modalidade |
 
 ## 📋 Atributos Utilizados
 
 | Atributo | Descrição | Uso no Anexo |
-|----------|-----------|--------------|
+|---------------------|-----------------------|-----------------------------|
 | `tipo_modalidade` | Tipo de modalidade | Intragovernamental / Exceto Intra |
 | `orgao_uge_orgao_maximo_codigo` | Código do órgão máximo | Agrupamento por órgão |
 | `orgao_uge_orgao_maximo_nome` | Nome do órgão máximo | Descrição do órgão |
@@ -9626,30 +9663,21 @@ valor_outros_ajustes <- outros_ajustes
 
 ## 🔗 Vínculos com Outros Anexos
 
-| Anexo | Vínculo |
-|-------|---------|
-| RREO A01 | Despesas orçamentárias base |
+| Anexo    | Vínculo                               |
+|----------|---------------------------------------|
+| RREO A01 | Despesas orçamentárias base           |
 | RREO A06 | RP para cálculo do resultado primário |
-| RGF A05 | Disponibilidades para cobertura de RP |
+| RGF A05  | Disponibilidades para cobertura de RP |
 
 ## 📐 Estrutura do Demonstrativo
 
 ### Classificação dos Restos a Pagar
 
-**Por Situação:**
-- **RP Processados**: Despesas empenhadas e liquidadas, pendentes de pagamento
-- **RP Não Processados**: Despesas empenhadas mas não liquidadas
+**Por Situação:** - **RP Processados**: Despesas empenhadas e liquidadas, pendentes de pagamento - **RP Não Processados**: Despesas empenhadas mas não liquidadas
 
-**Por Modalidade:**
-- **Intragovernamental**: Operações entre órgãos do mesmo ente
-- **Exceto Intragovernamental**: Demais operações
+**Por Modalidade:** - **Intragovernamental**: Operações entre órgãos do mesmo ente - **Exceto Intragovernamental**: Demais operações
 
-**Movimentação:**
-- Inscritos em Exercícios Anteriores
-- Inscritos em 31/12 do Exercício Anterior
-- Pagos
-- Cancelados
-- Saldo
+**Movimentação:** - Inscritos em Exercícios Anteriores - Inscritos em 31/12 do Exercício Anterior - Pagos - Cancelados - Saldo
 
 ## 🎯 Definição dos Agrupamentos
 
@@ -9726,17 +9754,12 @@ if (!exists("dados_rp_anexo_07")) {
 }
 ```
 
-
-
-
-
-
 # 📋 RREO Anexo 08 - MDE (Manutenção e Desenvolvimento do Ensino)
 
 ## 📊 Ficha Técnica
 
 | Item | Descrição |
-|------|-----------|
+|----|----|
 | **Relatório** | RREO - Relatório Resumido da Execução Orçamentária |
 | **Anexo** | Anexo 08 - Demonstrativo das Receitas e Despesas com MDE |
 | **Base Legal** | LRF Art. 52, § 2º, inciso III; CF Art. 212 |
@@ -9746,15 +9769,15 @@ if (!exists("dados_rp_anexo_07")) {
 ## 📁 Arquivos Necessários
 
 | Objeto | Arquivo | Descrição |
-|--------|---------|-----------|
-| `dados_receita` | tg_receita_*.xlsx | Receitas orçamentárias (impostos) |
-| `dados_despesa` | tg_despesa_*.xlsx | Despesas orçamentárias com educação |
+|---------------------|-----------------------|----------------------------|
+| `dados_receita` | tg_receita\_\*.xlsx | Receitas orçamentárias (impostos) |
+| `dados_despesa` | tg_despesa\_\*.xlsx | Despesas orçamentárias com educação |
 | `dados_rp_anexo_08` | rreo_a08_rp.xlsx | Restos a pagar de educação |
 
 ## 📋 Atributos Utilizados
 
 | Atributo | Descrição | Uso no Anexo |
-|----------|-----------|--------------|
+|---------------------|-----------------------|-----------------------------|
 | `natureza_receita_codigo_completo` | Código completo da natureza | Identificar impostos (111*, 711*) |
 | `fonte_recursos_codigo` | Código da fonte de recursos | Identificar fontes MDE (000, 008, 035, 133, 134, 213, 242) |
 | `iduso_codigo` | Identificador de uso | 8 = MDE |
@@ -9766,27 +9789,29 @@ if (!exists("dados_rp_anexo_07")) {
 
 ## 🔗 Vínculos com Outros Anexos
 
-| Anexo | Vínculo |
-|-------|---------|
-| RREO A01 | Receitas de impostos base para RLI |
-| RREO A02 | Despesas orçamentárias base |
-| RGF A01 | Despesa com pessoal inclui inativos da educação |
+| Anexo    | Vínculo                                         |
+|----------|-------------------------------------------------|
+| RREO A01 | Receitas de impostos base para RLI              |
+| RREO A02 | Despesas orçamentárias base                     |
+| RGF A01  | Despesa com pessoal inclui inativos da educação |
 
 ## 📐 Estrutura do Demonstrativo
 
 ### Receitas Base para RLI
-- **Impostos**: Naturezas iniciando com 111 ou 711
-- **Transferências Constitucionais**: FPE, FPM, IPI, FUNDEB, IOF, ITR
+
+-   **Impostos**: Naturezas iniciando com 111 ou 711
+-   **Transferências Constitucionais**: FPE, FPM, IPI, FUNDEB, IOF, ITR
 
 ### Despesas MDE
-1. **Complementação da União ao FUNDEB**: Ações 00SB, 0E36
-2. **Educação Básica**: Subfunção 368, IDUSO 8
-3. **Ensino Superior**: Subfunção 364, IDUSO 8
-4. **Ensino Profissional**: Subfunção 363, IDUSO 8
-5. **Outras**: Demais subfunções, IDUSO 8
-6. **Salário-Educação**: Fontes 133, 134, 213, 008, 035, 212
-7. **FCDF**: Ação 0312
-8. **Royalties Pré-Sal**: Fonte 242
+
+1.  **Complementação da União ao FUNDEB**: Ações 00SB, 0E36
+2.  **Educação Básica**: Subfunção 368, IDUSO 8
+3.  **Ensino Superior**: Subfunção 364, IDUSO 8
+4.  **Ensino Profissional**: Subfunção 363, IDUSO 8
+5.  **Outras**: Demais subfunções, IDUSO 8
+6.  **Salário-Educação**: Fontes 133, 134, 213, 008, 035, 212
+7.  **FCDF**: Ação 0312
+8.  **Royalties Pré-Sal**: Fonte 242
 
 ## 🎯 Definição dos Critérios
 
@@ -10105,7 +10130,7 @@ if (exists("rli_mensal") && exists("mes_filtro")) {
 # Despesas MDE das categorias principais (03, 04, 05, 06)
 if (exists("dados_despesa") && exists("mes_filtro")) {
   despesa_mde <- aplicar_criterios(
-    dados_despesa %>% filter(item_informacao_codigo == 25), 
+    dados_despesa %>% filter(item_informacao_codigo %in% c(25, 27)), 
     criterios_rreo_A08_mde_despesas
   ) %>% 
     filter(
@@ -10131,7 +10156,7 @@ if (exists("dados_despesa") && exists("mes_filtro")) {
 if (exists("dados_despesa") && exists("mes_filtro")) {
   complementacao_fundeb <- dados_despesa %>% 
     filter(
-      item_informacao_codigo == 25, 
+      item_informacao_codigo %in% c(25, 27), 
       mes_lancamento == mes_filtro,
       acao_governo_codigo %in% c('0E36', '00SB')
     ) %>% 
@@ -10260,7 +10285,7 @@ valor_percentual_mde <- percentual_aplicacao
 ## 📋 Objetos Exportados
 
 | Objeto | Descrição |
-|--------|-----------|
+|-------------------------------|-----------------------------------------|
 | `criterios_rreo_A08_mde_despesas` | Critérios para classificação das despesas MDE |
 | `receitas_base_rli` | Receitas de impostos base para RLI |
 | `rli_transf` | Transferências constitucionais |
@@ -10273,29 +10298,30 @@ valor_percentual_mde <- percentual_aplicacao
 
 ## 📌 Observações Importantes
 
-1. **Mínimo Constitucional**: A União deve aplicar no mínimo 18% da RLI em MDE (Art. 212 CF)
+1.  **Mínimo Constitucional**: A União deve aplicar no mínimo 18% da RLI em MDE (Art. 212 CF)
 
-2. **Complementação FUNDEB**: 
-   - VAAF (PO 0001): Valor Anual por Aluno do FUNDEB
-   - VAAT (PO 0002/0003): Valor Anual Total por Aluno do FUNDEB
+2.  **Complementação FUNDEB**:
 
-3. **Fontes Específicas**:
-   - 133/134/213: Salário-Educação
-   - 242: Royalties Pré-Sal
-   - 000/050: Recursos Ordinários
+    -   VAAF (PO 0001): Valor Anual por Aluno do FUNDEB
+    -   VAAT (PO 0002/0003): Valor Anual Total por Aluno do FUNDEB
 
-4. **Exclusões**:
-   - Elementos 01, 03, 59: Pessoal (não computado na base principal)
-   - Ações 00SB, 0E36: FUNDEB (tratamento especial)
+3.  **Fontes Específicas**:
 
+    -   133/134/213: Salário-Educação
+    -   242: Royalties Pré-Sal
+    -   000/050: Recursos Ordinários
 
+4.  **Exclusões**:
+
+    -   Elementos 01, 03, 59: Pessoal (não computado na base principal)
+    -   Ações 00SB, 0E36: FUNDEB (tratamento especial)
 
 # 📋 RREO Anexo 09 - Regra de Ouro
 
 ## 📊 Ficha Técnica
 
 | Item | Descrição |
-|------|-----------|
+|--------------------------|----------------------------------------------|
 | **Relatório** | RREO - Relatório Resumido da Execução Orçamentária |
 | **Anexo** | Anexo 09 - Demonstrativo das Receitas de Operações de Crédito e Despesas de Capital |
 | **Base Legal** | CF Art. 167, inciso III; LRF Art. 12, § 2º |
@@ -10304,16 +10330,16 @@ valor_percentual_mde <- percentual_aplicacao
 
 ## 📁 Arquivos Necessários
 
-| Objeto | Arquivo | Descrição |
-|--------|---------|-----------|
-| `dados_receita` | tg_receita_*.xlsx | Receitas de operações de crédito |
-| `dados_despesa` | tg_despesa_*.xlsx | Despesas de capital |
-| `balancete` | rgf_a02_balancete.xlsx | Saldo da subconta da dívida |
+| Objeto          | Arquivo                | Descrição                        |
+|---------------------|-----------------------|----------------------------|
+| `dados_receita` | tg_receita\_\*.xlsx    | Receitas de operações de crédito |
+| `dados_despesa` | tg_despesa\_\*.xlsx    | Despesas de capital              |
+| `balancete`     | rgf_a02_balancete.xlsx | Saldo da subconta da dívida      |
 
 ## 📋 Atributos Utilizados
 
 | Atributo | Descrição | Uso no Anexo |
-|----------|-----------|--------------|
+|---------------------|-----------------------|-----------------------------|
 | `natureza_receita_codigo_completo` | Código da natureza | Identificar operações de crédito (21*, 81*) |
 | `categoria_economica_despesa_codigo` | Categoria da despesa | 4 = Capital |
 | `conta_contabil_numero` | Número da conta contábil | 111110401 = Subconta da dívida |
@@ -10324,19 +10350,21 @@ valor_percentual_mde <- percentual_aplicacao
 
 ## 🔗 Vínculos com Outros Anexos
 
-| Anexo | Vínculo |
-|-------|---------|
+| Anexo    | Vínculo                           |
+|----------|-----------------------------------|
 | RREO A01 | Receitas e despesas orçamentárias |
-| RREO A04 | Operações de crédito detalhadas |
-| RGF A02 | Dívida consolidada líquida |
+| RREO A04 | Operações de crédito detalhadas   |
+| RGF A02  | Dívida consolidada líquida        |
 
 ## 📐 Estrutura do Demonstrativo
 
 ### Regra de Ouro Constitucional
+
 A "Regra de Ouro" estabelece que as receitas de operações de crédito não podem exceder o montante das despesas de capital, ressalvadas as autorizadas mediante créditos suplementares ou especiais com finalidade precisa, aprovados pelo Poder Legislativo por maioria absoluta.
 
 **Fórmula:**
-```
+
+```         
 Regra de Ouro = Despesas de Capital - (Receitas de Op. Crédito - Variação Subconta Dívida)
 
 Se Regra de Ouro ≤ 0: CUMPRIDA
@@ -10344,11 +10372,12 @@ Se Regra de Ouro > 0: NÃO CUMPRIDA
 ```
 
 ### Componentes
-1. **Receitas de Operações de Crédito (I)**: Naturezas 21* e 81*
-2. **Variação da Subconta da Dívida (II)**: Conta 111110401
-3. **Receitas Líquidas (III = I - II)**
-4. **Despesas de Capital (IV)**: Categoria econômica 4
-5. **Resultado (IV - III)**
+
+1.  **Receitas de Operações de Crédito (I)**: Naturezas 21\* e 81\*
+2.  **Variação da Subconta da Dívida (II)**: Conta 111110401
+3.  **Receitas Líquidas (III = I - II)**
+4.  **Despesas de Capital (IV)**: Categoria econômica 4
+5.  **Resultado (IV - III)**
 
 ## 🎯 Parâmetros Manuais
 
@@ -10424,7 +10453,7 @@ if (!exists("dados_receita")) {
 # Nota: Inclui despesas liquidadas e inscritas em RP Não Processados
 # ==============================================================================
 
-
+#verificar se devemos utilizar item informacao 27
 
 if (!exists("dados_despesa")) {
   warning("dados_despesa nao encontrado")
@@ -10434,7 +10463,7 @@ if (!exists("dados_despesa")) {
     filter(
       mes_lancamento == mes_filtro,
       categoria_economica_despesa_codigo == "4",
-      item_informacao_codigo == "25"
+      item_informacao_codigo %in% c(25, 27)
     ) %>%
     summarise(valor = sum(saldo_r_item_informacao, na.rm = TRUE)) %>%
     pull(valor)
@@ -10581,39 +10610,43 @@ valor_regra_ouro <- regra_ouro
 
 ## 📋 Objetos Exportados
 
-| Objeto | Descrição |
-|--------|-----------|
-| `saldo_inicial_divida` | Saldo de abertura da subconta |
-| `receitas_op_credito` | Receitas de operações de crédito |
-| `despesas_capital` | Despesas de capital liquidadas |
-| `saldo_atual_divida` | Saldo atual da subconta |
-| `variacao_divida` | Variação da subconta |
-| `receitas_liquidas` | Receitas menos variação |
-| `regra_ouro` | Resultado do cálculo |
-| `status_regra_ouro` | CUMPRIDA ou NÃO CUMPRIDA |
-| `resultado_regra_ouro` | Tabela resumo |
+| Objeto                 | Descrição                        |
+|------------------------|----------------------------------|
+| `saldo_inicial_divida` | Saldo de abertura da subconta    |
+| `receitas_op_credito`  | Receitas de operações de crédito |
+| `despesas_capital`     | Despesas de capital liquidadas   |
+| `saldo_atual_divida`   | Saldo atual da subconta          |
+| `variacao_divida`      | Variação da subconta             |
+| `receitas_liquidas`    | Receitas menos variação          |
+| `regra_ouro`           | Resultado do cálculo             |
+| `status_regra_ouro`    | CUMPRIDA ou NÃO CUMPRIDA         |
+| `resultado_regra_ouro` | Tabela resumo                    |
 
 ## 📌 Observações Importantes
 
-1. **Base Constitucional**: Art. 167, III da CF/88 - vedação de operações de crédito que excedam despesas de capital
+1.  **Base Constitucional**: Art. 167, III da CF/88 - vedação de operações de crédito que excedam despesas de capital
 
-2. **Exceções**:
-   - Créditos suplementares ou especiais
-   - Aprovados por maioria absoluta
-   - Com finalidade precisa
+2.  **Exceções**:
 
-3. **Subconta da Dívida (111110401)**:
-   - Registra recursos vinculados ao refinanciamento
-   - Variação positiva = aumento de recursos
-   - Variação negativa = utilização de recursos
+    -   Créditos suplementares ou especiais
+    -   Aprovados por maioria absoluta
+    -   Com finalidade precisa
 
-4. **Naturezas de Receita**:
-   - 21*: Operações de Crédito Internas e Externas
-   - 81*: Operações de Crédito Intraorçamentárias
+3.  **Subconta da Dívida (111110401)**:
 
-5. **Atualização Anual**:
-   - O saldo inicial da subconta deve ser atualizado no início de cada exercício
-   - Valor obtido do balancete de abertura (000/AAAA)
+    -   Registra recursos vinculados ao refinanciamento
+    -   Variação positiva = aumento de recursos
+    -   Variação negativa = utilização de recursos
+
+4.  **Naturezas de Receita**:
+
+    -   21\*: Operações de Crédito Internas e Externas
+    -   81\*: Operações de Crédito Intraorçamentárias
+
+5.  **Atualização Anual**:
+
+    -   O saldo inicial da subconta deve ser atualizado no início de cada exercício
+    -   Valor obtido do balancete de abertura (000/AAAA)
 
 # 📋 RREO Anexo 11 - Alienação de Ativos.
 
@@ -10637,7 +10670,7 @@ despesas_saude <- dados_despesa %>%
   filter(
     mes_lancamento == mes_filtro, 
     iduso_codigo == 6, 
-    item_informacao_codigo == 25, 
+    item_informacao_codigo %in% c(25, 27), 
     subfuncao_governo_codigo %in% c(301, 302, 303, 304, 305, 306)
   ) %>% 
   group_by(
@@ -10701,7 +10734,7 @@ despesas_saude_demais <- as.numeric(
   filter(
     mes_lancamento == mes_filtro, 
     iduso_codigo == 6, 
-    item_informacao_codigo == 25, 
+    item_informacao_codigo %in% c(25, 27), 
     subfuncao_governo_codigo %notin% c(301, 302, 303, 304, 305, 306)
   ) %>% 
   summarise(saldo_r_item_informacao = sum(saldo_r_item_informacao))
@@ -10726,7 +10759,7 @@ despesas_saude_completa <- dados_despesa %>%
   filter(
     mes_lancamento == mes_filtro, 
     iduso_codigo == 6, 
-    item_informacao_codigo == 25
+    item_informacao_codigo %in% c( 25, 27)
   ) %>% 
   group_by(
     subfuncao_governo_codigo, 
@@ -10805,7 +10838,7 @@ despesa_saude_nao_computadas <- dados_despesa %>%
   filter(
     mes_lancamento == mes_filtro, 
     iduso_codigo != 6, 
-    item_informacao_codigo == 25,
+    item_informacao_codigo %in% c(25, 27),
     uo_orgao_superior_codigo == "36000", 
     unidade_orcamentaria_codigo != "74202"
   ) %>% 
@@ -10862,6 +10895,50 @@ tabela_nao_computadas <- despesa_saude_nao_computadas %>%
 #   DT::formatRound("saldo_r_item_informacao", 2, mark = ".", dec.mark = ",")
 ```
 
+### Despesas Custeadas com Disponibilidade de Caixa Vinculada aos RP Cancelados
+
+```{r despesas-rp-cancelados}
+#| echo: true
+
+# ==============================================================================
+# DESPESAS CUSTEADAS COM DISPONIBILIDADE DE CAIXA VINCULADA AOS RP CANCELADOS
+# (Apenas para dezembro)
+# ==============================================================================
+
+if (exists("dados_despesa") && exists("mes_filtro")) {
+  
+  despesas_rp_cancelados <- dados_despesa %>%
+    filter(
+      mes_lancamento == mes_filtro,
+      item_informacao_codigo %in% c(25, 27, "25", "27"),
+      iduso_codigo == 6,
+      !fonte_recursos_codigo %in% c("448", "449"),
+      !grupo_despesa_codigo_grupo %in% c("2", "6"),
+      !acao_governo_codigo %in% c("0181", "2004", "20YS"),
+      modalidade_aplicacao_codigo %in% c("35", "45", "73", "78")
+    ) %>%
+    group_by(
+      subfuncao_governo_codigo,
+      subfuncao_governo_nome,
+      modalidade_aplicacao_codigo
+    ) %>%
+    summarise(
+      valor = sum(saldo_r_item_informacao, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  total_despesas_rp_cancelados <- sum(despesas_rp_cancelados$valor, na.rm = TRUE)
+  
+  cat("Despesas Custeadas com Disp. Caixa Vinculada aos RP Cancelados: R$", 
+      format(total_despesas_rp_cancelados, big.mark = ".", decimal.mark = ","), "\n")
+  
+} else {
+  total_despesas_rp_cancelados <- 0
+  despesas_rp_cancelados <- tibble()
+  cat("Dados nao disponiveis para calculo de RP Cancelados\n")
+}
+```
+
 ```{r}
 
 
@@ -10894,7 +10971,7 @@ cat("💰 **Total Geral das Despesas Computadas:** R$",
 ## 📊 Ficha Técnica
 
 | Item | Descrição |
-|------|-----------|
+|--------------------------|----------------------------------------------|
 | **Relatório** | RREO - Relatório Resumido da Execução Orçamentária |
 | **Demonstrativo** | Tabela 01 - Balanço Orçamentário da Seguridade Social |
 | **Base Legal** | LRF Art. 52, inciso I |
@@ -10903,15 +10980,15 @@ cat("💰 **Total Geral das Despesas Computadas:** R$",
 
 ## 📁 Arquivos Necessários
 
-| Objeto | Arquivo | Descrição |
-|--------|---------|-----------|
-| `dados_receita` | tg_receita_*.xlsx | Receitas orçamentárias |
-| `dados_despesa` | tg_despesa_*.xlsx | Despesas orçamentárias |
+| Objeto          | Arquivo             | Descrição              |
+|-----------------|---------------------|------------------------|
+| `dados_receita` | tg_receita\_\*.xlsx | Receitas orçamentárias |
+| `dados_despesa` | tg_despesa\_\*.xlsx | Despesas orçamentárias |
 
 ## 📋 Atributos Utilizados
 
 | Atributo | Descrição | Uso na Tabela |
-|----------|-----------|---------------|
+|--------------------|----------------------|------------------------------|
 | `nre1_categoria_economica_codigo` | Categoria econômica receita | 1=Corrente, 2=Capital, 7/8=Intra |
 | `nre2_origem_receita_codigo_origem` | Origem da receita | 1-9 conforme classificação |
 | `grupo_despesa_codigo_grupo` | Grupo de despesa | 1-6, 9 |
@@ -10922,24 +10999,26 @@ cat("💰 **Total Geral das Despesas Computadas:** R$",
 
 ## 🔗 Vínculos com Outros Anexos
 
-| Anexo | Vínculo |
-|-------|---------|
+| Anexo    | Vínculo                     |
+|----------|-----------------------------|
 | RREO A01 | Receitas orçamentárias base |
 | RREO A02 | Despesas orçamentárias base |
 | RREO A04 | Detalhamento previdenciário |
-| RGF A01 | Despesa com pessoal |
+| RGF A01  | Despesa com pessoal         |
 
 ## 📐 Estrutura do Demonstrativo
 
 ### Receitas por Categoria/Origem
-- **Receitas Correntes** (Categoria 1): Tributária, Contribuições, Patrimonial, etc.
-- **Receitas de Capital** (Categoria 2): Operações de Crédito, Alienações, etc.
-- **Receitas Intra-Orçamentárias** (Categorias 7 e 8)
+
+-   **Receitas Correntes** (Categoria 1): Tributária, Contribuições, Patrimonial, etc.
+-   **Receitas de Capital** (Categoria 2): Operações de Crédito, Alienações, etc.
+-   **Receitas Intra-Orçamentárias** (Categorias 7 e 8)
 
 ### Despesas por Grupo
-- **Despesas Correntes**: Pessoal, Juros, ODC
-- **Despesas de Capital**: Investimentos, Inversões, Amortização
-- **Reserva de Contingência** (Grupo 9)
+
+-   **Despesas Correntes**: Pessoal, Juros, ODC
+-   **Despesas de Capital**: Investimentos, Inversões, Amortização
+-   **Reserva de Contingência** (Grupo 9)
 
 ## 💰 RECEITAS ORÇAMENTÁRIAS
 
@@ -11206,7 +11285,7 @@ if (!exists("dados_despesa")) {
   # Aplicar critérios nas despesas da Seguridade Social
   df_criterios_rreo_T01_despesas_T01 <- aplicar_criterios(
     df = dados_despesa %>% 
-      filter(esfera_orcamentaria_codigo == 2, item_informacao_codigo == "25") %>% 
+      filter(esfera_orcamentaria_codigo == 2, item_informacao_codigo %in% c(25, 27 )) %>% 
       unique(),
     criterios = criterios_rreo_T01_despesas_T01
   ) %>% 
@@ -11337,7 +11416,7 @@ criterios_rreo_T01B_seguridade_T01B <- list(
 if (exists("dados_despesa")) {
   df_seguridade_area <- aplicar_criterios(
     df = dados_despesa %>% 
-      filter(esfera_orcamentaria_codigo == 2, item_informacao_codigo == "25") %>% 
+      filter(esfera_orcamentaria_codigo == 2, item_informacao_codigo %in% c(25 , 27)) %>% 
       unique(),
     criterios = criterios_rreo_T01B_seguridade_T01B
   ) %>% 
@@ -11359,7 +11438,7 @@ if (exists("dados_despesa")) {
 ## 📋 Objetos Exportados
 
 | Objeto | Descrição |
-|--------|-----------|
+|-------------------------------|-----------------------------------------|
 | `criterios_rreo_T01_receitas` | Critérios para receitas orçamentárias |
 | `criterios_rreo_T01_despesas_T01` | Critérios para despesas orçamentárias |
 | `criterios_rreo_T01B_seguridade_T01B` | Critérios para seguridade por área |
@@ -11370,24 +11449,25 @@ if (exists("dados_despesa")) {
 
 ## 📌 Observações Importantes
 
-1. **Esfera Orçamentária**: Apenas Seguridade Social (código 2)
+1.  **Esfera Orçamentária**: Apenas Seguridade Social (código 2)
 
-2. **Receitas Intra-Orçamentárias**: Categorias 7 e 8 são incluídas
+2.  **Receitas Intra-Orçamentárias**: Categorias 7 e 8 são incluídas
 
-3. **UOs Previdenciárias**:
-   - 33904: INSS
-   - 40904: FAT
-   - 55902: RPPS
-   - 25917: Ministério da Previdência
+3.  **UOs Previdenciárias**:
 
-4. **Modalidades de Transferência**: 30, 31, 35, 36, 40, 41, 42, 45
+    -   33904: INSS
+    -   40904: FAT
+    -   55902: RPPS
+    -   25917: Ministério da Previdência
+
+4.  **Modalidades de Transferência**: 30, 31, 35, 36, 40, 41, 42, 45
 
 # 📋 RREO Tabela 02 - Despesas por Modalidade de Aplicação
 
 ## 📊 Ficha Técnica
 
 | Item | Descrição |
-|------|-----------|
+|----|----|
 | **Relatório** | RREO - Relatório Resumido da Execução Orçamentária |
 | **Demonstrativo** | Tabela 02 - Despesas com Pessoal por Modalidade |
 | **Base Legal** | LRF Art. 52, inciso I |
@@ -11396,14 +11476,14 @@ if (exists("dados_despesa")) {
 
 ## 📁 Arquivos Necessários
 
-| Objeto | Arquivo | Descrição |
-|--------|---------|-----------|
-| `dados_despesa` | tg_despesa_*.xlsx | Despesas orçamentárias |
+| Objeto          | Arquivo             | Descrição              |
+|-----------------|---------------------|------------------------|
+| `dados_despesa` | tg_despesa\_\*.xlsx | Despesas orçamentárias |
 
 ## 📋 Atributos Utilizados
 
 | Atributo | Descrição | Uso na Tabela |
-|----------|-----------|---------------|
+|--------------------|----------------------|------------------------------|
 | `grupo_despesa_codigo_grupo` | Grupo de despesa | 1 = Pessoal e Encargos |
 | `elemento_despesa_codigo` | Elemento de despesa | 00-41 conforme classificação |
 | `orgao_uge_orgao_maximo_codigo` | Órgão máximo | 52000 = Ministério da Defesa |
@@ -11414,33 +11494,36 @@ if (exists("dados_despesa")) {
 
 ## 🔗 Vínculos com Outros Anexos
 
-| Anexo | Vínculo |
-|-------|---------|
-| RREO A02 | Despesas orçamentárias base |
-| RGF A01 | Despesa com pessoal (limite) |
-| RREO T01 | Despesas totais por grupo |
+| Anexo    | Vínculo                      |
+|----------|------------------------------|
+| RREO A02 | Despesas orçamentárias base  |
+| RGF A01  | Despesa com pessoal (limite) |
+| RREO T01 | Despesas totais por grupo    |
 
 ## 📐 Estrutura do Demonstrativo
 
 ### Pessoal Civil
-- Vencimentos e Vantagens Fixas (elemento 11)
-- Outras Despesas Variáveis (elemento 16)
-- Aposentadoria (elemento 01, exceto MD ou com ação 0181)
-- Pensões (elemento 03, exceto MD ou com ação 0181)
-- Contribuições a Entidades Fechadas de Previdência (elemento 07)
-- Obrigações Patronais (elemento 13)
-- Outras Aplicações
+
+-   Vencimentos e Vantagens Fixas (elemento 11)
+-   Outras Despesas Variáveis (elemento 16)
+-   Aposentadoria (elemento 01, exceto MD ou com ação 0181)
+-   Pensões (elemento 03, exceto MD ou com ação 0181)
+-   Contribuições a Entidades Fechadas de Previdência (elemento 07)
+-   Obrigações Patronais (elemento 13)
+-   Outras Aplicações
 
 ### Pessoal Militar
-- Vencimentos e Vantagens Fixas (elemento 12)
-- Outras Despesas Variáveis (elemento 17)
-- Reformas (elemento 01, MD, exceto ação 0181)
-- Pensões (elemento 03, MD, exceto ação 0181)
-- Obrigações Patronais (elemento 13, MD)
-- Outras Aplicações
+
+-   Vencimentos e Vantagens Fixas (elemento 12)
+-   Outras Despesas Variáveis (elemento 17)
+-   Reformas (elemento 01, MD, exceto ação 0181)
+-   Pensões (elemento 03, MD, exceto ação 0181)
+-   Obrigações Patronais (elemento 13, MD)
+-   Outras Aplicações
 
 ### Outros
-- Transferências Intergovernamentais (elemento 41)
+
+-   Transferências Intergovernamentais (elemento 41)
 
 ## 📊 Critérios da Tabela 02
 
@@ -11622,7 +11705,7 @@ if (!exists("dados_despesa")) {
         grupo_despesa_codigo_grupo == 1,
         orgao_uge_orcam_fiscal_s_n == "PERTENCE",
         mes_lancamento == mes_filtro,
-        item_informacao_codigo == 25
+        item_informacao_codigo %in% c(25,27)
       ),
     criterios = criterios_rreo_T02_despesas_T02,
     group_vars = c("orgao_uge_tipo_administracao_nome")
@@ -11796,7 +11879,7 @@ if (exists("validacao_civil") && exists("validacao_militar")) {
 ## 📋 Objetos Exportados
 
 | Objeto | Descrição |
-|--------|-----------|
+|-------------------------------|-----------------------------------------|
 | `criterios_rreo_T02_despesas_T02` | Critérios para despesas com pessoal |
 | `df_t02_tipo_admin` | Despesas por tipo de administração |
 | `validacao_civil` | Validação pessoal civil por tipo admin |
@@ -11807,43 +11890,39 @@ if (exists("validacao_civil") && exists("validacao_militar")) {
 
 ## 📌 Observações Importantes
 
-1. **Ministério da Defesa (52000)**: 
-   - Pessoal militar está concentrado neste órgão
-   - Ação 0181 identifica civis lotados no MD
-   - Elementos 12 e 17 são exclusivos de militares
-
-2. **Elementos de Despesa**:
-   - 01: Aposentadorias/Reformas
-   - 03: Pensões
-   - 07: Contribuições Previdência Fechada
-   - 11: Vencimentos Fixos Civil
-   - 12: Vencimentos Fixos Militar
-   - 13: Obrigações Patronais
-   - 16: Outras Variáveis Civil
-   - 17: Outras Variáveis Militar
-   - 41: Transferências Intergovernamentais
-
-3. **Tipos de Administração**:
-   - Administração Direta
-   - Autarquia
-   - Economia Mista
-   - Empresa Pública
-   - Fundação
-   - Fundos
-
-4. **Filtros Aplicados**:
-   - Grupo 1 (Pessoal e Encargos)
-   - Orçamento Fiscal (PERTENCE)
-   - Período de referência (mes_filtro)
-   - Item de informação 25 (Empenhado)
-
+1.  **Ministério da Defesa (52000)**:
+    -   Pessoal militar está concentrado neste órgão
+    -   Ação 0181 identifica civis lotados no MD
+    -   Elementos 12 e 17 são exclusivos de militares
+2.  **Elementos de Despesa**:
+    -   01: Aposentadorias/Reformas
+    -   03: Pensões
+    -   07: Contribuições Previdência Fechada
+    -   11: Vencimentos Fixos Civil
+    -   12: Vencimentos Fixos Militar
+    -   13: Obrigações Patronais
+    -   16: Outras Variáveis Civil
+    -   17: Outras Variáveis Militar
+    -   41: Transferências Intergovernamentais
+3.  **Tipos de Administração**:
+    -   Administração Direta
+    -   Autarquia
+    -   Economia Mista
+    -   Empresa Pública
+    -   Fundação
+    -   Fundos
+4.  **Filtros Aplicados**:
+    -   Grupo 1 (Pessoal e Encargos)
+    -   Orçamento Fiscal (PERTENCE)
+    -   Período de referência (mes_filtro)
+    -   Item de informação 25 (Empenhado)
 
 # 📋 RREO Tabela 03 - Despesas por Resultado EOF
 
 ## 📊 Ficha Técnica
 
 | Item | Descrição |
-|------|-----------|
+|--------------------------|----------------------------------------------|
 | **Relatório** | RREO - Relatório Resumido da Execução Orçamentária |
 | **Demonstrativo** | Tabela 03 - Despesas por Resultado EOF (Primárias/Financeiras) |
 | **Base Legal** | LRF Art. 52, inciso I |
@@ -11852,14 +11931,14 @@ if (exists("validacao_civil") && exists("validacao_militar")) {
 
 ## 📁 Arquivos Necessários
 
-| Objeto | Arquivo | Descrição |
-|--------|---------|-----------|
-| `dados_despesa` | tg_despesa_*.xlsx | Despesas orçamentárias |
+| Objeto          | Arquivo             | Descrição              |
+|-----------------|---------------------|------------------------|
+| `dados_despesa` | tg_despesa\_\*.xlsx | Despesas orçamentárias |
 
 ## 📋 Atributos Utilizados
 
 | Atributo | Descrição | Uso na Tabela |
-|----------|-----------|---------------|
+|--------------------|----------------------|------------------------------|
 | `resultado_eof_codigo` | Código do resultado EOF | 6 = Primário |
 | `resultado_eof_nome` | Nome do resultado | Primário / Financeiro |
 | `orgao_uge_orgao_maximo_codigo` | Código do órgão máximo | Agrupamento por órgão |
@@ -11871,31 +11950,26 @@ if (exists("validacao_civil") && exists("validacao_militar")) {
 
 ## 🔗 Vínculos com Outros Anexos
 
-| Anexo | Vínculo |
-|-------|---------|
-| RREO A01 | Despesas orçamentárias totais |
-| RREO A06 | Resultado primário detalhado |
-| RGF A01 | Despesa com pessoal (primária) |
+| Anexo    | Vínculo                        |
+|----------|--------------------------------|
+| RREO A01 | Despesas orçamentárias totais  |
+| RREO A06 | Resultado primário detalhado   |
+| RGF A01  | Despesa com pessoal (primária) |
 
 ## 📐 Estrutura do Demonstrativo
 
 ### Classificação por Resultado EOF
 
-**Resultado Primário (código 6):**
-- Despesas que afetam o resultado primário
-- Exclui despesas financeiras (juros, amortização)
-- Base para cálculo do resultado fiscal
+**Resultado Primário (código 6):** - Despesas que afetam o resultado primário - Exclui despesas financeiras (juros, amortização) - Base para cálculo do resultado fiscal
 
-**Resultado Financeiro:**
-- Despesas com juros e encargos da dívida
-- Despesas com amortização da dívida
-- Operações financeiras diversas
+**Resultado Financeiro:** - Despesas com juros e encargos da dívida - Despesas com amortização da dívida - Operações financeiras diversas
 
 ### Itens de Informação Típicos
-- **23**: Dotação Atualizada
-- **24**: Despesa Empenhada
-- **25**: Despesa Liquidada
-- **26**: Despesa Paga
+
+-   **23**: Dotação Atualizada
+-   **24**: Despesa Empenhada
+-   **25**: Despesa Liquidada
+-   **26**: Despesa Paga
 
 ## 📈 Processamento dos Dados
 
@@ -12169,7 +12243,7 @@ if (exists("despesas_por_resultado") && exists("total_despesas_primarias")) {
 ## 📋 Objetos Exportados
 
 | Objeto | Descrição |
-|--------|-----------|
+|-------------------------------|-----------------------------------------|
 | `agrupado_despesa_orgao` | Vetor de agrupamento por órgão |
 | `total_despesas_primarias` | Total das despesas primárias |
 | `despesas_por_resultado` | Despesas por resultado EOF |
@@ -12181,30 +12255,25 @@ if (exists("despesas_por_resultado") && exists("total_despesas_primarias")) {
 
 ## 📌 Observações Importantes
 
-1. **Resultado EOF (Esfera Orçamentário-Financeira)**:
-   - Código 6 = Despesas Primárias
-   - Demais códigos = Despesas Financeiras
-
-2. **Despesas Primárias**:
-   - Afetam o resultado primário do governo
-   - Excluem juros, encargos e amortização da dívida
-   - Base para o cálculo do superávit/déficit primário
-
-3. **Despesas Financeiras**:
-   - Juros e encargos da dívida
-   - Amortização da dívida
-   - Operações financeiras
-
-4. **Itens de Informação**:
-   - 23: Dotação Atualizada (LOA + Créditos)
-   - 24: Despesa Empenhada
-   - 25: Despesa Liquidada
-   - 26: Despesa Paga
-
-5. **Relação com Resultado Primário**:
-   - As despesas primárias são componente do resultado primário
-   - O Anexo 06 do RREO detalha o cálculo completo
-
+1.  **Resultado EOF (Esfera Orçamentário-Financeira)**:
+    -   Código 6 = Despesas Primárias
+    -   Demais códigos = Despesas Financeiras
+2.  **Despesas Primárias**:
+    -   Afetam o resultado primário do governo
+    -   Excluem juros, encargos e amortização da dívida
+    -   Base para o cálculo do superávit/déficit primário
+3.  **Despesas Financeiras**:
+    -   Juros e encargos da dívida
+    -   Amortização da dívida
+    -   Operações financeiras
+4.  **Itens de Informação**:
+    -   23: Dotação Atualizada (LOA + Créditos)
+    -   24: Despesa Empenhada
+    -   25: Despesa Liquidada
+    -   26: Despesa Paga
+5.  **Relação com Resultado Primário**:
+    -   As despesas primárias são componente do resultado primário
+    -   O Anexo 06 do RREO detalha o cálculo completo
 
 ```{r}
 #| label: diagnostico-objetos-vazios
@@ -12335,12 +12404,7 @@ dados_consolidados_temp %>%
   print(n = 50)
 ```
 
-
-
-
 # PARTE FINAL - VALIDAÇÕES
-
-
 
 # Resumo Executivo
 
@@ -13025,253 +13089,913 @@ if (file.exists(arquivo_rreo_a14)) {
 }
 ```
 
-# Validação RGF
+## Validação RGF - Código Completo Corrigido
 
-Comparação dos valores calculados pelo sistema com o RGF Anexo 06 oficial.
+Substitua os chunks de validação RGF pelos códigos abaixo.
 
-## Mapeamento RGF Anexo 06
+---
 
-```{r mapa-rgf-a06}
-#| echo: true
-#| label: mapa-rgf-a06
+### Chunk 1: Mapeamento de Células do Excel Oficial
+
+```{r mapeamento-rgf}
+#| echo: false
 
 # ==============================================================================
-# MAPEAMENTO DAS CÉLULAS DO RGF ANEXO 06 SIMPLIFICADO
+# MAPEAMENTO DAS CÉLULAS DO EXCEL OFICIAL - RGF
+# ==============================================================================
+# Apenas valores realizados (sem limites)
 # ==============================================================================
 
-mapa_rgf_a06 <- tribble(
-  ~item, ~celula, ~descricao, ~fonte,
-  
-  # RCL
-  "rcl",                   "B10", "Receita Corrente Líquida", "RGF",
-  
-  # Pessoal - Executivo
-  "dtp_executivo",         "B15", "DTP - Poder Executivo", "A01",
-  "limite_max_exec",       "B16", "Limite Máximo - Executivo", "A01",
-  "limite_prud_exec",      "B17", "Limite Prudencial - Executivo", "A01",
-  "limite_alerta_exec",    "B18", "Limite Alerta - Executivo", "A01",
-  
-  # Pessoal - Amapá
-  "dtp_amapa",             "B20", "DTP - Amapá", "A01",
-  "limite_max_ap",         "B21", "Limite Máximo - Amapá", "A01",
-  
-  # Pessoal - Roraima
-  "dtp_roraima",           "B25", "DTP - Roraima", "A01",
-  "limite_max_rr",         "B26", "Limite Máximo - Roraima", "A01",
-  
-  # Pessoal - DF
-  "dtp_df",                "B30", "DTP - Distrito Federal", "A01",
-  "limite_max_df",         "B31", "Limite Máximo - DF", "A01",
-  
-  # Dívida (Anexo 2)
-  "dcl",                   "B36", "Dívida Consolidada Líquida", "A02",
-  "limite_dcl",            "B37", "Limite DCL (Resolução SF)", "A02",
-  
-  # Garantias (Anexo 3)
-  "garantias",             "B40", "Total das Garantias", "A03",
-  "limite_garantias",      "B41", "Limite Garantias", "A03",
-  
-  # Operações de Crédito (Anexo 4)
-  "op_credito",            "B44", "Operações de Crédito", "A04",
-  "limite_op_credito",     "B45", "Limite Op. Crédito", "A04",
-  
-  # Disponibilidade (Anexo 5)
-  "rpnp_exercicio",        "B52", "RPNP do Exercício", "A05",
-  "disponibilidade_caixa", "C52", "Disponibilidade Caixa Líquida", "A05"
+mapeamento_rgf <- tribble(
+  ~item,                        ~celula, ~descricao,                          ~fonte,
+  "rcl",                        "B10",   "Receita Corrente Líquida",          "RGF",
+  "dtp_executivo",              "B15",   "DTP - Poder Executivo",             "A01",
+  "dtp_amapa",                  "B20",   "DTP - Amapá",                       "A01",
+  "dtp_roraima",                "B25",   "DTP - Roraima",                     "A01",
+  "dtp_df",                     "B30",   "DTP - Distrito Federal",            "A01",
+  "dcl",                        "B36",   "Dívida Consolidada Líquida",        "A02",
+  "garantias",                  "B40",   "Total das Garantias",               "A03",
+  "op_credito",                 "B44",   "Operações de Crédito",              "A04",
+  "rpnp_exercicio",             "B52",   "RPNP do Exercício",                 "A05",
+  "disponibilidade_antes_rp",   "C52",   "Disp. Caixa ANTES Inscrição RP",    "A05",
+  "disponibilidade_apos_rp",    "D52",   "Disp. Caixa APÓS Inscrição RP",     "A05"
 )
+
+cat("✅ Mapeamento RGF definido:", nrow(mapeamento_rgf), "itens\n")
 ```
 
-## Coleta de Valores do Sistema - RGF
+---
+
+### Chunk 2: Coletar Valores do Sistema
 
 ```{r valores-sistema-rgf}
 #| echo: true
-#| label: valores-sistema-rgf
 
 # ==============================================================================
-# COLETA DOS VALORES CALCULADOS PELO SISTEMA - RGF
+# COLETAR VALORES DO SISTEMA - RGF
 # ==============================================================================
 
-# Função auxiliar para extrair valor numérico com segurança
+# Função auxiliar para conversão segura
 safe_num <- function(x) {
- tryCatch({
+  tryCatch({
     val <- as.numeric(x)
     if (length(val) == 0 || all(is.na(val))) return(NA_real_)
     return(val[1])
   }, error = function(e) NA_real_)
 }
 
+# -----------------------------------------------------------------------------
 # RCL (mesma do RREO)
+# -----------------------------------------------------------------------------
 valor_rcl_rgf <- safe_num(valor_rcl)
 
-# Despesa com Pessoal por Ente
-valor_dtp_exec <- if (exists("dtp_executivo")) safe_num(dtp_executivo) else NA_real_
-valor_dtp_ap <- if (exists("dtp_amapa")) safe_num(dtp_amapa) else NA_real_
-valor_dtp_rr <- if (exists("dtp_roraima")) safe_num(dtp_roraima) else NA_real_
-valor_dtp_df <- if (exists("dtp_df")) safe_num(dtp_df) else NA_real_
+# -----------------------------------------------------------------------------
+# Despesa Total com Pessoal (DTP) por Ente
+# Extraído do dataframe "pessoal" gerado no RGF A01
+# -----------------------------------------------------------------------------
 
-# DCL
-valor_dcl_rgf <- if (exists("valor_dcl")) safe_num(valor_dcl) else NA_real_
+valor_dtp_exec <- if (exists("pessoal") && is.data.frame(pessoal)) {
+  pessoal %>% 
+    filter(categoria_pessoal == "executivo") %>%
+    summarise(total = sum(valor, na.rm = TRUE)) %>%
+    pull(total) %>%
+    safe_num()
+} else NA_real_
 
-# Garantias
-valor_garantias_rgf <- if (exists("total_garantias")) safe_num(total_garantias) else NA_real_
+valor_dtp_ap <- if (exists("pessoal") && is.data.frame(pessoal)) {
+  pessoal %>% 
+    filter(categoria_pessoal == "AP") %>%
+    summarise(total = sum(valor, na.rm = TRUE)) %>%
+    pull(total) %>%
+    safe_num()
+} else NA_real_
 
-# Operações de Crédito
-valor_op_cred <- if (exists("op_credito_total")) safe_num(op_credito_total) else NA_real_
+valor_dtp_rr <- if (exists("pessoal") && is.data.frame(pessoal)) {
+  pessoal %>% 
+    filter(categoria_pessoal == "RR") %>%
+    summarise(total = sum(valor, na.rm = TRUE)) %>%
+    pull(total) %>%
+    safe_num()
+} else NA_real_
 
-# Disponibilidade (Anexo 5)
-valor_rpnp_ex <- if (exists("rpnp_exercicio")) safe_num(rpnp_exercicio) else NA_real_
-valor_disp_caixa <- if (exists("disponibilidade_caixa_liquida")) safe_num(disponibilidade_caixa_liquida) else NA_real_
+valor_dtp_df <- if (exists("pessoal") && is.data.frame(pessoal)) {
+  pessoal %>% 
+    filter(categoria_pessoal == "DF") %>%
+    summarise(total = sum(valor, na.rm = TRUE)) %>%
+    pull(total) %>%
+    safe_num()
+} else NA_real_
 
-# Calcular limites a partir da RCL (com proteção)
-rcl_rgf_milhar <- if (!is.na(valor_rcl_rgf)) valor_rcl_rgf / 1000 else NA_real_
-limite_max_exec <- if (!is.na(rcl_rgf_milhar)) rcl_rgf_milhar * 0.379 else NA_real_
-limite_prud_exec <- if (!is.na(limite_max_exec)) limite_max_exec * 0.95 else NA_real_
-limite_alerta_exec <- if (!is.na(limite_max_exec)) limite_max_exec * 0.90 else NA_real_
+# -----------------------------------------------------------------------------
+# DCL - Dívida Consolidada Líquida (RGF A02)
+# Usar valor_dcl_num (numérico)
+# -----------------------------------------------------------------------------
+valor_dcl_rgf <- if (exists("valor_dcl_num")) {
+  safe_num(valor_dcl_num)
+} else NA_real_
 
-# Montar dataframe do sistema (todos valores numéricos)
+# -----------------------------------------------------------------------------
+# Garantias (RGF A03)
+# Usar valor_garantias_total
+# -----------------------------------------------------------------------------
+valor_garantias_rgf <- if (exists("valor_garantias_total")) {
+  safe_num(valor_garantias_total)
+} else NA_real_
+
+# -----------------------------------------------------------------------------
+# Operações de Crédito (RGF A04)
+# Usar valor_operacoes_credito_total
+# -----------------------------------------------------------------------------
+valor_op_cred <- if (exists("valor_operacoes_credito_total")) {
+  safe_num(valor_operacoes_credito_total)
+} else NA_real_
+
+# -----------------------------------------------------------------------------
+# Disponibilidade de Caixa (RGF A05)
+# -----------------------------------------------------------------------------
+
+# RPNP do Exercício (só tem valor em dezembro)
+valor_rpnp_ex <- if (exists("rgf_a05_executivo_formatada")) {
+  rgf_a05_executivo_formatada %>%
+    filter(linhas == "Total") %>%
+    pull(rp_empenhados_nao_liquidados_exercicio) %>%
+    safe_num()
+} else NA_real_
+
+# Disponibilidade ANTES da inscrição em RP
+valor_disp_antes_rp <- if (exists("valor_disponibilidade_executivo")) {
+  safe_num(valor_disponibilidade_executivo)
+} else if (exists("rgf_a05_executivo_formatada")) {
+  rgf_a05_executivo_formatada %>%
+    filter(linhas == "Total") %>%
+    pull(disponibilidade_antes_inscr_rp_clean) %>%
+    safe_num()
+} else NA_real_
+
+# Disponibilidade APÓS a inscrição em RP (só tem valor em dezembro)
+valor_disp_apos_rp <- if (exists("rgf_a05_executivo_formatada") && 
+                          "disponibilidade_apos_inscr_rp_clean" %in% names(rgf_a05_executivo_formatada)) {
+  rgf_a05_executivo_formatada %>%
+    filter(linhas == "Total") %>%
+    pull(disponibilidade_apos_inscr_rp_clean) %>%
+    safe_num()
+} else NA_real_
+
+# -----------------------------------------------------------------------------
+# Debug: mostrar valores capturados
+# -----------------------------------------------------------------------------
+cat("📊 Valores capturados do sistema RGF:\n\n")
+cat(sprintf("   RCL:              %s\n", format(valor_rcl_rgf, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("   DTP Executivo:    %s\n", format(valor_dtp_exec, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("   DTP Amapá:        %s\n", format(valor_dtp_ap, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("   DTP Roraima:      %s\n", format(valor_dtp_rr, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("   DTP DF:           %s\n", format(valor_dtp_df, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("   DCL:              %s\n", format(valor_dcl_rgf, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("   Garantias:        %s\n", format(valor_garantias_rgf, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("   Op. Crédito:      %s\n", format(valor_op_cred, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("   RPNP Exercício:   %s\n", format(valor_rpnp_ex, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("   Disp. ANTES RP:   %s\n", format(valor_disp_antes_rp, big.mark = ".", decimal.mark = ",")))
+cat(sprintf("   Disp. APÓS RP:    %s\n", format(valor_disp_apos_rp, big.mark = ".", decimal.mark = ",")))
+
+# -----------------------------------------------------------------------------
+# Montar dataframe do sistema (apenas valores realizados, sem limites)
+# -----------------------------------------------------------------------------
 sistema_rgf <- tibble(
   item = c(
     "rcl",
-    "dtp_executivo", "limite_max_exec", "limite_prud_exec", "limite_alerta_exec",
-    "dtp_amapa", "limite_max_ap",
-    "dtp_roraima", "limite_max_rr",
-    "dtp_df", "limite_max_df",
-    "dcl", "limite_dcl",
-    "garantias", "limite_garantias",
-    "op_credito", "limite_op_credito",
-    "rpnp_exercicio", "disponibilidade_caixa"
+    "dtp_executivo",
+    "dtp_amapa",
+    "dtp_roraima",
+    "dtp_df",
+    "dcl",
+    "garantias",
+    "op_credito",
+    "rpnp_exercicio",
+    "disponibilidade_antes_rp",
+    "disponibilidade_apos_rp"
   ),
   valor = as.numeric(c(
     valor_rcl_rgf,
-    valor_dtp_exec, 
-    if (!is.na(limite_max_exec)) limite_max_exec * 1000 else NA_real_, 
-    if (!is.na(limite_prud_exec)) limite_prud_exec * 1000 else NA_real_, 
-    if (!is.na(limite_alerta_exec)) limite_alerta_exec * 1000 else NA_real_,
-    valor_dtp_ap, NA_real_,
-    valor_dtp_rr, NA_real_,
-    valor_dtp_df, NA_real_,
-    valor_dcl_rgf, NA_real_,
-    valor_garantias_rgf, NA_real_,
-    valor_op_cred, NA_real_,
-    valor_rpnp_ex, valor_disp_caixa
+    valor_dtp_exec,
+    valor_dtp_ap,
+    valor_dtp_rr,
+    valor_dtp_df,
+    valor_dcl_rgf,
+    valor_garantias_rgf,
+    valor_op_cred,
+    valor_rpnp_ex,
+    valor_disp_antes_rp,
+    valor_disp_apos_rp
   ))
 ) %>%
   mutate(valor_milhar = valor / 1000)
+
+cat("\n✅ DataFrame sistema_rgf criado com", nrow(sistema_rgf), "linhas\n")
 ```
 
-## Comparação RGF
+---
 
-```{r comparacao-rgf}
+### Chunk 3: Ler Valores do Excel Oficial
+
+```{r valores-oficial-rgf}
 #| echo: true
-#| column: screen
-#| label: comparacao-rgf
+
+#| echo: true
 
 # ==============================================================================
-# COMPARAÇÃO RGF: SISTEMA VS OFICIAL
+# LER VALORES DO EXCEL OFICIAL - RGF
 # ==============================================================================
 
-arquivo_rgf_a06 <- str_c(mes_pasta, "Anexo 6 Simplificado - 2025.xlsx")
+# Verificar se arquivo comparativo existe
+arquivo_comparativo <- file.path(mes_pasta, "comparativo.xlsx")
 
-if (file.exists(arquivo_rgf_a06)) {
-  cat(sprintf("📂 Lendo: %s\n", basename(arquivo_rgf_a06)))
+if (file.exists(arquivo_comparativo)) {
   
-  # Ler valores oficiais
-  rgf_oficial <- mapa_rgf_a06 %>%
+  # Listar abas disponíveis
+  abas_disponiveis <- excel_sheets(arquivo_comparativo)
+  cat("📋 Abas disponíveis:", paste(abas_disponiveis, collapse = ", "), "\n")
+  
+  # Usar primeira aba disponível (ou especificar nome correto)
+  aba_usar <- abas_disponiveis[1]  # "Comparativo"
+  
+  # Ler planilha
+  oficial_rgf_raw <- read_excel(arquivo_comparativo, sheet = aba_usar, col_names = FALSE)
+  
+  
+  # Função para ler célula
+  ler_celula <- function(celula) {
+    # Extrair coluna (letra) e linha (número)
+    col_letra <- str_extract(celula, "^[A-Z]+")
+    linha <- as.numeric(str_extract(celula, "[0-9]+"))
+    
+    # Converter letra para número (A=1, B=2, etc.)
+    col_num <- sum(sapply(strsplit(col_letra, "")[[1]], function(x) {
+      which(LETTERS == x)
+    }) * 26^(rev(seq_along(strsplit(col_letra, "")[[1]])) - 1))
+    
+    # Extrair valor
+    valor <- oficial_rgf_raw[[col_num]][linha]
+    
+    # Converter para numérico
+    if (is.character(valor)) {
+      valor <- gsub("[^0-9,.-]", "", valor)
+      valor <- gsub("\\.", "", valor)
+      valor <- gsub(",", ".", valor)
+    }
+    
+    as.numeric(valor)
+  }
+  
+  # Coletar valores oficiais
+  oficial_rgf <- mapeamento_rgf %>%
     rowwise() %>%
-    mutate(valor_oficial = as.numeric(ler_celula(arquivo_rgf_a06, celula))) %>%
+    mutate(
+      valor_oficial = tryCatch(
+        ler_celula(celula),
+        error = function(e) NA_real_
+      )
+    ) %>%
     ungroup()
   
-  # Comparar
-  comparacao_rgf <- comparar_valores(rgf_oficial, sistema_rgf)
-  
-  # Exibir
-  exibir_validacao(comparacao_rgf, "VALIDAÇÃO RGF ANEXO 06 - Sistema vs Oficial (R$ milhares)")
+  cat("✅ Valores oficiais RGF lidos:", sum(!is.na(oficial_rgf$valor_oficial)), "de", nrow(oficial_rgf), "\n")
   
 } else {
-  cat(sprintf("⚠️ Arquivo não encontrado: %s\n", arquivo_rgf_a06))
-  cat("Verifique se o arquivo 'Anexo 6 Simplificado - 2025.xlsx' está na pasta de dados.\n")
+  
+  # Criar dataframe vazio se arquivo não existe
+  oficial_rgf <- mapeamento_rgf %>%
+    mutate(valor_oficial = NA_real_)
+  
+  cat("⚠️ Arquivo comparativo.xlsx não encontrado\n")
 }
 ```
 
-# Sumário de Validação
+---
 
-```{r sumario-validacao}
+### Chunk 4: Comparação Sistema vs Oficial
+
+```{r comparacao-rgf}
 #| echo: false
-#| label: sumario-validacao
 
 # ==============================================================================
-# SUMÁRIO CONSOLIDADO DAS VALIDAÇÕES
+# COMPARAÇÃO SISTEMA vs OFICIAL - RGF
 # ==============================================================================
 
-cat("\n")
-cat(strrep("=", 70), "\n")
-cat("SUMÁRIO DE VALIDAÇÃO\n")
-cat(strrep("=", 70), "\n")
-cat(sprintf("Período: %s\n", mes_filtro))
-cat(strrep("-", 70), "\n")
-
-# RREO
-if (exists("comparacao_rreo")) {
-  resumo_rreo <- comparacao_rreo %>% count(status)
-  cat("\n📊 RREO ANEXO 14:\n")
-  for (i in 1:nrow(resumo_rreo)) {
-    emoji <- case_when(
-      resumo_rreo$status[i] == "OK" ~ "✅",
-      resumo_rreo$status[i] == "Verificar" ~ "⚠️",
-      resumo_rreo$status[i] == "DIVERGENTE" ~ "❌",
-      TRUE ~ "⬜"
-    )
-    cat(sprintf("   %s %s: %d itens\n", emoji, resumo_rreo$status[i], resumo_rreo$n[i]))
+# Função de comparação
+comparar_valores <- function(oficial, sistema) {
+  if (is.na(oficial) || is.na(sistema)) return("Sem sistema")
+  
+  diferenca <- abs(oficial - sistema)
+  
+  # Usar o maior valor como base para percentual
+  base <- max(abs(oficial), abs(sistema), na.rm = TRUE)
+  if (base == 0) base <- 1
+  
+  pct <- (diferenca / base) * 100
+  
+  # Critérios de status
+  if (diferenca < 500 || pct < 0.1) {
+    "✅ OK"
+  } else if (pct < 1) {
+    "⚠️ Verificar"
+  } else {
+    "❌ DIVERGENTE"
   }
 }
 
-# RGF
-if (exists("comparacao_rgf")) {
-  resumo_rgf <- comparacao_rgf %>% count(status)
-  cat("\n📊 RGF ANEXO 06:\n")
-  for (i in 1:nrow(resumo_rgf)) {
-    emoji <- case_when(
-      resumo_rgf$status[i] == "OK" ~ "✅",
-      resumo_rgf$status[i] == "Verificar" ~ "⚠️",
-      resumo_rgf$status[i] == "DIVERGENTE" ~ "❌",
-      TRUE ~ "⬜"
-    )
-    cat(sprintf("   %s %s: %d itens\n", emoji, resumo_rgf$status[i], resumo_rgf$n[i]))
-  }
-}
+# Juntar sistema com oficial
+comparacao_rgf <- oficial_rgf %>%
+  left_join(
+    sistema_rgf %>% select(item, valor_sistema = valor),
+    by = "item"
+  ) %>%
+  mutate(
+    # Converter oficial para mesma escala (se necessário)
+    oficial = valor_oficial,
+    sistema = valor_sistema,
+    
+    # Calcular diferença
+    diferenca = oficial - sistema,
+    
+    # Calcular diferença percentual
+    dif_pct = case_when(
+      is.na(oficial) | is.na(sistema) ~ NA_real_,
+      oficial == 0 & sistema == 0 ~ 0,
+      oficial == 0 ~ NA_real_,
+      TRUE ~ (diferenca / abs(oficial)) * 100
+    ),
+    
+    # Status
+    status = map2_chr(oficial, sistema, comparar_valores)
+  ) %>%
+  select(item, descricao, fonte, celula, oficial, sistema, diferenca, dif_pct, status)
 
-cat(strrep("=", 70), "\n")
-
-# Exportar objetos para uso posterior
-validacao_rreo <- if (exists("comparacao_rreo")) comparacao_rreo else NULL
-validacao_rgf <- if (exists("comparacao_rgf")) comparacao_rgf else NULL
+cat("✅ Comparação RGF concluída\n")
 ```
 
-## 📋 Objetos Exportados
+---
 
-| Objeto | Descrição |
-|--------|-----------|
-| `mapa_rreo_a14` | Mapeamento de células do RREO Anexo 14 |
-| `mapa_rgf_a06` | Mapeamento de células do RGF Anexo 06 |
-| `sistema_rreo` | Valores calculados pelo sistema (RREO) |
-| `sistema_rgf` | Valores calculados pelo sistema (RGF) |
-| `comparacao_rreo` | Resultado da validação RREO |
-| `comparacao_rgf` | Resultado da validação RGF |
-| `validacao_rreo` | Alias para comparacao_rreo |
-| `validacao_rgf` | Alias para comparacao_rgf |
+### Chunk 5: Exibir Tabela de Validação
+
+```{r tabela-validacao-rgf}
+#| echo: false
+#| column: page
+
+# ==============================================================================
+# TABELA DE VALIDAÇÃO - RGF
+# ==============================================================================
+
+# Formatar para exibição
+tabela_rgf <- comparacao_rgf %>%
+  mutate(
+    oficial = round(oficial, 0),
+    sistema = round(sistema, 0),
+    diferenca = round(diferenca, 0),
+    dif_pct = sprintf("%.1f%%", dif_pct)
+  )
+
+# Exibir com DT
+datatable(
+  tabela_rgf,
+  caption = "Validação RGF - Sistema vs Oficial",
+  filter = "top",
+  options = list(
+    pageLength = 15,
+    scrollX = TRUE,
+    dom = "Bfrtip",
+    buttons = c("copy", "csv", "excel")
+  ),
+  rownames = FALSE
+) %>%
+  formatStyle(
+    "status",
+    backgroundColor = styleEqual(
+      c("✅ OK", "⚠️ Verificar", "❌ DIVERGENTE", "Sem sistema"),
+      c("#d4edda", "#fff3cd", "#f8d7da", "#e9ecef")
+    )
+  ) %>%
+  formatCurrency(
+    columns = c("oficial", "sistema", "diferenca"),
+    currency = "",
+    mark = ".",
+    dec.mark = ",",
+    digits = 0
+  )
+```
+
+---
+
+### Chunk 6: Resumo da Validação
+
+```{r resumo-validacao-rgf}
+#| echo: false
+
+# ==============================================================================
+# RESUMO DA VALIDAÇÃO - RGF
+# ==============================================================================
+
+resumo_rgf <- comparacao_rgf %>%
+  count(status) %>%
+  arrange(desc(n))
+
+cat("\n📊 RESUMO DA VALIDAÇÃO RGF\n")
+cat("=" %>% rep(40) %>% paste(collapse = ""), "\n")
+
+for (i in 1:nrow(resumo_rgf)) {
+  cat(sprintf("   %s: %d itens\n", resumo_rgf$status[i], resumo_rgf$n[i]))
+}
+
+cat("=" %>% rep(40) %>% paste(collapse = ""), "\n")
+cat(sprintf("   TOTAL: %d itens\n", nrow(comparacao_rgf)))
+```
+
+---
+
+## Notas
+
+1. **DTP (Despesa Total com Pessoal)**: Agora é extraído corretamente do dataframe `pessoal` filtrado por `categoria_pessoal`
+
+2. **Disponibilidades**: 
+   - `disponibilidade_antes_rp`: Disponibilidade antes da inscrição em RP (todos os meses)
+   - `disponibilidade_apos_rp`: Disponibilidade após a inscrição em RP (só dezembro)
+
+3. **RPNP do Exercício**: Só terá valor em dezembro
+
+4. **Limites removidos**: A tabela agora mostra apenas valores realizados, sem os limites calculados
+
+5. **Células do Excel**: Ajustar conforme layout do arquivo `comparativo.xlsx`
+
 
 ## 📌 Observações
 
-1. **Status da Validação**:
-   - ✅ **OK**: Sem diferença (< 0,5 milhar ou < 0,1%)
-   - ⚠️ **Verificar**: Diferença entre 0,1% e 1%
-   - ❌ **DIVERGENTE**: Diferença > 1%
-   - ⬜ **Sem oficial/sistema**: Valor não disponível
+1.  **Status da Validação**:
+    -   ✅ **OK**: Sem diferença (\< 0,5 milhar ou \< 0,1%)
+    -   ⚠️ **Verificar**: Diferença entre 0,1% e 1%
+    -   ❌ **DIVERGENTE**: Diferença \> 1%
+    -   ⬜ **Sem oficial/sistema**: Valor não disponível
+2.  **Arquivos Oficiais Necessários**:
+    -   `Anexo 14 - Simplificado.xlsm` (RREO)
+    -   `Anexo 6 Simplificado - 2025.xlsx` (RGF)
+3.  **Fontes de Dados Especiais**:
+    -   Resultado Primário/Nominal: `rp_claude.xlsm` (planilha do setor)
+    -   Valores em R\$ milhares para comparação com relatórios oficiais
 
-2. **Arquivos Oficiais Necessários**:
-   - `Anexo 14 - Simplificado.xlsm` (RREO)
-   - `Anexo 6 Simplificado - 2025.xlsx` (RGF)
+# 📊 Mapeamento de Atributos por Demonstrativo
 
-3. **Fontes de Dados Especiais**:
-   - Resultado Primário/Nominal: `rp_claude.xlsm` (planilha do setor)
-   - Valores em R$ milhares para comparação com relatórios oficiais
+Este capítulo apresenta uma análise automática de todos os atributos (colunas) utilizados nos critérios de classificação dos demonstrativos fiscais.
+
+## Extração Automática de Atributos
+
+```{r mapeamento-atributos-setup}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Ver código de extração de atributos"
+
+# ==============================================================================
+# MAPEAMENTO AUTOMÁTICO DE ATRIBUTOS UTILIZADOS NOS CRITÉRIOS
+# ==============================================================================
+
+# -----------------------------------------------------------------------------
+# Função para extrair atributos de uma string de critério
+# -----------------------------------------------------------------------------
+
+extrair_atributos_criterio <- function(criterio_texto) {
+  if (is.null(criterio_texto) || is.na(criterio_texto)) return(character(0))
+  
+
+  # Padrões para identificar nomes de colunas/atributos
+  # Captura palavras seguidas de operadores de comparação
+  padroes <- c(
+    # Atributos antes de operadores
+    "([a-z_][a-z0-9_]*)\\s*(?:%in%|%notin%|==|!=|>=|<=|>|<)",
+    # Atributos em funções como startsWith, endsWith
+    "startsWith\\s*\\(\\s*([a-z_][a-z0-9_]*)",
+    "endsWith\\s*\\(\\s*([a-z_][a-z0-9_]*)",
+    "str_detect\\s*\\(\\s*([a-z_][a-z0-9_]*)",
+    "grepl\\s*\\([^,]+,\\s*([a-z_][a-z0-9_]*)"
+  )
+  
+  atributos <- character(0)
+  
+  for (padrao in padroes) {
+    matches <- str_match_all(criterio_texto, regex(padrao, ignore_case = TRUE))[[1]]
+    if (nrow(matches) > 0) {
+      atributos <- c(atributos, matches[, 2])
+    }
+  }
+  
+  # Limpar e retornar únicos
+  atributos <- unique(atributos[!is.na(atributos)])
+  atributos <- atributos[nchar(atributos) > 2]  # Remover matches muito curtos
+  
+  # Remover palavras reservadas e valores
+  palavras_excluir <- c("TRUE", "FALSE", "NULL", "NA", "c", "in", "and", "or", "not")
+  atributos <- atributos[!toupper(atributos) %in% toupper(palavras_excluir)]
+  
+  return(atributos)
+}
+
+# -----------------------------------------------------------------------------
+# Função para processar uma lista de critérios
+# -----------------------------------------------------------------------------
+
+processar_lista_criterios <- function(criterios, demonstrativo, anexo, tipo = "criterio") {
+  
+  if (!exists(deparse(substitute(criterios))) || is.null(criterios)) {
+    return(tibble())
+  }
+  
+  map_dfr(names(criterios), function(nome_criterio) {
+    criterio_obj <- criterios[[nome_criterio]]
+    
+    # Extrair texto do critério
+    criterio_texto <- if (is.list(criterio_obj)) {
+      criterio_obj$criterio
+    } else {
+      as.character(criterio_obj)
+    }
+    
+    # Extrair atributos
+    atributos <- extrair_atributos_criterio(criterio_texto)
+    
+    if (length(atributos) > 0) {
+      tibble(
+        demonstrativo = demonstrativo,
+        anexo = anexo,
+        tipo = tipo,
+        criterio = nome_criterio,
+        atributo = atributos
+      )
+    } else {
+      tibble()
+    }
+  })
+}
+
+# -----------------------------------------------------------------------------
+# Função auxiliar para processar critério com verificação de existência
+# -----------------------------------------------------------------------------
+
+processar_se_existe <- function(nome_criterio, demonstrativo, anexo, tipo = "criterio") {
+  if (exists(nome_criterio)) {
+    processar_lista_criterios(get(nome_criterio), demonstrativo, anexo, tipo)
+  } else {
+    tibble()
+  }
+}
+```
+
+```{r mapeamento-atributos-coleta}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Ver coleta de todos os critérios"
+
+# ==============================================================================
+# COLETA DE ATRIBUTOS DE TODOS OS CRITÉRIOS DEFINIDOS
+# ==============================================================================
+
+cat("📊 Coletando atributos de todos os critérios...\n\n")
+
+atributos_coletados <- bind_rows(
+  
+  # =========================================================================
+  # RGF - RELATÓRIO DE GESTÃO FISCAL
+  # =========================================================================
+  
+  # RGF A01 - Despesa com Pessoal
+  processar_se_existe("criterios_rgf_A01_pessoal_rgf", "RGF", "A01 - Despesa com Pessoal"),
+  
+
+  # RGF A02 - Dívida Consolidada Líquida
+  processar_se_existe("criterios_rgf_A02_dcl_precatorios", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_A02_dcl_rp_exceto_170600", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_A02_dcl_rp_todas_ugs", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_A02_dcl_ug_170512", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_A02_dcl_creditos_bancarios", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_A02_dcl_entidade", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_A02_dcl_aplicacao_titulos_publicos", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_A02_dcl_balancete", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_A02_dcl_balancete_fat", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_A02_dcl_balancete_fundos_111215100", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_A02_dcl_balancete_fundos", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_A02_dcl_balancete_deducoes_depositos_a_vista", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_A02_dcl_passivo_atuarial", "RGF", "A02 - DCL"),
+  
+  # RGF A03 - Garantias e Contragarantias
+  processar_se_existe("criterios_rgf_A03_garantias", "RGF", "A03 - Garantias"),
+  
+  # RGF A04 - Operações de Crédito
+  processar_se_existe("criterios_rgf_A04_receitas", "RGF", "A04 - Op. Crédito"),
+  processar_se_existe("criterios_rgf_A04_extra_orcamentarias", "RGF", "A04 - Op. Crédito"),
+  processar_se_existe("criterios_rgf_A04_despesas", "RGF", "A04 - Op. Crédito"),
+  
+  # RGF A05 - Disponibilidade de Caixa
+  processar_se_existe("criterios_rgf_a05_disponibilidade", "RGF", "A05 - Disponibilidade"),
+  
+  # =========================================================================
+  # RREO - RELATÓRIO RESUMIDO DA EXECUÇÃO ORÇAMENTÁRIA
+  # =========================================================================
+  
+  # RREO A01 - Balanço Orçamentário
+  processar_se_existe("criterios_rreo_A01_receitas_bo", "RREO", "A01 - Balanço Orçamentário"),
+  processar_se_existe("criterios_rreo_A01_despesas_bo", "RREO", "A01 - Balanço Orçamentário"),
+  
+  # RREO A03 - Receita Corrente Líquida
+  processar_se_existe("criterios_rreo_A03_rcl_receitas_rcl", "RREO", "A03 - RCL"),
+  processar_se_existe("criterios_rreo_A03_rcl_despesas_rcl", "RREO", "A03 - RCL"),
+  processar_se_existe("criterios_rreo_A03_rcl_rp_cancelado_rcl", "RREO", "A03 - RCL"),
+  
+  # RREO A04 - Previdência
+  processar_se_existe("criterios_rreo_A04_rgps_receitas_rgps", "RREO", "A04 - RGPS"),
+  processar_se_existe("criterios_rreo_A04_rgps_despesas_rgps", "RREO", "A04 - RGPS"),
+  processar_se_existe("criterios_rreo_A04_rpps_receitas_civil_militar_rpps", "RREO", "A04 - RPPS"),
+  processar_se_existe("criterios_rreo_A04_rpps_despesas_civil_militar_rpps", "RREO", "A04 - RPPS"),
+  processar_se_existe("criterios_rreo_A04_rpps_receitas_fcdf", "RREO", "A04 - FCDF"),
+  processar_se_existe("criterios_rreo_A04_rpps_despesas_fcdf", "RREO", "A04 - FCDF"),
+  
+  # RREO A06 - Resultado Primário e Nominal
+  processar_se_existe("criterios_rreo_A06_receitas_A06", "RREO", "A06 - Result. Primário"),
+  processar_se_existe("criterios_rreo_A06_despesas_categoria_grupo_A06", "RREO", "A06 - Result. Primário"),
+  processar_se_existe("criterios_rreo_A06_despesas_natureza_detalhada_A06", "RREO", "A06 - Result. Primário"),
+  processar_se_existe("criterios_rreo_A06_disponibilidades_A06", "RREO", "A06 - Result. Primário"),
+  processar_se_existe("criterios_rreo_A06_juros_ativos_passivos_A06", "RREO", "A06 - Result. Primário"),
+  processar_se_existe("criterios_rreo_A06_subsidios_cesef", "RREO", "A06 - Result. Primário"),
+  processar_se_existe("criterios_rreo_A06_emprestimos", "RREO", "A06 - Result. Primário"),
+  processar_se_existe("criterios_rreo_A06_ajuste", "RREO", "A06 - Result. Primário"),
+  
+  # RREO A08 - MDE (Educação)
+  processar_se_existe("criterios_rreo_A08_mde_despesas", "RREO", "A08 - MDE"),
+  
+  # RREO T01 - Receitas e Despesas Seguridade
+  processar_se_existe("criterios_rreo_T01_receitas", "RREO", "T01 - Seguridade"),
+  processar_se_existe("criterios_rreo_T01_despesas_T01", "RREO", "T01 - Seguridade"),
+  processar_se_existe("criterios_rreo_T01B_seguridade_T01B", "RREO", "T01B - Seguridade Área"),
+  
+  # RREO T02 - Despesas com Pessoal
+  processar_se_existe("criterios_rreo_T02_despesas_T02", "RREO", "T02 - Pessoal")
+)
+
+cat(sprintf("✅ Total de registros coletados: %d\n", nrow(atributos_coletados)))
+cat(sprintf("✅ Atributos únicos identificados: %d\n", n_distinct(atributos_coletados$atributo)))
+```
+
+## 📋 Resumo por Demonstrativo e Anexo
+
+```{r tabela-resumo-demonstrativo}
+#| echo: false
+#| column: page
+
+# ==============================================================================
+# TABELA RESUMO: ATRIBUTOS POR DEMONSTRATIVO/ANEXO
+# ==============================================================================
+
+if (nrow(atributos_coletados) > 0) {
+  
+  resumo_por_anexo <- atributos_coletados %>%
+    group_by(demonstrativo, anexo, atributo) %>%
+    summarise(
+      qtd_usos = n(),
+      criterios = paste(unique(criterio), collapse = " | "),
+      .groups = "drop"
+    ) %>%
+    arrange(demonstrativo, anexo, desc(qtd_usos), atributo)
+  
+  datatable(
+    resumo_por_anexo,
+    caption = "Atributos Utilizados por Demonstrativo/Anexo",
+    filter = "top",
+    extensions = c("Buttons", "Scroller"),
+    options = list(
+      dom = "Bfrtip",
+      buttons = c("copy", "csv", "excel"),
+      scrollX = TRUE,
+      scrollY = 400,
+      scroller = TRUE,
+      pageLength = 50,
+      columnDefs = list(
+        list(width = "80px", targets = 0),
+        list(width = "150px", targets = 1),
+        list(width = "200px", targets = 2),
+        list(width = "60px", targets = 3),
+        list(width = "400px", targets = 4)
+      )
+    ),
+    colnames = c("Demonstrativo", "Anexo", "Atributo", "Qtd Usos", "Critérios"),
+    rownames = FALSE
+  )
+  
+} else {
+  cat("⚠️ Nenhum atributo coletado. Verifique se os critérios estão definidos.\n")
+}
+```
+
+## 📊 Atributos Mais Utilizados (Geral)
+
+```{r tabela-atributos-mais-usados}
+#| echo: false
+
+# ==============================================================================
+# TABELA: ATRIBUTOS MAIS UTILIZADOS (RANKING GERAL)
+# ==============================================================================
+
+if (nrow(atributos_coletados) > 0) {
+  
+  ranking_atributos <- atributos_coletados %>%
+    group_by(atributo) %>%
+    summarise(
+      qtd_total_usos = n(),
+      qtd_anexos = n_distinct(anexo),
+      demonstrativos = paste(unique(demonstrativo), collapse = ", "),
+      anexos = paste(unique(anexo), collapse = " | "),
+      .groups = "drop"
+    ) %>%
+    arrange(desc(qtd_total_usos), desc(qtd_anexos))
+  
+  datatable(
+    ranking_atributos,
+    caption = "Ranking de Atributos Mais Utilizados",
+    filter = "top",
+    extensions = "Buttons",
+    options = list(
+      dom = "Bfrtip",
+      buttons = c("copy", "csv", "excel"),
+      scrollX = TRUE,
+      pageLength = 30
+    ),
+    colnames = c("Atributo", "Total Usos", "Qtd Anexos", "Demonstrativos", "Anexos"),
+    rownames = FALSE
+  )
+  
+} else {
+  cat("⚠️ Nenhum atributo coletado.\n")
+}
+```
+
+## 📈 Estatísticas por Demonstrativo
+
+```{r estatisticas-demonstrativo}
+#| echo: false
+
+# ==============================================================================
+# ESTATÍSTICAS AGREGADAS POR DEMONSTRATIVO
+# ==============================================================================
+
+if (nrow(atributos_coletados) > 0) {
+  
+  stats_demonstrativo <- atributos_coletados %>%
+    group_by(demonstrativo) %>%
+    summarise(
+      qtd_anexos = n_distinct(anexo),
+      qtd_criterios = n_distinct(criterio),
+      qtd_atributos_unicos = n_distinct(atributo),
+      total_usos_atributos = n(),
+      .groups = "drop"
+    )
+  
+  knitr::kable(
+    stats_demonstrativo,
+    col.names = c("Demonstrativo", "Anexos", "Critérios", "Atributos Únicos", "Total Usos"),
+    caption = "Estatísticas por Demonstrativo"
+  )
+  
+}
+```
+
+## 🔍 Matriz de Atributos x Anexos
+
+```{r matriz-atributos-anexos}
+#| echo: false
+#| column: screen
+
+# ==============================================================================
+# MATRIZ: QUAIS ATRIBUTOS SÃO USADOS EM QUAIS ANEXOS
+# ==============================================================================
+
+if (nrow(atributos_coletados) > 0) {
+  
+  # Criar matriz pivotada
+  matriz_atributos <- atributos_coletados %>%
+    distinct(anexo, atributo) %>%
+    mutate(presente = "✓") %>%
+    pivot_wider(
+      names_from = anexo,
+      values_from = presente,
+      values_fill = ""
+    ) %>%
+    arrange(atributo)
+  
+  # Adicionar contagem de anexos
+  matriz_atributos <- matriz_atributos %>%
+    rowwise() %>%
+    mutate(
+      total_anexos = sum(c_across(-atributo) == "✓")
+    ) %>%
+    ungroup() %>%
+    arrange(desc(total_anexos), atributo) %>%
+    select(atributo, total_anexos, everything())
+  
+  datatable(
+    matriz_atributos,
+    caption = "Matriz de Atributos x Anexos (✓ = atributo utilizado)",
+    filter = "top",
+    extensions = "Buttons",
+    options = list(
+      dom = "Bfrtip",
+      buttons = c("copy", "csv", "excel"),
+      scrollX = TRUE,
+      scrollY = 500,
+      pageLength = 50,
+      fixedColumns = list(leftColumns = 2)
+    ),
+    rownames = FALSE
+  )
+  
+}
+```
+
+## 📝 Lista Completa de Critérios
+
+```{r lista-criterios}
+#| echo: false
+
+# ==============================================================================
+# LISTA COMPLETA DE CRITÉRIOS POR ANEXO
+# ==============================================================================
+
+if (nrow(atributos_coletados) > 0) {
+  
+  lista_criterios <- atributos_coletados %>%
+    group_by(demonstrativo, anexo, criterio) %>%
+    summarise(
+      atributos = paste(unique(atributo), collapse = ", "),
+      qtd_atributos = n_distinct(atributo),
+      .groups = "drop"
+    ) %>%
+    arrange(demonstrativo, anexo, criterio)
+  
+  datatable(
+    lista_criterios,
+    caption = "Lista Completa de Critérios e seus Atributos",
+    filter = "top",
+    extensions = "Buttons",
+    options = list(
+      dom = "Bfrtip",
+      buttons = c("copy", "csv", "excel"),
+      scrollX = TRUE,
+      pageLength = 25
+    ),
+    colnames = c("Demonstrativo", "Anexo", "Critério", "Atributos Utilizados", "Qtd"),
+    rownames = FALSE
+  )
+  
+}
+```
+
+## 💾 Exportar Dados
+
+```{r exportar-mapeamento}
+#| echo: true
+
+# ==============================================================================
+# EXPORTAR MAPEAMENTO PARA ANÁLISE EXTERNA
+# ==============================================================================
+
+if (nrow(atributos_coletados) > 0) {
+  
+  # Salvar objetos para uso posterior
+  mapeamento_atributos <- list(
+    dados_completos = atributos_coletados,
+    resumo_por_anexo = resumo_por_anexo,
+    ranking_atributos = ranking_atributos,
+    matriz_atributos = matriz_atributos,
+    lista_criterios = lista_criterios,
+    data_geracao = Sys.time()
+  )
+  
+  cat("✅ Objetos de mapeamento disponíveis:\n")
+  cat("   - mapeamento_atributos$dados_completos\n")
+  cat("   - mapeamento_atributos$resumo_por_anexo\n")
+  cat("   - mapeamento_atributos$ranking_atributos\n")
+  cat("   - mapeamento_atributos$matriz_atributos\n")
+  cat("   - mapeamento_atributos$lista_criterios\n")
+  
+}
+```
+
+## 📖 Notas Metodológicas
+
+::: callout-note
+### Como funciona a extração
+
+1.  **Identificação de padrões**: O código busca padrões como `atributo %in% c(...)`, `atributo == valor`, `startsWith(atributo, ...)`, etc.
+
+2.  **Limpeza**: Remove palavras reservadas (TRUE, FALSE, NA) e matches muito curtos.
+
+3.  **Agregação**: Agrupa por demonstrativo/anexo e conta ocorrências.
+:::
+
+::: callout-warning
+### Limitações
+
+-   Atributos usados em filtros fora das listas de critérios (ex: filtros diretos em `filter()`) não são capturados automaticamente.
+-   Nomes de colunas muito curtos (≤2 caracteres) são ignorados para evitar falsos positivos.
+:::
