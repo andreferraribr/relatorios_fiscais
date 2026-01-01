@@ -4607,7 +4607,7 @@ knitr::kable(vinculos, col.names = c("Anexo Relacionado", "Tipo de Vínculo", "D
 estrutura <- tibble::tribble(
   ~Código,                        ~Linha,                              ~Fontes,
   "0_nao_vinculados",             "Recursos Não Vinculados",           "000",
-  "1_educacao",                   "Educação",                          "008, 012, 130, 133, 134",
+  "1_educacao",                   "Educação",                          "008, 012, 130, 133, 134, 142, 143, 151",
   "2_seguridade_exceto_previdencia", "Seguridade (exceto Previdência)", "001, 002, 004, 005, 006, 010, 017, 023, 024, 035, 040, ...",
   "3_rpps",                       "RPPS",                              "055, 056, 125",
   "4_rgps",                       "RGPS",                              "054",
@@ -4692,7 +4692,7 @@ if (!"linhas" %in% names(rgf_a05)) {
         fonte_recursos_codigo %in% c("000") ~ "0_nao_vinculados",
         
         # Educação
-        fonte_recursos_codigo %in% c("008", "012", "130", "133", "134") ~ "1_educacao",
+        fonte_recursos_codigo %in% c("008", "012", "130", "133", "134", "142", "143", "151") ~ "1_educacao",
         
         # Seguridade Social (exceto Previdência)
         fonte_recursos_codigo %in% c(
@@ -4733,8 +4733,8 @@ if (!"linhas" %in% names(rgf_a05)) {
           "101", "102", "103", "104", "105", "106", "107", "108", "109", "110",
           "111", "112", "113", "114", "115", "116", "118", "119", "120", "121",
           "124", "127", "128", "129", "131", "132", "135", "136", "137", "138", 
-          "139", "140", "141", "144", "145", "177", "178", "180", "181", "182", 
-          "183", "449"
+          "139", "140", "141", "144", "145", "147", "149", "152", "153", "177",
+          "178", "180", "181", "182", "183", "449"
         ) ~ "7_fundos_orgaos_programa",
         (fonte_recursos_codigo %in% c("034", "121") & 
            tg_orgao_fonte %notin% c("000278_133", "000278_152")) ~ "7_fundos_orgaos_programa",
@@ -5362,6 +5362,30 @@ datatable(
     digits = 2
   )
 ```
+
+
+```{r}
+# Total de Disponibilidade ANTES - Executivo
+valor_disponibilidade_executivo <- rgf_a05_executivo_formatada %>%
+  filter(mes_lancamento == "Total") %>%
+  pull(disponibilidade_antes_inscr_rp_clean)
+
+# Total de Disponibilidade APÓS - Executivo (só dezembro)
+valor_disponibilidade_executivo_apos_rp <- rgf_a05_executivo_formatada %>%
+  filter(mes_lancamento == "Total") %>%
+  pull(disponibilidade_apos_inscr_rp_clean)
+
+# Total de Disponibilidade ANTES - União
+valor_disponibilidade_uniao <- rgf_a05_uniao_formatada %>%
+  filter(mes_lancamento == "Total") %>%
+  pull(disponibilidade_antes_inscr_rp_clean)
+
+# Total de Disponibilidade APÓS - União (só dezembro)
+valor_disponibilidade_uniao_apos_rp <- rgf_a05_uniao_formatada %>%
+  filter(mes_lancamento == "Total") %>%
+  pull(disponibilidade_apos_inscr_rp_clean)
+```
+
 
 ## Notas Metodológicas
 
@@ -9613,6 +9637,486 @@ valor_discrepancia <- discrepancia
 valor_outros_ajustes <- outros_ajustes
 ```
 
+
+## RREO Anexo 6 - Resultado Primário e Nominal - Abaixo da Linha
+
+### Metodologia Oficial
+
+O cálculo "abaixo da linha" é baseado na variação da Dívida Consolidada Líquida (DCL) entre dezembro do exercício anterior e o mês atual, com ajustes específicos.
+
+---
+
+### Chunk 1: Configuração dos Valores de Fechamento do Exercício Anterior
+
+```{r config-fechamento-exercicio}
+#| echo: true
+
+# ==============================================================================
+# VALORES DE FECHAMENTO DO EXERCÍCIO ANTERIOR (DEZ/2024)
+# ==============================================================================
+# Fonte: Planilha "Anexo 06 - Resultados Primário.xlsx"
+# Aba: "Anexo 6 RP e RN Novo (INTERNET)"
+# 
+# OPÇÃO 1: Informar valores manualmente (mais seguro para produção)
+# OPÇÃO 2: Ler da planilha automaticamente
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# OPÇÃO 1: VALORES MANUAIS (DEZ/2024 - valores em R$ mil)
+# ------------------------------------------------------------------------------
+# Descomente e ajuste conforme necessário
+
+valores_dez_2024 <- list(
+  # DCL e componentes
+  divida_consolidada       = 9967635161,   # Linha 74 - DÍVIDA CONSOLIDADA (X)
+  deducoes                 = 2790356030,   # Linha 75 - DEDUÇÕES (XI)
+  disponibilidade_caixa    = 1497520168,   # Linha 76 - Disponibilidade de Caixa
+  disp_caixa_bruta         = 1627514230,   # Linha 77 - Disponibilidade Caixa Bruta
+  rp_processados           = 129994061,    # Linha 78 - (-) Restos a Pagar Processados
+  demais_haveres           = 1292835861,   # Linha 79 - Demais Haveres Financeiros
+  dcl                      = 7177279131,   # Linha 80 - DCL = X - XI
+  
+  # Juros
+  juros_ativos             = 326660712,    # Linha 57 - JUROS E ENCARGOS ATIVOS
+  juros_passivos           = 1146101005    # Linha 58 - JUROS E ENCARGOS PASSIVOS
+)
+
+cat("✅ Valores de Dez/2024 configurados manualmente\n")
+cat(sprintf("   DCL Dez/2024: R$ %s mil\n", format(valores_dez_2024$dcl, big.mark = ".", decimal.mark = ",")))
+```
+
+---
+
+### Chunk 2: Leitura Automática da Planilha (Opcional)
+
+```{r ler-valores-planilha-abaixo-linha}
+#| echo: true
+#| eval: false
+
+# ==============================================================================
+# OPÇÃO 2: LER VALORES DA PLANILHA AUTOMATICAMENTE
+# ==============================================================================
+
+# Buscar arquivo "Anexo 06 - Resultados Primário"
+arquivo_anexo06 <- list.files(
+  path = mes_pasta,
+  pattern = "Anexo.*06.*Resultado.*Prim",
+  full.names = TRUE,
+  ignore.case = TRUE
+)
+
+if (length(arquivo_anexo06) > 0) {
+  
+  cat("📁 Arquivo encontrado:", basename(arquivo_anexo06[1]), "\n")
+  
+  # Ler aba específica
+  aba_rp_rn <- "Anexo 6 RP e RN Novo (INTERNET)"
+  
+  # Função para ler célula específica
+  ler_celula_anexo06 <- function(linha, coluna = 3) {
+    tryCatch({
+      # Ler região específica
+      dados <- read_excel(
+        arquivo_anexo06[1],
+        sheet = aba_rp_rn,
+        range = cellranger::cell_limits(c(linha, coluna), c(linha, coluna)),
+        col_names = FALSE
+      )
+      as.numeric(dados[[1]])
+    }, error = function(e) NA_real_)
+  }
+  
+  # Ler valores de Dez/2024 (coluna C = 3)
+  valores_dez_2024 <- list(
+    divida_consolidada    = ler_celula_anexo06(74, 3),
+    deducoes              = ler_celula_anexo06(75, 3),
+    disponibilidade_caixa = ler_celula_anexo06(76, 3),
+    disp_caixa_bruta      = ler_celula_anexo06(77, 3),
+    rp_processados        = ler_celula_anexo06(78, 3),
+    demais_haveres        = ler_celula_anexo06(79, 3),
+    dcl                   = ler_celula_anexo06(80, 3),
+    juros_ativos          = ler_celula_anexo06(57, 3),
+    juros_passivos        = ler_celula_anexo06(58, 3)
+  )
+  
+  cat("✅ Valores de Dez/2024 lidos da planilha\n")
+  
+} else {
+  cat("⚠️ Planilha Anexo 06 não encontrada. Usando valores manuais.\n")
+}
+```
+
+---
+
+### Chunk 3: Coletar Valores do Mês Atual (do Sistema)
+
+```{r valores-mes-atual-abaixo-linha}
+#| echo: true
+
+# ==============================================================================
+# VALORES DO MÊS ATUAL - COLETADOS DO SISTEMA
+# ==============================================================================
+
+# DCL do mês atual (calculada no RGF A02)
+dcl_mes_atual <- if (exists("valor_dcl_num")) {
+  valor_dcl_num
+} else if (exists("valor_dcl_rgf")) {
+  valor_dcl_rgf
+} else {
+  warning("DCL do mês atual não encontrada")
+  NA_real_
+}
+
+# RP Processados do mês atual (do RGF A05 ou balancete)
+rp_processados_atual <- if (exists("rgf_a05_executivo_formatada")) {
+  rgf_a05_executivo_formatada %>%
+    filter(linhas == "Total") %>%
+    pull(rp_liquidados_nao_pagos_exercicios_anteriores) %>%
+    sum(na.rm = TRUE) +
+  rgf_a05_executivo_formatada %>%
+    filter(linhas == "Total") %>%
+    pull(rp_liquidados_nao_pagos_exercicio) %>%
+    sum(na.rm = TRUE)
+} else {
+  NA_real_
+}
+
+# Juros do mês atual (calculados no chunk anterior - acima da linha)
+juros_ativos_atual <- if (exists("juros_ativos")) {
+  juros_ativos
+} else {
+  NA_real_
+}
+
+juros_passivos_atual <- if (exists("juros_passivos")) {
+  juros_passivos
+} else {
+  NA_real_
+}
+
+cat("📊 Valores do mês atual (sistema):\n")
+cat(sprintf("   DCL: R$ %s\n", formatar_numero(dcl_mes_atual)))
+cat(sprintf("   RP Processados: R$ %s\n", formatar_numero(rp_processados_atual)))
+cat(sprintf("   Juros Ativos: R$ %s\n", formatar_numero(juros_ativos_atual)))
+cat(sprintf("   Juros Passivos: R$ %s\n", formatar_numero(juros_passivos_atual)))
+```
+
+---
+
+### Chunk 4: Calcular Resultado Abaixo da Linha
+
+```{r calcular-resultado-abaixo-linha}
+#| echo: true
+
+# ==============================================================================
+# CÁLCULO DO RESULTADO PRIMÁRIO E NOMINAL - ABAIXO DA LINHA
+# ==============================================================================
+# Metodologia STN/CESEF
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. RESULTADO NOMINAL - Abaixo da Linha (XIV) = DCL(Dez) - DCL(Atual)
+# ------------------------------------------------------------------------------
+resultado_nominal_abaixo_bruto <- valores_dez_2024$dcl*1000 - dcl_mes_atual
+
+# ------------------------------------------------------------------------------
+# 2. VARIAÇÃO SALDO RPP (XV) = RP_Processados(Atual) - RP_Processados(Dez)
+# ------------------------------------------------------------------------------
+variacao_saldo_rpp <- - (valores_linhas %>% filter(ordem == 25) %>% pull(valor )) - valores_dez_2024$rp_processados*1000
+
+# ------------------------------------------------------------------------------
+# 3. RECEITA DE ALIENAÇÃO DE INVESTIMENTOS PERMANENTES (XIX)
+# ------------------------------------------------------------------------------
+# Normalmente zero ou valor específico - pode ser informado manualmente
+receita_alienacao_inv_perm <- 0
+
+# ------------------------------------------------------------------------------
+# 4. PASSIVOS RECONHECIDOS NA DC (XX)
+# ------------------------------------------------------------------------------
+# Extrair do rreo_a06_final se disponível
+passivos_reconhecidos_dc <- (valores_linhas %>% filter(ordem == 10) %>% pull(valor ) - rreo_a06_final %>% filter(ordem %in% c ( 66)) %>% pull (valor) + rreo_a06_final %>% filter(ordem %in% c (55)) %>% pull (valor))
+
+# ------------------------------------------------------------------------------
+# 5. OUTROS AJUSTES (XVIII) - Calculados dos itens 89-120
+# ------------------------------------------------------------------------------
+
+# 5.1 Variações Patrimoniais Diminutivas (+)
+# Itens: 51, 53, 93, 94, 58, 59
+vpd_cambiais_contratual <- obter_valor(51)  # Var Cambiais Dívida Contratual
+vpd_cambiais_mobiliaria <- obter_valor(53)  # Var Cambiais Dívida Mobiliária
+vpd_ajuste_perdas <- obter_valor(77)        # Constituição Ajuste para Perdas
+vpd_subvencoes <- obter_valor(57) + obter_valor(60)  # Provisão/Reversão Subvenções COPEC
+vpd_outras_cambiais <- obter_valor(58)      # Outras Variações Cambiais
+vpd_desincorp_ativos <- obter_valor(59)     # Desincorporação de Ativos
+
+total_vpd_ajuste <- vpd_cambiais_contratual + vpd_cambiais_mobiliaria + 
+                    vpd_ajuste_perdas + vpd_subvencoes + 
+                    vpd_outras_cambiais + vpd_desincorp_ativos
+
+# 5.2 Variações Patrimoniais Aumentativas (-)
+# Itens: 65, 68, 71, 70
+vpa_outras_cambiais <- obter_valor(65)      # Outras Variações Cambiais
+vpa_outras_vpa <- obter_valor(68)           # Outras VPA
+vpa_outros_ganhos <- obter_valor(71)        # Outros Ganhos Incorporação Ativos
+vpa_reversao_provisoes <- obter_valor(70)   # Reversão de Provisões
+
+total_vpa_ajuste <- vpa_outras_cambiais + vpa_outras_vpa + 
+                    vpa_outros_ganhos + vpa_reversao_provisoes
+
+# 5.3 Demais Ajustes
+# Ajustes nos itens da DCL
+variacao_precatorios <- 0  # Seria calculado da variação entre períodos
+variacao_arrecadacao_recolher <- 0
+variacao_aplic_fundos <- 0
+juros_fundos_liquidos <- obter_valor(43) - obter_valor(44)  # Fundos: Ativos - Passivos
+divida_fies <- obter_valor(75)
+
+# Outros
+variacao_fontes_classificar <- obter_valor(39)  # Recursos a Classificar
+despesas_fin_impacto_primario <- 0  # Despesas Financeiras com Impacto Primário
+demais_desp_primarias_extra <- 0
+ajustes_exerc_anteriores <- obter_valor(76)
+
+ajustes_dcl <- variacao_precatorios - variacao_arrecadacao_recolher - 
+               variacao_aplic_fundos + juros_fundos_liquidos + divida_fies
+
+outros_ajustes <- -variacao_fontes_classificar - despesas_fin_impacto_primario - 
+                  demais_desp_primarias_extra - ajustes_exerc_anteriores
+
+demais_ajustes <- ajustes_dcl + outros_ajustes
+
+# Total Outros Ajustes (XVIII)
+outros_ajustes_total <- total_vpd_ajuste - total_vpa_ajuste + demais_ajustes
+
+# ------------------------------------------------------------------------------
+# 6. RESULTADO NOMINAL AJUSTADO - Abaixo da Linha (XIX)
+# ------------------------------------------------------------------------------
+# XIX = XIV + XV - Alienação + Passivos DC + Outros Ajustes
+resultado_nominal_ajustado <- resultado_nominal_abaixo_bruto + 
+                              variacao_saldo_rpp - 
+                              receita_alienacao_inv_perm + 
+                              passivos_reconhecidos_dc + 
+                              outros_ajustes_total
+
+# ------------------------------------------------------------------------------
+# 7. RESULTADO PRIMÁRIO - Abaixo da Linha (XXIII)
+# ------------------------------------------------------------------------------
+# XXIII = XIX - (Juros Ativos - Juros Passivos)
+juros_liquidos_atual <- juros_ativos_atual - juros_passivos_atual
+
+resultado_primario_abaixo_final <- resultado_nominal_ajustado - juros_liquidos_atual
+
+# ------------------------------------------------------------------------------
+# 8. DISCREPÂNCIA com Acima da Linha
+# ------------------------------------------------------------------------------
+discrepancia_rp <- if (exists("resultado_primario_final")) {
+  resultado_primario_final - resultado_primario_abaixo_final
+} else {
+  NA_real_
+}
+
+discrepancia_rn <- if (exists("resultado_nominal_final")) {
+  resultado_nominal_final - resultado_nominal_ajustado
+} else {
+  NA_real_
+}
+
+# RP atual
+valores_linhas %>% filter(ordem == 25) %>% pull(valor )
+
+# passivos reconhecidos
+valores_linhas %>% filter(ordem == 10) %>% pull(valor ) - rreo_a06_final %>% filter(ordem %in% c ( 66)) %>% pull (valor) + rreo_a06_final %>% filter(ordem %in% c (55)) %>% pull (valor)
+
+
+#vpd
+# 54 está zerado
+rreo_a06_final %>% filter(ordem == 51) %>% pull(valor ) + rreo_a06_final %>% filter(ordem %in% c ( 53)) %>% pull (valor)  + rreo_a06_final %>% filter(ordem == 77) %>% pull(valor ) + rreo_a06_final %>% filter(ordem %in% c ( 60)) %>% pull (valor) + rreo_a06_final %>% filter(ordem %in% c (58)) %>% pull (valor) + rreo_a06_final %>% filter(ordem %in% c (59)) %>% pull (valor) 
+
+#VPA
+# 67 está zerado
+rreo_a06_final %>% filter(ordem == 65) %>% pull(valor ) + rreo_a06_final %>% filter(ordem %in% c ( 70)) %>% pull (valor)  + rreo_a06_final %>% filter(ordem == 71) %>% pull(valor ) + rreo_a06_final %>% filter(ordem %in% c ( 68)) %>% pull (valor) 
+
+
+# Aplicações de Fundos Diversos Junto ao Setor Privado
+# dez/24 40841099,2214191
+valores_linhas %>% filter(ordem == 14) %>% pull(valor ) + valores_linhas %>% filter(ordem == 15) %>% pull(valor ) + valores_linhas %>% filter(ordem == 16) %>% pull(valor ) - valores_linhas %>% filter(ordem == 13) %>% pull(valor )
+
+rreo_a06_final %>% filter(ordem == 73) %>% pull(valor )
+
+#precatorios
+#  dez/2024
+valores_linhas %>% filter(ordem == "08") %>% pull(valor ) + valores_linhas %>% filter(ordem == 38) %>% pull(valor )
+
+
+
+```
+
+---
+
+### Chunk 5: Exibir Resultados
+
+```{r exibir-resultado-abaixo-linha}
+#| echo: false
+
+# ==============================================================================
+# EXIBIR RESULTADOS - ABAIXO DA LINHA
+# ==============================================================================
+
+cat("\n")
+cat("=" %>% strrep(80), "\n")
+cat("📊 RESULTADO PRIMÁRIO E NOMINAL - ABAIXO DA LINHA\n")
+cat("=" %>% strrep(80), "\n\n")
+
+cat("▶ VARIAÇÃO DA DÍVIDA CONSOLIDADA LÍQUIDA:\n")
+cat(sprintf("   DCL Dez/2024:               R$ %s\n", formatar_numero(valores_dez_2024$dcl)))
+cat(sprintf("   DCL Mês Atual:              R$ %s\n", formatar_numero(dcl_mes_atual)))
+cat(sprintf("   Variação (XIV):             R$ %s\n\n", formatar_numero(resultado_nominal_abaixo_bruto)))
+
+cat("▶ AJUSTES:\n")
+cat(sprintf("   Variação Saldo RPP (XV):    R$ %s\n", formatar_numero(variacao_saldo_rpp)))
+cat(sprintf("   (-) Alienação Inv Perm:     R$ %s\n", formatar_numero(receita_alienacao_inv_perm)))
+cat(sprintf("   (+) Passivos Reconh DC:     R$ %s\n", formatar_numero(passivos_reconhecidos_dc)))
+cat(sprintf("   Outros Ajustes (XVIII):     R$ %s\n\n", formatar_numero(outros_ajustes_total)))
+
+cat("-" %>% strrep(80), "\n")
+cat(sprintf("📌 RESULTADO NOMINAL AJUSTADO (XIX):    R$ %s\n", formatar_numero(resultado_nominal_ajustado)))
+cat("-" %>% strrep(80), "\n\n")
+
+cat("▶ JUROS NOMINAIS:\n")
+cat(sprintf("   Juros Ativos:               R$ %s\n", formatar_numero(juros_ativos_atual)))
+cat(sprintf("   Juros Passivos:             R$ %s\n", formatar_numero(juros_passivos_atual)))
+cat(sprintf("   Juros Líquidos:             R$ %s\n\n", formatar_numero(juros_liquidos_atual)))
+
+cat("=" %>% strrep(80), "\n")
+cat(sprintf("📌 RESULTADO PRIMÁRIO - ABAIXO DA LINHA (XXIII): R$ %s\n", 
+            formatar_numero(resultado_primario_abaixo_final)))
+cat("=" %>% strrep(80), "\n\n")
+
+if (!is.na(discrepancia_rp)) {
+  cat("▶ CONCILIAÇÃO ACIMA x ABAIXO DA LINHA:\n")
+  cat(sprintf("   RP Acima da Linha:          R$ %s\n", formatar_numero(resultado_primario_final)))
+  cat(sprintf("   RP Abaixo da Linha:         R$ %s\n", formatar_numero(resultado_primario_abaixo_final)))
+  cat(sprintf("   DISCREPÂNCIA:               R$ %s\n", formatar_numero(discrepancia_rp)))
+}
+```
+
+---
+
+### Chunk 6: Tabela Detalhada
+
+```{r tabela-abaixo-linha}
+#| echo: false
+#| column: page
+
+# ==============================================================================
+# TABELA DETALHADA - ABAIXO DA LINHA
+# ==============================================================================
+
+tabela_abaixo_linha <- tibble(
+  componente = c(
+    "CÁLCULO DO RESULTADO NOMINAL",
+    "DÍVIDA CONSOLIDADA (X)",
+    "  Dez/2024",
+    "  Mês Atual",
+    "DEDUÇÕES (XI)",
+    "  Dez/2024",
+    "  Mês Atual",
+    "DCL (XIII) = X - XI",
+    "  Dez/2024",
+    "  Mês Atual",
+    "",
+    "RESULTADO NOMINAL - Abaixo Linha Bruto (XIV) = XIIIa - XIIIb",
+    "",
+    "VARIAÇÃO SALDO RPP (XV) = XIIb - XIIa",
+    "RECEITA ALIENAÇÃO INV PERMANENTES (XIX)",
+    "PASSIVOS RECONHECIDOS NA DC (XX)",
+    "",
+    "OUTROS AJUSTES (XVIII)",
+    "  (+) Variações Patrimoniais Diminutivas",
+    "  (-) Variações Patrimoniais Aumentativas",
+    "  (+) Demais Ajustes",
+    "",
+    "RESULTADO NOMINAL AJUSTADO (XIX) = XIV + XV - XIX + XX + XVIII",
+    "",
+    "JUROS NOMINAIS",
+    "  Juros e Encargos Ativos (VII)",
+    "  Juros e Encargos Passivos (VIII)",
+    "  Juros Líquidos = VII - VIII",
+    "",
+    "RESULTADO PRIMÁRIO - Abaixo da Linha (XXIII) = XIX - Juros Líquidos",
+    "",
+    "CONCILIAÇÃO",
+    "  RP Acima da Linha",
+    "  RP Abaixo da Linha",
+    "  DISCREPÂNCIA ESTATÍSTICA"
+  ),
+  dez_2024 = c(
+    NA, NA, valores_dez_2024$divida_consolidada, NA,
+    NA, valores_dez_2024$deducoes, NA,
+    NA, valores_dez_2024$dcl, NA, NA,
+    NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA,
+    valores_dez_2024$juros_ativos, valores_dez_2024$juros_passivos, NA, NA, NA, NA, NA, NA, NA, NA
+  ),
+  mes_atual = c(
+    NA, NA, NA, dcl_mes_atual,
+    NA, NA, NA,  # Deduções mês atual seria necessário calcular
+    NA, NA, dcl_mes_atual, NA,
+    resultado_nominal_abaixo_bruto, NA,
+    variacao_saldo_rpp, receita_alienacao_inv_perm, passivos_reconhecidos_dc, NA,
+    outros_ajustes_total, total_vpd_ajuste, total_vpa_ajuste, demais_ajustes, NA,
+    resultado_nominal_ajustado, NA, NA,
+    juros_ativos_atual, juros_passivos_atual, juros_liquidos_atual, NA,
+    resultado_primario_abaixo_final, NA, NA,
+    if(exists("resultado_primario_final")) resultado_primario_final else NA,
+    resultado_primario_abaixo_final,
+    discrepancia_rp
+  )
+)
+
+datatable(
+  tabela_abaixo_linha %>%
+    mutate(
+      dez_2024 = ifelse(is.na(dez_2024), "", 
+                        format(round(dez_2024/1000, 0), big.mark = ".", decimal.mark = ",")),
+      mes_atual = ifelse(is.na(mes_atual), "", 
+                         format(round(mes_atual/1000, 0), big.mark = ".", decimal.mark = ","))
+    ),
+  caption = "RREO Anexo 6 - Resultado Primário e Nominal - Abaixo da Linha (R$ mil)",
+  colnames = c("Componente", "Dez/2024", "Mês Atual"),
+  options = list(pageLength = 40, dom = 't',
+                 columnDefs = list(list(className = 'dt-right', targets = c(1, 2)))),
+  rownames = FALSE
+) %>%
+  formatStyle('componente', fontWeight = styleEqual(
+    c("RESULTADO NOMINAL - Abaixo Linha Bruto (XIV) = XIIIa - XIIIb",
+      "RESULTADO NOMINAL AJUSTADO (XIX) = XIV + XV - XIX + XX + XVIII",
+      "RESULTADO PRIMÁRIO - Abaixo da Linha (XXIII) = XIX - Juros Líquidos",
+      "  DISCREPÂNCIA ESTATÍSTICA"),
+    rep("bold", 4)
+  ))
+```
+
+---
+
+## Fórmulas Resumo
+
+| Componente | Fórmula |
+|------------|---------|
+| **Resultado Nominal Bruto (XIV)** | DCL(Dez/2024) - DCL(Mês Atual) |
+| **Variação Saldo RPP (XV)** | RP_Proc(Atual) - RP_Proc(Dez/2024) |
+| **Resultado Nominal Ajustado (XIX)** | XIV + XV - Alienação + Passivos DC + Outros Ajustes |
+| **Resultado Primário Abaixo (XXIII)** | XIX - (Juros Ativos - Juros Passivos) |
+
+## Observações
+
+1. **Valores de Dez/2024**: Podem ser informados manualmente ou lidos da planilha oficial
+2. **DCL Mês Atual**: Calculada no RGF A02
+3. **Juros**: Calculados no chunk "acima da linha" (itens 41-44 e 50-61)
+4. **Discrepância**: Diferença entre cálculo "acima" e "abaixo" da linha
+
+
+
+
 ## 📋 Objetos Exportados
 
 | Objeto | Descrição |
@@ -13103,8 +13607,6 @@ Substitua os chunks de validação RGF pelos códigos abaixo.
 # ==============================================================================
 # MAPEAMENTO DAS CÉLULAS DO EXCEL OFICIAL - RGF
 # ==============================================================================
-# Apenas valores realizados (sem limites)
-# ==============================================================================
 
 mapeamento_rgf <- tribble(
   ~item,                        ~celula, ~descricao,                          ~fonte,
@@ -13117,8 +13619,7 @@ mapeamento_rgf <- tribble(
   "garantias",                  "B40",   "Total das Garantias",               "A03",
   "op_credito",                 "B44",   "Operações de Crédito",              "A04",
   "rpnp_exercicio",             "B52",   "RPNP do Exercício",                 "A05",
-  "disponibilidade_antes_rp",   "C52",   "Disp. Caixa ANTES Inscrição RP",    "A05",
-  "disponibilidade_apos_rp",    "D52",   "Disp. Caixa APÓS Inscrição RP",     "A05"
+  "disponibilidade_antes_rp",   "C52",   "Disp. Caixa ANTES Inscrição RP",    "A05"
 )
 
 cat("✅ Mapeamento RGF definido:", nrow(mapeamento_rgf), "itens\n")
@@ -13258,7 +13759,7 @@ cat(sprintf("   Disp. ANTES RP:   %s\n", format(valor_disp_antes_rp, big.mark = 
 cat(sprintf("   Disp. APÓS RP:    %s\n", format(valor_disp_apos_rp, big.mark = ".", decimal.mark = ",")))
 
 # -----------------------------------------------------------------------------
-# Montar dataframe do sistema (apenas valores realizados, sem limites)
+# Montar dataframe do sistema (sem disponibilidade_apos_rp)
 # -----------------------------------------------------------------------------
 sistema_rgf <- tibble(
   item = c(
@@ -13271,8 +13772,7 @@ sistema_rgf <- tibble(
     "garantias",
     "op_credito",
     "rpnp_exercicio",
-    "disponibilidade_antes_rp",
-    "disponibilidade_apos_rp"
+    "disponibilidade_antes_rp"
   ),
   valor = as.numeric(c(
     valor_rcl_rgf,
@@ -13284,8 +13784,7 @@ sistema_rgf <- tibble(
     valor_garantias_rgf,
     valor_op_cred,
     valor_rpnp_ex,
-    valor_disp_antes_rp,
-    valor_disp_apos_rp
+    valor_disp_antes_rp
   ))
 ) %>%
   mutate(valor_milhar = valor / 1000)
@@ -13300,29 +13799,33 @@ cat("\n✅ DataFrame sistema_rgf criado com", nrow(sistema_rgf), "linhas\n")
 ```{r valores-oficial-rgf}
 #| echo: true
 
-#| echo: true
 
 # ==============================================================================
 # LER VALORES DO EXCEL OFICIAL - RGF
 # ==============================================================================
 
-# Verificar se arquivo comparativo existe
-arquivo_comparativo <- file.path(mes_pasta, "comparativo.xlsx")
+# Buscar arquivo pelo padrão "Anexo 6 Simplificado"
+arquivos_encontrados <- list.files(
+  path = mes_pasta, 
+  pattern = "Anexo.*6.*Simplificado", 
+  full.names = TRUE,
+  ignore.case = TRUE
+)
 
-if (file.exists(arquivo_comparativo)) {
+if (length(arquivos_encontrados) > 0) {
   
-  # Listar abas disponíveis
+  arquivo_comparativo <- arquivos_encontrados[1]
+  cat("📁 Arquivo encontrado:", basename(arquivo_comparativo), "\n")
+  
   abas_disponiveis <- excel_sheets(arquivo_comparativo)
   cat("📋 Abas disponíveis:", paste(abas_disponiveis, collapse = ", "), "\n")
   
-  # Usar primeira aba disponível (ou especificar nome correto)
-  aba_usar <- abas_disponiveis[1]  # "Comparativo"
+  aba_usar <- abas_disponiveis[1]
   
-  # Ler planilha
+  # Ler planilha SEM converter para texto
   oficial_rgf_raw <- read_excel(arquivo_comparativo, sheet = aba_usar, col_names = FALSE)
   
-  
-  # Função para ler célula
+  # Função para ler célula - CORRIGIDA
   ler_celula <- function(celula) {
     # Extrair coluna (letra) e linha (número)
     col_letra <- str_extract(celula, "^[A-Z]+")
@@ -13336,11 +13839,27 @@ if (file.exists(arquivo_comparativo)) {
     # Extrair valor
     valor <- oficial_rgf_raw[[col_num]][linha]
     
-    # Converter para numérico
+    # Se já é numérico, retornar direto
+    if (is.numeric(valor)) {
+      return(valor)
+    }
+    
+    # Se é texto, converter formato brasileiro para numérico
     if (is.character(valor)) {
-      valor <- gsub("[^0-9,.-]", "", valor)
-      valor <- gsub("\\.", "", valor)
-      valor <- gsub(",", ".", valor)
+      # Remover espaços
+      valor <- trimws(valor)
+      
+      # Verificar se tem vírgula como decimal (formato BR: 1.234.567,89)
+      if (grepl(",", valor) && grepl("\\.", valor)) {
+        # Formato brasileiro: remover pontos de milhar, trocar vírgula por ponto
+        valor <- gsub("\\.", "", valor)  # Remove pontos de milhar
+        valor <- gsub(",", ".", valor)   # Troca vírgula decimal por ponto
+      } else if (grepl(",", valor)) {
+        # Só tem vírgula (decimal)
+        valor <- gsub(",", ".", valor)
+      }
+      # Se só tem pontos, assume que são milhares e o número é inteiro
+      # (não faz nada, deixa o R interpretar)
     }
     
     as.numeric(valor)
@@ -13357,16 +13876,25 @@ if (file.exists(arquivo_comparativo)) {
     ) %>%
     ungroup()
   
-  cat("✅ Valores oficiais RGF lidos:", sum(!is.na(oficial_rgf$valor_oficial)), "de", nrow(oficial_rgf), "\n")
+  # Debug: mostrar valores lidos
+  cat("\n📊 Valores lidos do Excel:\n")
+  for (i in 1:nrow(oficial_rgf)) {
+    cat(sprintf("   %s (%s): %s\n", 
+                oficial_rgf$item[i], 
+                oficial_rgf$celula[i],
+                format(oficial_rgf$valor_oficial[i], big.mark = ".", decimal.mark = ",")))
+  }
+  
+  cat("\n✅ Valores oficiais RGF lidos:", sum(!is.na(oficial_rgf$valor_oficial)), "de", nrow(oficial_rgf), "\n")
   
 } else {
   
-  # Criar dataframe vazio se arquivo não existe
   oficial_rgf <- mapeamento_rgf %>%
     mutate(valor_oficial = NA_real_)
   
-  cat("⚠️ Arquivo comparativo.xlsx não encontrado\n")
+  cat("⚠️ Arquivo 'Anexo 6 Simplificado' não encontrado em:", mes_pasta, "\n")
 }
+
 ```
 
 ---
@@ -13411,7 +13939,7 @@ comparacao_rgf <- oficial_rgf %>%
   mutate(
     # Converter oficial para mesma escala (se necessário)
     oficial = valor_oficial,
-    sistema = valor_sistema,
+    sistema = valor_sistema/1000,
     
     # Calcular diferença
     diferenca = oficial - sistema,
