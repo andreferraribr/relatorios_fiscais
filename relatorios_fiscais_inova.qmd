@@ -5363,7 +5363,6 @@ datatable(
   )
 ```
 
-
 ```{r}
 # Total de Disponibilidade ANTES - Executivo
 valor_disponibilidade_executivo <- rgf_a05_executivo_formatada %>%
@@ -5385,7 +5384,6 @@ valor_disponibilidade_uniao_apos_rp <- rgf_a05_uniao_formatada %>%
   filter(mes_lancamento == "Total") %>%
   pull(disponibilidade_apos_inscr_rp_clean)
 ```
-
 
 ## Notas Metodológicas
 
@@ -6557,7 +6555,7 @@ A classificação de despesas utiliza múltiplos atributos:
 ## 📊 Ficha Técnica
 
 | Item | Descrição |
-|--------------------------|----------------------------------------------|
+|------------------------------------|------------------------------------|
 | **Relatório** | RREO - Relatório Resumido da Execução Orçamentária |
 | **Anexo** | Anexo 02 - Demonstrativo da Execução das Despesas por Função/Subfunção |
 | **Base Legal** | LRF Art. 52, inciso II, alínea "c" |
@@ -6567,13 +6565,13 @@ A classificação de despesas utiliza múltiplos atributos:
 ## 📁 Arquivos Necessários
 
 | Objeto | Arquivo | Descrição |
-|---------------------|-----------------------|----------------------------|
+|------------------------|------------------------|------------------------|
 | `dados_despesa` | tg_despesa\_\*.xlsx | Despesas orçamentárias com classificação funcional |
 
 ## 📋 Atributos Utilizados
 
 | Atributo | Descrição | Uso no Anexo |
-|---------------------|-----------------------|-----------------------------|
+|------------------------|------------------------|------------------------|
 | `funcao_governo_codigo` | Código da função | Agrupamento principal (01-28) |
 | `funcao_governo_nome` | Nome da função | Descrição da função |
 | `subfuncao_governo_codigo` | Código da subfunção | Detalhamento (xxx) |
@@ -6760,14 +6758,14 @@ if (exists("despesas_funcao") && exists("despesas_refinanciamento")) {
 ## Arquivos Necessarios
 
 | Arquivo | Descricao | Filtros no TG |
-|-------------------|-----------------------|-------------------------------|
+|------------------------|------------------------|------------------------|
 | rreo_a03_rcl_receitas.xlsx | Receitas correntes por natureza | Orc. Fiscal e Seguridade, Categoria Economica = 1 (Correntes), Metrica = Movimento Liquido |
 | rreo_a03_rcl_despesas.xlsx | Transferencias constitucionais e legais | Orc. Fiscal e Seguridade, Naturezas 333081\* e 334081\*, Metrica = Movimento Liquido |
 
 ## Atributos Utilizados
 
 | Atributo | Tipo | Uso | Descricao |
-|--------------------|----------------|----------------|----------------------|
+|------------------|------------------|------------------|------------------|
 | nre1_categoria_economica_codigo | character | TG / Criterio | Categoria economica (1=Corrente, 2=Capital) |
 | nre2_origem_receita_codigo_origem | character | TG / Criterio | Origem da receita (1-9) |
 | natureza_receita_codigo_completo | character | TG / Criterio | Codigo completo da natureza de receita |
@@ -6781,7 +6779,7 @@ if (exists("despesas_funcao") && exists("despesas_refinanciamento")) {
 ## Vinculos com Outros Anexos
 
 | Anexo Relacionado | Tipo de Vinculo | Descricao |
-|-----------------------------|--------------------------|------------------|
+|------------------------|------------------------|------------------------|
 | RGF Anexo 01 | Base de Calculo | RCL e o denominador para limites de despesa com pessoal |
 | RGF Anexo 02 | Base de Calculo | RCL e o denominador para limite da DCL |
 | RGF Anexo 03 | Base de Calculo | RCL e o denominador para limite de garantias |
@@ -6825,7 +6823,7 @@ RCL = RECEITAS CORRENTES
 A RCL e a base de calculo para os principais limites da LRF:
 
 | Limite                          | Percentual           | Referencia Legal     |
-|---------------------------------|----------------------|----------------------|
+|-------------------------------|---------------------|---------------------|
 | Despesa com Pessoal - Uniao     | 50% (total)          | LRF Art. 19          |
 | Despesa com Pessoal - Executivo | 40,9%                | LRF Art. 20          |
 | Divida Consolidada Liquida      | Resolucao SF 40/2001 | LRF Art. 30          |
@@ -7383,7 +7381,7 @@ A RCL calculada neste anexo é utilizada como **base de cálculo** para:
 ### RGF - Relatório de Gestão Fiscal
 
 | Anexo | Descrição | Uso da RCL |
-|------------------|--------------------------|----------------------------|
+|------------------------|------------------------|------------------------|
 | **RGF A01** | Despesa com Pessoal | Limite de 60% (União) |
 | **RGF A02** | Dívida Consolidada Líquida | Limite de endividamento |
 | **RGF A03** | Garantias e Contragarantias | Limite de garantias |
@@ -7415,7 +7413,7 @@ A RCL calculada neste anexo é utilizada como **base de cálculo** para:
 ## 📑 Ficha Técnica
 
 | Campo               | Informação                                            |
-|---------------------|-------------------------------------------------------|
+|---------------------|---------------------------------------------------|
 | Relatório           | RREO - Relatório Resumido da Execução Orçamentária    |
 | Anexo               | Anexo 04                                              |
 | Nome                | Demonstrativo das Receitas e Despesas Previdenciárias |
@@ -7427,14 +7425,14 @@ A RCL calculada neste anexo é utilizada como **base de cálculo** para:
 ## 📁 Arquivos Necessários
 
 | Arquivo | Descrição | Filtros no TG |
-|-------------------|-----------------------|-------------------------------|
+|------------------------|------------------------|------------------------|
 | dados_receita | Receitas orçamentárias | Base compartilhada - UOs previdenciárias |
 | dados_despesa | Despesas orçamentárias | Base compartilhada - Subfunções 272, 273, 274, 845, 846 |
 
 ## 📊 Atributos Utilizados
 
 | Atributo | Tipo | Uso | Descrição |
-|--------------------|----------------|----------------|----------------------|
+|------------------|------------------|------------------|------------------|
 | unidade_orcamentaria_codigo | character | TG / Critério | Código da UO (33904=INSS, 40904=FAT, 73901=FCDF) |
 | natureza_receita_codigo_completo | character | TG / Critério | Código completo da natureza de receita |
 | natureza_receita_nome | character | TG / Critério | Nome da natureza de receita |
@@ -7456,7 +7454,7 @@ A RCL calculada neste anexo é utilizada como **base de cálculo** para:
 ## 🔗 Vínculos com Outros Anexos
 
 | Anexo Relacionado | Tipo de Vínculo | Descrição |
-|-----------------------------|--------------------------|------------------|
+|------------------------|------------------------|------------------------|
 | RREO Anexo 01 | Referência | Receitas orçamentárias base |
 | RREO Anexo 02 | Referência | Despesas orçamentárias base |
 | RGF Anexo 01 | Referência | Despesa com pessoal inclui inativos e pensionistas |
@@ -7650,7 +7648,7 @@ DT::datatable(
 ### Filtros Gerais RPPS
 
 | Filtro         | Valor        | Descrição                                     |
-|----------------|--------------|-----------------------------------------------|
+|----------------|----------------|----------------------------------------|
 | UO excluída    | 73901        | Operações Oficiais de Crédito (vai para FCDF) |
 | Fonte excluída | 054, 00, 000 | Fontes não previdenciárias                    |
 
@@ -8193,7 +8191,7 @@ cat(strrep("=", 70), "\n")
 ### Receitas RGPS
 
 | Ordem | Item | Critério Principal |
-|----------------|----------------|----------------------------------------|
+|------------------------|------------------------|------------------------|
 | 01 | Receitas Correntes - Empregadores, Trabalhadores | natureza 12100311-13, 1214\* |
 | 02 | Receitas Correntes - Demais Contribuições | origem = 2, exceto item 01 |
 | 03 | Outras Receitas - Compensação RPPS/RGPS | origem = 9 |
@@ -8205,7 +8203,7 @@ cat(strrep("=", 70), "\n")
 ### Receitas RPPS (Civis)
 
 | Ordem | Item | Critério Principal |
-|----------------|----------------|----------------------------------------|
+|------------------------|------------------------|------------------------|
 | 01 | CIVIS - Segurados Ativo | natureza 12100421-24, 1215011*, 121503* |
 | 02 | CIVIS - Segurados Inativos | natureza 12100431-34, 1215012\* |
 | 03 | CIVIS - Segurados Pensionistas | natureza 12100441-44, 1215013\* |
@@ -8219,7 +8217,7 @@ cat(strrep("=", 70), "\n")
 ### Despesas RGPS
 
 | Ordem | Item                             | Critério Principal                 |
-|-------|----------------------------------|------------------------------------|
+|---------------|----------------------------|------------------------------|
 | 01    | Aposentadorias                   | elemento = 53, 54; grupo = 3       |
 | 02    | Pensões                          | elemento = 55, 56; grupo = 3       |
 | 03    | Outros Benefícios                | elemento = 57, 58; grupo = 3       |
@@ -8231,7 +8229,7 @@ cat(strrep("=", 70), "\n")
 ### Despesas RPPS
 
 | Ordem | Item | Critério Principal |
-|----------------|----------------|----------------------------------------|
+|------------------------|------------------------|------------------------|
 | 01 | CIVIS - A detalhar | subfunção 272-274/845, grupo=1, elemento=00 |
 | 02 | CIVIS - Aposentadorias | subfunção 272-274/845, grupo=1, elemento=01 |
 | 03 | CIVIS - Pensões | subfunção 272-274/845, grupo=1, elemento=03 |
@@ -8276,7 +8274,7 @@ Quando **negativo**, indica **déficit previdenciário** que deve ser coberto pe
 ### Exclusões Importantes
 
 | Item | Motivo |
-|-------------------------------|-----------------------------------------|
+|------------------------------------|------------------------------------|
 | UO 73901 | Separado no FCDF |
 | Fonte 054 | Contribuições Sociais do RGPS - evitar duplicidade |
 | Elementos 04, 07, 11, 13, 16, 39, 67, 96 | Não são benefícios previdenciários |
@@ -8288,7 +8286,7 @@ Quando **negativo**, indica **déficit previdenciário** que deve ser coberto pe
 ## 📦 Objetos Exportados
 
 | Objeto | Descrição |
-|-------------------------------|-----------------------------------------|
+|------------------------------------|------------------------------------|
 | criterios_rreo_A04_rgps_receitas_rgps | Critérios receitas RGPS |
 | criterios_rreo_A04_rgps_despesas_rgps | Critérios despesas RGPS |
 | criterios_rreo_A04_rpps_receitas_civil_militar_rpps | Critérios receitas RPPS |
@@ -8320,7 +8318,7 @@ Quando **negativo**, indica **déficit previdenciário** que deve ser coberto pe
 ## 📊 Ficha Técnica
 
 | Item | Descrição |
-|--------------------------|----------------------------------------------|
+|------------------------------------|------------------------------------|
 | **Relatório** | RREO - Relatório Resumido da Execução Orçamentária |
 | **Anexo** | Anexo 06 - Demonstrativo dos Resultados Primário e Nominal |
 | **Base Legal** | LRF Art. 53, inciso III |
@@ -8330,7 +8328,7 @@ Quando **negativo**, indica **déficit previdenciário** que deve ser coberto pe
 ## 📁 Arquivos Necessários
 
 | Objeto | Arquivo | Descrição |
-|---------------------|-----------------------|----------------------------|
+|------------------------|------------------------|------------------------|
 | `dados_receita` | tg_receita\_\*.xlsx | Receitas orçamentárias |
 | `dados_categoria_grupo` | rreo_a06_despesas_primarias_categoria_grupo.xlsx | Despesas por categoria/grupo |
 | `dados_ndd` | rreo_a06_despesas_primarias_ndd.xlsx | Despesas por natureza detalhada |
@@ -9371,737 +9369,493 @@ valor_ajuste_metodologico <- ajuste_metodologico
 valor_juros_ativos <- juros_ativos
 valor_juros_passivos <- juros_passivos
 ```
+## 📉 Resultado Abaixo da Linha
 
-## 📉 Resultado Nominal Abaixo da Linha
-
-```{r resultado-abaixo-linha}
+```{r resultado-abaixo-linha-v4}
 #| include: true
 
 # ==============================================================================
 # RREO ANEXO 6 - RESULTADO NOMINAL E PRIMÁRIO ABAIXO DA LINHA
 # ==============================================================================
-# Fórmulas: 
-#   RN Abaixo da Linha (XIV) = DCL(dez/24) - DCL(atual)
-#   RN Ajustado (XIX) = XIV + XV - XI + XX + XVIII
-#   RP Abaixo da Linha = RN Ajustado - (Juros Ativos - Juros Passivos)
+# Replicando a aba "Anexo 6 RP e RN Novo (INTERNET)"
+#
+# ESTRUTURA:
+#   D89 = TOTAL OUTROS AJUSTES (XVIII) sem discrepância = -124.389.791
+#   C120 = Discrepância (da ELABORAÇÃO P140, sinal invertido)
+#   C87 = D89 + C120 = OUTROS AJUSTES com discrepância
+#
+# FÓRMULAS:
+#   C121 = C81 + C84 - C85 + C86 + C87
+#   C123 = C121 - (Juros Ativos - Juros Passivos)
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# 1. VALORES DEZEMBRO/2024 (oficiais em R$ milhares)
+# 1. VALORES DE REFERÊNCIA - DEZEMBRO/2024
 # ------------------------------------------------------------------------------
-dez_2024 <- list(
-dcl = 7177279131,
-rp_processados = 129994061,
-passivos_insuf = 0,
-precatorios = 3997030,
-aplic_fundos = 40841099
-)
-
-# ------------------------------------------------------------------------------
-# 2. FUNÇÃO AUXILIAR - Obter valor por ordem do rreo_a06_final
-# ------------------------------------------------------------------------------
-obter_item <- function(cod) {
-if (!exists("rreo_a06_final")) return(0)
-linha <- rreo_a06_final %>% filter(ordem == sprintf("%02d", cod))
-if (nrow(linha) == 0) return(0)
-linha$valor[1] / 1000  # Converter para milhares
-}
-
-# ------------------------------------------------------------------------------
-# 3. VALORES ATUAIS (de valores_linhas, em milhares)
-# ------------------------------------------------------------------------------
-obter_ordem <- function(ordens) {
-if (!exists("valores_linhas")) return(0)
-valores_linhas %>% 
-  filter(ordem %in% ordens) %>% 
-  summarise(v = sum(valor_total, na.rm = TRUE)) %>% 
-  pull(v) / 1000
-}
-
-atual <- list(
-dcl = if(exists("valor_dcl_num")) round(valor_dcl_num / 1000, 0) else 0,
-rp_processados = obter_ordem("25"),
-passivos_insuf = obter_ordem("10"),
-precatorios = obter_ordem(c("08", "38")),
-aplic_fundos = obter_ordem(c("14", "15", "16"))
-)
-
-# ------------------------------------------------------------------------------
-# 4. RESULTADO NOMINAL - ABAIXO DA LINHA (XIV)
-# ------------------------------------------------------------------------------
-rn_abaixo_linha <- dez_2024$dcl - atual$dcl
-
-# ------------------------------------------------------------------------------
-# 5. AJUSTES PARA RESULTADO NOMINAL AJUSTADO
-# ------------------------------------------------------------------------------
-
-# 5.1 Variação Saldo RPP (XV)
-var_saldo_rpp <- atual$rp_processados - dez_2024$rp_processados
-
-# 5.2 Receita Alienação Investimentos (XI)
-receita_alien_invest <- 0
-
-# 5.3 Passivos Reconhecidos (XX)
-passivos_reconhecidos <- atual$passivos_insuf - dez_2024$passivos_insuf
-
-# ------------------------------------------------------------------------------
-# 6. OUTROS AJUSTES (XVIII) - Cálculo automático
-# ------------------------------------------------------------------------------
-
-# 6.1 VPDs (+) - Variações Patrimoniais Diminutivas
-vpd_var_cambial_contratual <- obter_item(51)
-vpd_var_cambial_mobiliaria <- obter_item(53)
-vpd_resultado_neg_bacen <- 0  # Quando houver critério
-vpd_constituicao_ajustes <- 9748641  # TODO: criar critério específico
-vpd_reversao_subvencoes <- obter_item(57)
-vpd_outras_var_cambiais <- obter_item(58)
-vpd_desincorp_ativos <- obter_item(59)
-
-total_vpds <- vpd_var_cambial_contratual + vpd_var_cambial_mobiliaria + 
-            vpd_resultado_neg_bacen + vpd_constituicao_ajustes + 
-            vpd_reversao_subvencoes + vpd_outras_var_cambiais + vpd_desincorp_ativos
-
-# 6.2 VPAs (-) - Variações Patrimoniais Aumentativas
-vpa_outras_var_cambiais <- obter_item(65)
-vpa_resultado_pos_bacen <- 0  # Quando houver critério
-vpa_outras_var_patrim <- obter_item(68)
-vpa_ganhos_incorp_ativos <- obter_item(71)
-vpa_reversao_provisoes <- obter_item(70)
-
-total_vpas <- vpa_outras_var_cambiais + vpa_resultado_pos_bacen + 
-            vpa_outras_var_patrim + vpa_ganhos_incorp_ativos + vpa_reversao_provisoes
-
-# 6.3 Demais Ajustes - Ajustes na DCL
-var_precatorios <- atual$precatorios - dez_2024$precatorios
-var_aplic_fundos <- atual$aplic_fundos - dez_2024$aplic_fundos
-
-juros_ativos_fundos <- obter_item(43)
-juros_passivos_fundos <- obter_item(44)
-juros_fundos_liquido <- juros_ativos_fundos - juros_passivos_fundos
-
-fies <- obter_item(75)
-
-ajustes_dcl <- var_precatorios - var_aplic_fundos + juros_fundos_liquido + fies
-
-# 6.4 Outros
-desp_fin_impacto_primario <- 7801975  # TODO: criar critério específico
-ajustes_exerc_anteriores <- obter_item(76)
-
-outros <- -(desp_fin_impacto_primario + ajustes_exerc_anteriores)
-
-demais_ajustes <- ajustes_dcl + outros
-
-# Total Outros Ajustes
-outros_ajustes <- total_vpds - total_vpas + demais_ajustes
-
-# ------------------------------------------------------------------------------
-# 7. RESULTADO NOMINAL AJUSTADO - ABAIXO DA LINHA (XIX)
-# ------------------------------------------------------------------------------
-rn_ajustado_abaixo <- rn_abaixo_linha + var_saldo_rpp - receita_alien_invest + 
-                    passivos_reconhecidos + outros_ajustes
-
-# ------------------------------------------------------------------------------
-# 8. JUROS NOMINAIS (já calculados no chunk anterior)
-# ------------------------------------------------------------------------------
-juros_nominais <- if(exists("juros_ativos") && exists("juros_passivos")) {
-round((juros_ativos - juros_passivos) / 1000, 0)
-} else {
-0
-}
-
-# ------------------------------------------------------------------------------
-# 9. RESULTADO PRIMÁRIO - ABAIXO DA LINHA
-# ------------------------------------------------------------------------------
-rp_abaixo_linha <- rn_ajustado_abaixo - juros_nominais
-
-# ------------------------------------------------------------------------------
-# 10. RESULTADO NOMINAL - ACIMA DA LINHA (já calculado)
-# ------------------------------------------------------------------------------
-rn_acima_linha <- if(exists("resultado_nominal_final")) {
-round(resultado_nominal_final / 1000, 0)
-} else {
-0
-}
-
-# ------------------------------------------------------------------------------
-# 11. DISCREPÂNCIA
-# ------------------------------------------------------------------------------
-discrepancia <- rn_acima_linha - rn_ajustado_abaixo
-
-# ------------------------------------------------------------------------------
-# 12. TABELA RESULTADO NOMINAL ABAIXO DA LINHA
-# ------------------------------------------------------------------------------
-tabela_rn_abaixo <- tibble(
-componente = c(
-  "CÁLCULO DO RESULTADO NOMINAL - ABAIXO DA LINHA",
-  "",
-  "DCL Dezembro/2024 (a)",
-  "DCL Atual (b)",
-  "RESULTADO NOMINAL - Abaixo da Linha (XIV) = (a - b)",
-  "",
-  "VARIAÇÃO SALDO RPP (XV)",
-  "RECEITA ALIENAÇÃO INVEST. PERMANENTES (XI)",
-  "PASSIVOS RECONHECIDOS NA DC (XX)",
-  "OUTROS AJUSTES (XVIII)",
-  "",
-  "RESULTADO NOMINAL AJUSTADO - Abaixo da Linha (XIX)",
-  "",
-  "RESULTADO NOMINAL - Acima da Linha (IX)",
-  "",
-  "DISCREPÂNCIA"
-),
-valor_milhares = c(
-  NA, NA,
-  dez_2024$dcl,
-  atual$dcl,
-  rn_abaixo_linha,
-  NA,
-  var_saldo_rpp,
-  receita_alien_invest,
-  passivos_reconhecidos,
-  outros_ajustes,
-  NA,
-  rn_ajustado_abaixo,
-  NA,
-  rn_acima_linha,
-  NA,
-  discrepancia
-)
-)
-
-tabela_rn_abaixo %>%
-mutate(valor_milhares = ifelse(is.na(valor_milhares), "", 
-                               format(round(valor_milhares, 0), big.mark = ".", decimal.mark = ","))) %>%
-knitr::kable(col.names = c("Componente", "R$ milhares"), align = c("l", "r"),
-             caption = "RREO Anexo 6 - Resultado Nominal Abaixo da Linha")
-
-# ------------------------------------------------------------------------------
-# 13. TABELA RESULTADO PRIMÁRIO ABAIXO DA LINHA
-# ------------------------------------------------------------------------------
-tabela_rp_abaixo <- tibble(
-componente = c(
-  "CÁLCULO DO RESULTADO PRIMÁRIO - ABAIXO DA LINHA",
-  "",
-  "RESULTADO NOMINAL AJUSTADO - Abaixo da Linha (XIX)",
-  "(-) Juros e Encargos Ativos (VII)",
-  "(+) Juros e Encargos Passivos (VIII)",
-  "Juros Nominais (VII - VIII)",
-  "",
-  "RESULTADO PRIMÁRIO - Abaixo da Linha (XXIII) = XIX - (VII - VIII)"
-),
-valor_milhares = c(
-  NA, NA,
-  rn_ajustado_abaixo,
-  if(exists("juros_ativos")) round(juros_ativos / 1000, 0) else 0,
-  if(exists("juros_passivos")) round(juros_passivos / 1000, 0) else 0,
-  juros_nominais,
-  NA,
-  rp_abaixo_linha
-)
-)
-
-tabela_rp_abaixo %>%
-mutate(valor_milhares = ifelse(is.na(valor_milhares), "", 
-                               format(round(valor_milhares, 0), big.mark = ".", decimal.mark = ","))) %>%
-knitr::kable(col.names = c("Componente", "R$ milhares"), align = c("l", "r"),
-             caption = "RREO Anexo 6 - Resultado Primário Abaixo da Linha")
-
-# ------------------------------------------------------------------------------
-# 14. RESUMO COMPARATIVO
-# ------------------------------------------------------------------------------
-cat("\n")
-cat(strrep("=", 70), "\n")
-cat("RESUMO COMPARATIVO - ACIMA x ABAIXO DA LINHA (R$ milhares)\n")
-cat(strrep("=", 70), "\n")
-cat(sprintf("Resultado Primário - Acima da Linha:    %s\n", 
-          if(exists("resultado_primario_final")) format(round(resultado_primario_final / 1000, 0), big.mark = ".", decimal.mark = ",") else "N/A"))
-cat(sprintf("Resultado Primário - Abaixo da Linha:   %s\n", 
-          format(round(rp_abaixo_linha, 0), big.mark = ".", decimal.mark = ",")))
-cat(strrep("-", 70), "\n")
-cat(sprintf("Resultado Nominal - Acima da Linha:     %s\n", 
-          format(rn_acima_linha, big.mark = ".", decimal.mark = ",")))
-cat(sprintf("Resultado Nominal Ajust - Abaixo:       %s\n", 
-          format(round(rn_ajustado_abaixo, 0), big.mark = ".", decimal.mark = ",")))
-cat(sprintf("Discrepância:                           %s\n", 
-          format(round(discrepancia, 0), big.mark = ".", decimal.mark = ",")))
-cat(strrep("=", 70), "\n")
-
-# ------------------------------------------------------------------------------
-# 15. EXPORTAR VARIÁVEIS
-# ------------------------------------------------------------------------------
-valor_rn_abaixo_linha <- rn_abaixo_linha
-valor_rn_ajustado_abaixo <- rn_ajustado_abaixo
-valor_rp_abaixo_linha <- rp_abaixo_linha
-valor_rn_acima_linha <- rn_acima_linha
-valor_discrepancia <- discrepancia
-valor_outros_ajustes <- outros_ajustes
-```
-
-
-## RREO Anexo 6 - Resultado Primário e Nominal - Abaixo da Linha
-
-### Metodologia Oficial
-
-O cálculo "abaixo da linha" é baseado na variação da Dívida Consolidada Líquida (DCL) entre dezembro do exercício anterior e o mês atual, com ajustes específicos.
-
----
-
-### Chunk 1: Configuração dos Valores de Fechamento do Exercício Anterior
-
-```{r config-fechamento-exercicio}
-#| echo: true
-
-# ==============================================================================
-# VALORES DE FECHAMENTO DO EXERCÍCIO ANTERIOR (DEZ/2024)
-# ==============================================================================
-# Fonte: Planilha "Anexo 06 - Resultados Primário.xlsx"
-# Aba: "Anexo 6 RP e RN Novo (INTERNET)"
-# 
-# OPÇÃO 1: Informar valores manualmente (mais seguro para produção)
-# OPÇÃO 2: Ler da planilha automaticamente
-# ==============================================================================
-
-# ------------------------------------------------------------------------------
-# OPÇÃO 1: VALORES MANUAIS (DEZ/2024 - valores em R$ mil)
-# ------------------------------------------------------------------------------
-# Descomente e ajuste conforme necessário
 
 valores_dez_2024 <- list(
-  # DCL e componentes
-  divida_consolidada       = 9967635161,   # Linha 74 - DÍVIDA CONSOLIDADA (X)
-  deducoes                 = 2790356030,   # Linha 75 - DEDUÇÕES (XI)
-  disponibilidade_caixa    = 1497520168,   # Linha 76 - Disponibilidade de Caixa
-  disp_caixa_bruta         = 1627514230,   # Linha 77 - Disponibilidade Caixa Bruta
-  rp_processados           = 129994061,    # Linha 78 - (-) Restos a Pagar Processados
-  demais_haveres           = 1292835861,   # Linha 79 - Demais Haveres Financeiros
-  dcl                      = 7177279131,   # Linha 80 - DCL = X - XI
-  
-  # Juros
-  juros_ativos             = 326660712,    # Linha 57 - JUROS E ENCARGOS ATIVOS
-  juros_passivos           = 1146101005    # Linha 58 - JUROS E ENCARGOS PASSIVOS
+  dcl = 7177279131000,           # DCL - Dívida Consolidada Líquida
+  rp_processados = 129994061000, # RP Processados
+  precatorios = 3997030000,      # Precatórios na DCL
+  aplic_fundos = 40841099221     # Aplicações em Fundos Diversos
 )
 
-cat("✅ Valores de Dez/2024 configurados manualmente\n")
-cat(sprintf("   DCL Dez/2024: R$ %s mil\n", format(valores_dez_2024$dcl, big.mark = ".", decimal.mark = ",")))
+# ------------------------------------------------------------------------------
+# 2. FUNÇÕES AUXILIARES
+# ------------------------------------------------------------------------------
+
+fmt_milhar <- function(x) {
+  sapply(x, function(val) {
+    if (is.na(val) || is.null(val) || length(val) == 0) return("")
+    format(round(val / 1000, 0), big.mark = ".", decimal.mark = ",")
+  })
+}
+
+obter_valor_a06 <- function(cod) {
+  if (!exists("rreo_a06_final")) return(0)
+  linha <- rreo_a06_final %>% 
+    filter(str_detect(categoria, paste0("^", sprintf("%02d", cod), "\\s")))
+  if (nrow(linha) == 0) return(0)
+  return(sum(linha$valor, na.rm = TRUE))
+}
+
+obter_valor_dcl <- function(ordens) {
+  if (!exists("valores_linhas")) return(0)
+  valores_linhas %>% 
+    filter(ordem %in% ordens) %>% 
+    summarise(v = sum(valor, na.rm = TRUE)) %>% 
+    pull(v)
+}
+
+# ------------------------------------------------------------------------------
+# 3. COMPONENTES PRINCIPAIS
+# ------------------------------------------------------------------------------
+
+# C81 - RN Bruto (variação DCL)
+dcl_mes_atual <- if (exists("valor_dcl_num")) valor_dcl_num else 0
+resultado_nominal_bruto <- valores_dez_2024$dcl - dcl_mes_atual
+
+# C84 - Variação Saldo RP Processados
+rp_processados_atual <- abs(obter_valor_dcl("25"))
+variacao_saldo_rpp <- rp_processados_atual - valores_dez_2024$rp_processados
+
+# C85 - Receita Alienação Investimentos (zero)
+receita_alienacao <- 0
+
+# C86 - Passivos Reconhecidos na DC
+# Fórmula: A06 55 - A06 66 + DCL 10
+# A06 55 = VPD Incorporação de Passivos (ordem 55)
+# A06 66 = VPA Ganhos Desincorporação Passivos (ordem 66)
+# DCL 10 = Passivos por Insuficiência de Recursos (ordem 10)
+passivos_a06_55 <- obter_valor_a06(55)
+passivos_a06_66 <- obter_valor_a06(66)
+passivos_dcl_10 <- obter_valor_dcl("10")
+passivos_reconhecidos <- passivos_a06_55 - passivos_a06_66 + passivos_dcl_10
+
+# ------------------------------------------------------------------------------
+# 4. VPD - VARIAÇÕES PATRIMONIAIS DIMINUTIVAS (publicadas)
+# ------------------------------------------------------------------------------
+
+vpd_cambiais_div_contratual <- obter_valor_a06(51)    # C90
+vpd_cambiais_div_mobiliaria <- obter_valor_a06(53)    # C91
+vpd_constituicao_ajuste_perdas <- obter_valor_a06(77) # C93
+vpd_reversao_subvencoes_copec <- obter_valor_a06(60)  # C94
+vpd_outras_var_cambiais <- obter_valor_a06(58)        # C95
+vpd_desincorp_ativos <- obter_valor_a06(59)           # C96
+
+total_vpd_ajuste <- vpd_cambiais_div_contratual + vpd_cambiais_div_mobiliaria +
+                    vpd_constituicao_ajuste_perdas + vpd_reversao_subvencoes_copec +
+                    vpd_outras_var_cambiais + vpd_desincorp_ativos  # C89
+
+# ------------------------------------------------------------------------------
+# 5. VPA - VARIAÇÕES PATRIMONIAIS AUMENTATIVAS (publicadas)
+# ------------------------------------------------------------------------------
+
+vpa_outras_var_cambiais <- obter_valor_a06(65)   # C99
+vpa_outras_vpa <- obter_valor_a06(68)            # C101
+vpa_reversao_provisoes <- obter_valor_a06(70)    # C103
+vpa_ganhos_incorp_ativos <- obter_valor_a06(71)  # C102
+
+total_vpa_ajuste <- vpa_outras_var_cambiais + vpa_outras_vpa +
+                    vpa_reversao_provisoes + vpa_ganhos_incorp_ativos  # C98
+
+# ------------------------------------------------------------------------------
+# 6. DEMAIS AJUSTES
+# ------------------------------------------------------------------------------
+
+# Variação Precatórios (C107)
+precatorios_atual <- obter_valor_dcl(c("08", "38"))
+var_precatorios <- precatorios_atual - valores_dez_2024$precatorios
+
+# Variação Aplicações Fundos (C109)
+aplic_fundos_saldo_atual <- obter_valor_dcl(c("14", "15", "16")) - obter_valor_dcl("13")
+aplic_fundos_ordem_73 <- obter_valor_a06(73)
+var_aplic_fundos <- (aplic_fundos_saldo_atual - valores_dez_2024$aplic_fundos) + aplic_fundos_ordem_73
+
+# Juros Fundos Líquidos (C110)
+juros_fundos_ativos <- obter_valor_a06(43)
+juros_fundos_passivos <- obter_valor_a06(44)
+juros_fundos_liquidos <- juros_fundos_ativos - juros_fundos_passivos
+
+# FIES (C111)
+divida_fies <- obter_valor_a06(75)
+
+# Recursos a Classificar (C113)
+recursos_classificar <- obter_valor_a06(39) + obter_valor_a06(40)
+
+# Ajustes Exercícios Anteriores (C119)
+ajustes_exerc_anteriores <- obter_valor_a06(76)
+
+# Concessão Empréstimos (C114)
+concessao_emprestimos_ajuste <- obter_valor_a06(38)
+
+# Subtotal Demais Ajustes
+demais_ajustes <- var_precatorios - var_aplic_fundos + juros_fundos_liquidos +
+                  divida_fies - recursos_classificar - ajustes_exerc_anteriores -
+                  concessao_emprestimos_ajuste
+
+# ------------------------------------------------------------------------------
+# 7. TOTAL OUTROS AJUSTES SEM DISCREPÂNCIA (D89)
+# ------------------------------------------------------------------------------
+
+outros_ajustes_total <- total_vpd_ajuste - total_vpa_ajuste + demais_ajustes  # D89
+
+# ------------------------------------------------------------------------------
+# 8. DISCREPÂNCIA METODOLÓGICA (C120)
+# ------------------------------------------------------------------------------
+# C120 = Discrepância Calculada + Ajuste Metodológico (do comparativo.xlsx)
+#
+# Parte 1: Discrepância Calculada
+#   = (P63 + P70 - P71) - P139
+#   = (RP_Acima + Juros_Ativos - Juros_Passivos) - RN_Abaixo_sem_disc
+#
+# Parte 2: Ajuste Metodológico (já calculado anteriormente)
+#   = RP_RTN - RP_TG (variável ajuste_metodologico)
+# ------------------------------------------------------------------------------
+
+# Obter valores
+rp_acima_linha <- if (exists("resultado_primario_final")) resultado_primario_final else {
+  if (exists("valor_resultado_primario")) valor_resultado_primario else 0
+}
+
+juros_ativos_calc <- if (exists("juros_ativos")) juros_ativos else 0
+juros_passivos_calc <- if (exists("juros_passivos")) juros_passivos else 0
+juros_liquidos <- juros_ativos_calc - juros_passivos_calc
+
+# RN sem discrepância
+rn_sem_disc <- resultado_nominal_bruto + variacao_saldo_rpp - receita_alienacao +
+               passivos_reconhecidos + outros_ajustes_total
+
+# Parte 1: Discrepância Calculada
+discrepancia_calculada <- (rp_acima_linha + juros_ativos_calc - juros_passivos_calc) - rn_sem_disc
+
+# Parte 2: Usar ajuste_metodologico já calculado do comparativo.xlsx
+ajuste_metodologico_comparativo <- if (exists("ajuste_metodologico")) ajuste_metodologico else 0
+
+# C120 = Discrepância Calculada + Ajuste Metodológico
+discrepancia_metodologica <- discrepancia_calculada - ajuste_metodologico_comparativo
+
+# ------------------------------------------------------------------------------
+# 9. OUTROS AJUSTES COM DISCREPÂNCIA (C87)
+# ------------------------------------------------------------------------------
+
+outros_ajustes_com_disc <- outros_ajustes_total + discrepancia_metodologica  # C87
+
+# ------------------------------------------------------------------------------
+# 10. RESULTADO NOMINAL AJUSTADO (C121)
+# ------------------------------------------------------------------------------
+# C121 = C81 + C84 - C85 + C86 + C87
+
+resultado_nominal_ajustado <- resultado_nominal_bruto +   # C81
+                              variacao_saldo_rpp -        # C84
+                              receita_alienacao +         # C85
+                              passivos_reconhecidos +     # C86
+                              outros_ajustes_com_disc     # C87
+
+# ------------------------------------------------------------------------------
+# 11. RESULTADO PRIMÁRIO ABAIXO DA LINHA (C123)
+# ------------------------------------------------------------------------------
+# C123 = C121 - Juros Líquidos
+
+resultado_primario_abaixo <- resultado_nominal_ajustado - juros_liquidos
+
+# ------------------------------------------------------------------------------
+# 12. COMPARAÇÃO
+# ------------------------------------------------------------------------------
+
+rn_acima_linha <- if (exists("resultado_nominal_final")) resultado_nominal_final else {
+  if (exists("valor_resultado_nominal")) valor_resultado_nominal else 0
+}
+
+diferenca_rn <- rn_acima_linha - resultado_nominal_ajustado
+diferenca_rp <- rp_acima_linha - resultado_primario_abaixo
+
+# ------------------------------------------------------------------------------
+# 13. EXPORTAR VARIÁVEIS
+# ------------------------------------------------------------------------------
+
+valor_outros_ajustes_sem_disc <- outros_ajustes_total        # D89
+valor_discrepancia_calculada <- discrepancia_calculada       # Parte 1
+valor_ajuste_comparativo <- ajuste_metodologico_comparativo * -1  # Parte 2
+valor_discrepancia <- discrepancia_metodologica              # C120 = Parte1 + Parte2
+valor_outros_ajustes <- outros_ajustes_com_disc              # C87
+valor_rn_ajustado <- resultado_nominal_ajustado              # C121
+valor_rp_abaixo <- resultado_primario_abaixo                 # C123
 ```
 
----
+### Tabela: Detalhamento dos Outros Ajustes (XVIII)
 
-### Chunk 2: Leitura Automática da Planilha (Opcional)
+```{r detalhamento-outros-ajustes-v4}
+#| include: true
 
-```{r ler-valores-planilha-abaixo-linha}
-#| echo: true
-#| eval: false
-
-# ==============================================================================
-# OPÇÃO 2: LER VALORES DA PLANILHA AUTOMATICAMENTE
-# ==============================================================================
-
-# Buscar arquivo "Anexo 06 - Resultados Primário"
-arquivo_anexo06 <- list.files(
-  path = mes_pasta,
-  pattern = "Anexo.*06.*Resultado.*Prim",
-  full.names = TRUE,
-  ignore.case = TRUE
-)
-
-if (length(arquivo_anexo06) > 0) {
-  
-  cat("📁 Arquivo encontrado:", basename(arquivo_anexo06[1]), "\n")
-  
-  # Ler aba específica
-  aba_rp_rn <- "Anexo 6 RP e RN Novo (INTERNET)"
-  
-  # Função para ler célula específica
-  ler_celula_anexo06 <- function(linha, coluna = 3) {
-    tryCatch({
-      # Ler região específica
-      dados <- read_excel(
-        arquivo_anexo06[1],
-        sheet = aba_rp_rn,
-        range = cellranger::cell_limits(c(linha, coluna), c(linha, coluna)),
-        col_names = FALSE
-      )
-      as.numeric(dados[[1]])
-    }, error = function(e) NA_real_)
-  }
-  
-  # Ler valores de Dez/2024 (coluna C = 3)
-  valores_dez_2024 <- list(
-    divida_consolidada    = ler_celula_anexo06(74, 3),
-    deducoes              = ler_celula_anexo06(75, 3),
-    disponibilidade_caixa = ler_celula_anexo06(76, 3),
-    disp_caixa_bruta      = ler_celula_anexo06(77, 3),
-    rp_processados        = ler_celula_anexo06(78, 3),
-    demais_haveres        = ler_celula_anexo06(79, 3),
-    dcl                   = ler_celula_anexo06(80, 3),
-    juros_ativos          = ler_celula_anexo06(57, 3),
-    juros_passivos        = ler_celula_anexo06(58, 3)
-  )
-  
-  cat("✅ Valores de Dez/2024 lidos da planilha\n")
-  
-} else {
-  cat("⚠️ Planilha Anexo 06 não encontrada. Usando valores manuais.\n")
-}
-```
-
----
-
-### Chunk 3: Coletar Valores do Mês Atual (do Sistema)
-
-```{r valores-mes-atual-abaixo-linha}
-#| echo: true
-
-# ==============================================================================
-# VALORES DO MÊS ATUAL - COLETADOS DO SISTEMA
-# ==============================================================================
-
-# DCL do mês atual (calculada no RGF A02)
-dcl_mes_atual <- if (exists("valor_dcl_num")) {
-  valor_dcl_num
-} else if (exists("valor_dcl_rgf")) {
-  valor_dcl_rgf
-} else {
-  warning("DCL do mês atual não encontrada")
-  NA_real_
-}
-
-# RP Processados do mês atual (do RGF A05 ou balancete)
-rp_processados_atual <- if (exists("rgf_a05_executivo_formatada")) {
-  rgf_a05_executivo_formatada %>%
-    filter(linhas == "Total") %>%
-    pull(rp_liquidados_nao_pagos_exercicios_anteriores) %>%
-    sum(na.rm = TRUE) +
-  rgf_a05_executivo_formatada %>%
-    filter(linhas == "Total") %>%
-    pull(rp_liquidados_nao_pagos_exercicio) %>%
-    sum(na.rm = TRUE)
-} else {
-  NA_real_
-}
-
-# Juros do mês atual (calculados no chunk anterior - acima da linha)
-juros_ativos_atual <- if (exists("juros_ativos")) {
-  juros_ativos
-} else {
-  NA_real_
-}
-
-juros_passivos_atual <- if (exists("juros_passivos")) {
-  juros_passivos
-} else {
-  NA_real_
-}
-
-cat("📊 Valores do mês atual (sistema):\n")
-cat(sprintf("   DCL: R$ %s\n", formatar_numero(dcl_mes_atual)))
-cat(sprintf("   RP Processados: R$ %s\n", formatar_numero(rp_processados_atual)))
-cat(sprintf("   Juros Ativos: R$ %s\n", formatar_numero(juros_ativos_atual)))
-cat(sprintf("   Juros Passivos: R$ %s\n", formatar_numero(juros_passivos_atual)))
-```
-
----
-
-### Chunk 4: Calcular Resultado Abaixo da Linha
-
-```{r calcular-resultado-abaixo-linha}
-#| echo: true
-
-# ==============================================================================
-# CÁLCULO DO RESULTADO PRIMÁRIO E NOMINAL - ABAIXO DA LINHA
-# ==============================================================================
-# Metodologia STN/CESEF
-# ==============================================================================
-
-# ------------------------------------------------------------------------------
-# 1. RESULTADO NOMINAL - Abaixo da Linha (XIV) = DCL(Dez) - DCL(Atual)
-# ------------------------------------------------------------------------------
-resultado_nominal_abaixo_bruto <- valores_dez_2024$dcl*1000 - dcl_mes_atual
-
-# ------------------------------------------------------------------------------
-# 2. VARIAÇÃO SALDO RPP (XV) = RP_Processados(Atual) - RP_Processados(Dez)
-# ------------------------------------------------------------------------------
-variacao_saldo_rpp <- - (valores_linhas %>% filter(ordem == 25) %>% pull(valor )) - valores_dez_2024$rp_processados*1000
-
-# ------------------------------------------------------------------------------
-# 3. RECEITA DE ALIENAÇÃO DE INVESTIMENTOS PERMANENTES (XIX)
-# ------------------------------------------------------------------------------
-# Normalmente zero ou valor específico - pode ser informado manualmente
-receita_alienacao_inv_perm <- 0
-
-# ------------------------------------------------------------------------------
-# 4. PASSIVOS RECONHECIDOS NA DC (XX)
-# ------------------------------------------------------------------------------
-# Extrair do rreo_a06_final se disponível
-passivos_reconhecidos_dc <- (valores_linhas %>% filter(ordem == 10) %>% pull(valor ) - rreo_a06_final %>% filter(ordem %in% c ( 66)) %>% pull (valor) + rreo_a06_final %>% filter(ordem %in% c (55)) %>% pull (valor))
-
-# ------------------------------------------------------------------------------
-# 5. OUTROS AJUSTES (XVIII) - Calculados dos itens 89-120
-# ------------------------------------------------------------------------------
-
-# 5.1 Variações Patrimoniais Diminutivas (+)
-# Itens: 51, 53, 93, 94, 58, 59
-vpd_cambiais_contratual <- obter_valor(51)  # Var Cambiais Dívida Contratual
-vpd_cambiais_mobiliaria <- obter_valor(53)  # Var Cambiais Dívida Mobiliária
-vpd_ajuste_perdas <- obter_valor(77)        # Constituição Ajuste para Perdas
-vpd_subvencoes <- obter_valor(57) + obter_valor(60)  # Provisão/Reversão Subvenções COPEC
-vpd_outras_cambiais <- obter_valor(58)      # Outras Variações Cambiais
-vpd_desincorp_ativos <- obter_valor(59)     # Desincorporação de Ativos
-
-total_vpd_ajuste <- vpd_cambiais_contratual + vpd_cambiais_mobiliaria + 
-                    vpd_ajuste_perdas + vpd_subvencoes + 
-                    vpd_outras_cambiais + vpd_desincorp_ativos
-
-# 5.2 Variações Patrimoniais Aumentativas (-)
-# Itens: 65, 68, 71, 70
-vpa_outras_cambiais <- obter_valor(65)      # Outras Variações Cambiais
-vpa_outras_vpa <- obter_valor(68)           # Outras VPA
-vpa_outros_ganhos <- obter_valor(71)        # Outros Ganhos Incorporação Ativos
-vpa_reversao_provisoes <- obter_valor(70)   # Reversão de Provisões
-
-total_vpa_ajuste <- vpa_outras_cambiais + vpa_outras_vpa + 
-                    vpa_outros_ganhos + vpa_reversao_provisoes
-
-# 5.3 Demais Ajustes
-# Ajustes nos itens da DCL
-variacao_precatorios <- 0  # Seria calculado da variação entre períodos
-variacao_arrecadacao_recolher <- 0
-variacao_aplic_fundos <- 0
-juros_fundos_liquidos <- obter_valor(43) - obter_valor(44)  # Fundos: Ativos - Passivos
-divida_fies <- obter_valor(75)
-
-# Outros
-variacao_fontes_classificar <- obter_valor(39)  # Recursos a Classificar
-despesas_fin_impacto_primario <- 0  # Despesas Financeiras com Impacto Primário
-demais_desp_primarias_extra <- 0
-ajustes_exerc_anteriores <- obter_valor(76)
-
-ajustes_dcl <- variacao_precatorios - variacao_arrecadacao_recolher - 
-               variacao_aplic_fundos + juros_fundos_liquidos + divida_fies
-
-outros_ajustes <- -variacao_fontes_classificar - despesas_fin_impacto_primario - 
-                  demais_desp_primarias_extra - ajustes_exerc_anteriores
-
-demais_ajustes <- ajustes_dcl + outros_ajustes
-
-# Total Outros Ajustes (XVIII)
-outros_ajustes_total <- total_vpd_ajuste - total_vpa_ajuste + demais_ajustes
-
-# ------------------------------------------------------------------------------
-# 6. RESULTADO NOMINAL AJUSTADO - Abaixo da Linha (XIX)
-# ------------------------------------------------------------------------------
-# XIX = XIV + XV - Alienação + Passivos DC + Outros Ajustes
-resultado_nominal_ajustado <- resultado_nominal_abaixo_bruto + 
-                              variacao_saldo_rpp - 
-                              receita_alienacao_inv_perm + 
-                              passivos_reconhecidos_dc + 
-                              outros_ajustes_total
-
-# ------------------------------------------------------------------------------
-# 7. RESULTADO PRIMÁRIO - Abaixo da Linha (XXIII)
-# ------------------------------------------------------------------------------
-# XXIII = XIX - (Juros Ativos - Juros Passivos)
-juros_liquidos_atual <- juros_ativos_atual - juros_passivos_atual
-
-resultado_primario_abaixo_final <- resultado_nominal_ajustado - juros_liquidos_atual
-
-# ------------------------------------------------------------------------------
-# 8. DISCREPÂNCIA com Acima da Linha
-# ------------------------------------------------------------------------------
-discrepancia_rp <- if (exists("resultado_primario_final")) {
-  resultado_primario_final - resultado_primario_abaixo_final
-} else {
-  NA_real_
-}
-
-discrepancia_rn <- if (exists("resultado_nominal_final")) {
-  resultado_nominal_final - resultado_nominal_ajustado
-} else {
-  NA_real_
-}
-
-# RP atual
-valores_linhas %>% filter(ordem == 25) %>% pull(valor )
-
-# passivos reconhecidos
-valores_linhas %>% filter(ordem == 10) %>% pull(valor ) - rreo_a06_final %>% filter(ordem %in% c ( 66)) %>% pull (valor) + rreo_a06_final %>% filter(ordem %in% c (55)) %>% pull (valor)
-
-
-#vpd
-# 54 está zerado
-rreo_a06_final %>% filter(ordem == 51) %>% pull(valor ) + rreo_a06_final %>% filter(ordem %in% c ( 53)) %>% pull (valor)  + rreo_a06_final %>% filter(ordem == 77) %>% pull(valor ) + rreo_a06_final %>% filter(ordem %in% c ( 60)) %>% pull (valor) + rreo_a06_final %>% filter(ordem %in% c (58)) %>% pull (valor) + rreo_a06_final %>% filter(ordem %in% c (59)) %>% pull (valor) 
-
-#VPA
-# 67 está zerado
-rreo_a06_final %>% filter(ordem == 65) %>% pull(valor ) + rreo_a06_final %>% filter(ordem %in% c ( 70)) %>% pull (valor)  + rreo_a06_final %>% filter(ordem == 71) %>% pull(valor ) + rreo_a06_final %>% filter(ordem %in% c ( 68)) %>% pull (valor) 
-
-
-# Aplicações de Fundos Diversos Junto ao Setor Privado
-# dez/24 40841099,2214191
-valores_linhas %>% filter(ordem == 14) %>% pull(valor ) + valores_linhas %>% filter(ordem == 15) %>% pull(valor ) + valores_linhas %>% filter(ordem == 16) %>% pull(valor ) - valores_linhas %>% filter(ordem == 13) %>% pull(valor )
-
-rreo_a06_final %>% filter(ordem == 73) %>% pull(valor )
-
-#precatorios
-#  dez/2024
-valores_linhas %>% filter(ordem == "08") %>% pull(valor ) + valores_linhas %>% filter(ordem == 38) %>% pull(valor )
-
-
-
-```
-
----
-
-### Chunk 5: Exibir Resultados
-
-```{r exibir-resultado-abaixo-linha}
-#| echo: false
-
-# ==============================================================================
-# EXIBIR RESULTADOS - ABAIXO DA LINHA
-# ==============================================================================
-
-cat("\n")
-cat("=" %>% strrep(80), "\n")
-cat("📊 RESULTADO PRIMÁRIO E NOMINAL - ABAIXO DA LINHA\n")
-cat("=" %>% strrep(80), "\n\n")
-
-cat("▶ VARIAÇÃO DA DÍVIDA CONSOLIDADA LÍQUIDA:\n")
-cat(sprintf("   DCL Dez/2024:               R$ %s\n", formatar_numero(valores_dez_2024$dcl)))
-cat(sprintf("   DCL Mês Atual:              R$ %s\n", formatar_numero(dcl_mes_atual)))
-cat(sprintf("   Variação (XIV):             R$ %s\n\n", formatar_numero(resultado_nominal_abaixo_bruto)))
-
-cat("▶ AJUSTES:\n")
-cat(sprintf("   Variação Saldo RPP (XV):    R$ %s\n", formatar_numero(variacao_saldo_rpp)))
-cat(sprintf("   (-) Alienação Inv Perm:     R$ %s\n", formatar_numero(receita_alienacao_inv_perm)))
-cat(sprintf("   (+) Passivos Reconh DC:     R$ %s\n", formatar_numero(passivos_reconhecidos_dc)))
-cat(sprintf("   Outros Ajustes (XVIII):     R$ %s\n\n", formatar_numero(outros_ajustes_total)))
-
-cat("-" %>% strrep(80), "\n")
-cat(sprintf("📌 RESULTADO NOMINAL AJUSTADO (XIX):    R$ %s\n", formatar_numero(resultado_nominal_ajustado)))
-cat("-" %>% strrep(80), "\n\n")
-
-cat("▶ JUROS NOMINAIS:\n")
-cat(sprintf("   Juros Ativos:               R$ %s\n", formatar_numero(juros_ativos_atual)))
-cat(sprintf("   Juros Passivos:             R$ %s\n", formatar_numero(juros_passivos_atual)))
-cat(sprintf("   Juros Líquidos:             R$ %s\n\n", formatar_numero(juros_liquidos_atual)))
-
-cat("=" %>% strrep(80), "\n")
-cat(sprintf("📌 RESULTADO PRIMÁRIO - ABAIXO DA LINHA (XXIII): R$ %s\n", 
-            formatar_numero(resultado_primario_abaixo_final)))
-cat("=" %>% strrep(80), "\n\n")
-
-if (!is.na(discrepancia_rp)) {
-  cat("▶ CONCILIAÇÃO ACIMA x ABAIXO DA LINHA:\n")
-  cat(sprintf("   RP Acima da Linha:          R$ %s\n", formatar_numero(resultado_primario_final)))
-  cat(sprintf("   RP Abaixo da Linha:         R$ %s\n", formatar_numero(resultado_primario_abaixo_final)))
-  cat(sprintf("   DISCREPÂNCIA:               R$ %s\n", formatar_numero(discrepancia_rp)))
-}
-```
-
----
-
-### Chunk 6: Tabela Detalhada
-
-```{r tabela-abaixo-linha}
-#| echo: false
-#| column: page
-
-# ==============================================================================
-# TABELA DETALHADA - ABAIXO DA LINHA
-# ==============================================================================
-
-tabela_abaixo_linha <- tibble(
+tabela_detalhamento <- tibble(
   componente = c(
-    "CÁLCULO DO RESULTADO NOMINAL",
-    "DÍVIDA CONSOLIDADA (X)",
-    "  Dez/2024",
-    "  Mês Atual",
-    "DEDUÇÕES (XI)",
-    "  Dez/2024",
-    "  Mês Atual",
-    "DCL (XIII) = X - XI",
-    "  Dez/2024",
-    "  Mês Atual",
+    "OUTROS AJUSTES (XVIII) - DETALHAMENTO",
     "",
-    "RESULTADO NOMINAL - Abaixo Linha Bruto (XIV) = XIIIa - XIIIb",
+    "VPD - VARIAÇÕES PATRIMONIAIS DIMINUTIVAS (+)",
+    "  A06 51 - Var Cambiais Dívida Contratual",
+    "  A06 53 - Var Cambiais Dívida Mobiliária",
+    "  A06 77 - Constituição Ajuste para Perdas",
+    "  A06 60 - Reversão Subvenções COPEC",
+    "  A06 58 - Outras Variações Cambiais",
+    "  A06 59 - Desincorporação de Ativos",
+    "  Subtotal VPD",
     "",
-    "VARIAÇÃO SALDO RPP (XV) = XIIb - XIIa",
-    "RECEITA ALIENAÇÃO INV PERMANENTES (XIX)",
-    "PASSIVOS RECONHECIDOS NA DC (XX)",
+    "VPA - VARIAÇÕES PATRIMONIAIS AUMENTATIVAS (-)",
+    "  A06 65 - Outras Variações Cambiais",
+    "  A06 68 - Outras VPA",
+    "  A06 70 - Reversão de Provisões",
+    "  A06 71 - Ganhos Incorporação Ativos",
+    "  Subtotal VPA",
     "",
-    "OUTROS AJUSTES (XVIII)",
-    "  (+) Variações Patrimoniais Diminutivas",
-    "  (-) Variações Patrimoniais Aumentativas",
-    "  (+) Demais Ajustes",
+    "DEMAIS AJUSTES",
+    "  Variação Precatórios (DCL 08+38)",
+    "  (-) Variação Aplicações Fundos",
+    "      Saldo (DCL 14+15+16-13) - Dez/24",
+    "      + A06 73 (Ajuste Câmbio)",
+    "  Juros Fundos Líquidos (A06 43-44)",
+    "  FIES (A06 75)",
+    "  (-) Recursos a Classificar (A06 39+40)",
+    "  (-) Ajustes Exerc Anteriores (A06 76)",
+    "  (-) Concessão Empréstimos e Financ (A06 38)",
+    "  Subtotal Demais Ajustes",
     "",
-    "RESULTADO NOMINAL AJUSTADO (XIX) = XIV + XV - XIX + XX + XVIII",
+    "TOTAL OUTROS AJUSTES (XVIII)"
+  ),
+  valor = c(
+    NA, NA,
+    NA,
+    vpd_cambiais_div_contratual,
+    vpd_cambiais_div_mobiliaria,
+    vpd_constituicao_ajuste_perdas,
+    vpd_reversao_subvencoes_copec,
+    vpd_outras_var_cambiais,
+    vpd_desincorp_ativos,
+    total_vpd_ajuste,
+    NA,
+    NA,
+    vpa_outras_var_cambiais,
+    vpa_outras_vpa,
+    vpa_reversao_provisoes,
+    vpa_ganhos_incorp_ativos,
+    total_vpa_ajuste,
+    NA,
+    NA,
+    var_precatorios,
+    -var_aplic_fundos,
+    aplic_fundos_saldo_atual - valores_dez_2024$aplic_fundos,
+    aplic_fundos_ordem_73,
+    juros_fundos_liquidos,
+    divida_fies,
+    -recursos_classificar,
+    -ajustes_exerc_anteriores,
+    -concessao_emprestimos_ajuste,
+    demais_ajustes,
+    NA,
+    outros_ajustes_total
+  )
+)
+
+tabela_detalhamento %>%
+  mutate(valor_milhares = fmt_milhar(valor)) %>%
+  select(componente, valor_milhares) %>%
+  knitr::kable(col.names = c("Componente", "R$ milhares"), align = c("l", "r"),
+               caption = "Detalhamento dos Outros Ajustes (XVIII)")
+```
+
+### Tabela: Resultado Nominal e Primário - Abaixo da Linha
+
+```{r tabela-rn-rp-abaixo-v4}
+#| include: true
+
+tabela_resultado <- tibble(
+  linha = c(
+    "", "C81", "C84", "C85", "C86", "", "",
+    "D89", "", "C120", "", "", "", "C87", "",
+    "C121", "", "C123"
+  ),
+  componente = c(
+    "CÁLCULO DO RESULTADO - ABAIXO DA LINHA",
+    "RESULTADO NOMINAL BRUTO (XIV) - variação DCL",
+    "(+) VARIAÇÃO SALDO RPP (XV)",
+    "(-) RECEITA ALIENAÇÃO INVESTIMENTOS (XI)",
+    "(+) PASSIVOS RECONHECIDOS NA DC (XVII)",
+    "    A06 55 - A06 66 + DCL 10",
+    "",
+    "OUTROS AJUSTES sem discrepância (XVIII)",
+    "",
+    "(+) Discrepância Metodológica",
+    "    Discrepância Calculada",
+    "    (+) Ajuste Metodológico Comparativo",
+    "",
+    "OUTROS AJUSTES com discrepância (XVIII)",
+    "",
+    "RESULTADO NOMINAL AJUSTADO (XIX) = XIV+XV-XI+XVII+XVIII",
+    "",
+    "RESULTADO PRIMÁRIO (XXIII) = XXII - (X - XI)"
+  ),
+  valor = c(
+    NA,
+    resultado_nominal_bruto,
+    variacao_saldo_rpp,
+    -receita_alienacao,
+    passivos_reconhecidos,
+    NA,
+    NA,
+    outros_ajustes_total,
+    NA,
+    discrepancia_metodologica,
+    discrepancia_calculada,
+    ajuste_metodologico_comparativo,
+    NA,
+    outros_ajustes_com_disc,
+    NA,
+    resultado_nominal_ajustado,
+    NA,
+    resultado_primario_abaixo
+  )
+)
+
+tabela_resultado %>%
+  mutate(valor_milhares = fmt_milhar(valor)) %>%
+  select(linha, componente, valor_milhares) %>%
+  knitr::kable(col.names = c("Linha", "Componente", "R$ milhares"), 
+               align = c("c", "l", "r"),
+               caption = "Resultado Nominal e Primário - Abaixo da Linha")
+```
+
+### Tabela: Detalhamento da Discrepância Metodológica (C120)
+
+```{r detalhamento-discrepancia-v4}
+#| include: true
+
+tabela_discrepancia <- tibble(
+  componente = c(
+    "DISCREPÂNCIA METODOLÓGICA (C120) - DETALHAMENTO",
+    "",
+    "PARTE 1: Discrepância Calculada",
+    "  P63 - RP Acima da Linha (XII)",
+    "  P70 - Juros e Encargos Ativos (XXV)",
+    "  P71 - Juros e Encargos Passivos (XXVI)",
+    "  (P63 + P70 - P71)",
+    "  P139 - RN Abaixo sem discrepância",
+    "  Discrepância Calculada = (P63+P70-P71) - P139",
+    "",
+    "PARTE 2: Ajuste Metodológico (comparativo.xlsx)",
+    "  ajuste_metodologico = RP_RTN - RP_TG",
+    "",
+    "TOTAL C120 = Parte 1 + Parte 2"
+  ),
+  valor = c(
+    NA,
+    NA,
+    NA,
+    rp_acima_linha,
+    juros_ativos_calc,
+    juros_passivos_calc,
+    rp_acima_linha + juros_ativos_calc - juros_passivos_calc,
+    rn_sem_disc,
+    discrepancia_calculada,
+    NA,
+    NA,
+    ajuste_metodologico_comparativo,
+    NA,
+    discrepancia_metodologica
+  )
+)
+
+tabela_discrepancia %>%
+  mutate(valor_milhares = fmt_milhar(valor)) %>%
+  select(componente, valor_milhares) %>%
+  knitr::kable(col.names = c("Componente", "R$ milhares"), align = c("l", "r"),
+               caption = "Detalhamento da Discrepância Metodológica (C120)")
+```
+
+### Tabela: Comparativo Acima x Abaixo da Linha
+
+```{r comparativo-v4}
+#| include: true
+
+tabela_comparativo <- tibble(
+  metrica = c(
+    "RESULTADO PRIMÁRIO",
+    "  Acima da Linha (XII)",
+    "  Abaixo da Linha (XXIII)",
+    "  Diferença",
+    "",
+    "RESULTADO NOMINAL",
+    "  Acima da Linha (IX)",
+    "  Abaixo da Linha (XIX)",
+    "  Diferença",
     "",
     "JUROS NOMINAIS",
-    "  Juros e Encargos Ativos (VII)",
-    "  Juros e Encargos Passivos (VIII)",
-    "  Juros Líquidos = VII - VIII",
+    "  (+) Juros Ativos (X)",
+    "  (-) Juros Passivos (XI)",
+    "  = Juros Líquidos",
     "",
-    "RESULTADO PRIMÁRIO - Abaixo da Linha (XXIII) = XIX - Juros Líquidos",
-    "",
-    "CONCILIAÇÃO",
-    "  RP Acima da Linha",
-    "  RP Abaixo da Linha",
-    "  DISCREPÂNCIA ESTATÍSTICA"
+    "PASSIVOS RECONHECIDOS (C86)",
+    "  A06 55 (Incorp Passivos)",
+    "  (-) A06 66 (Desincorp Passivos)",
+    "  (+) DCL 10 (Passivos Insuficiência)",
+    "  = Total C86"
   ),
-  dez_2024 = c(
-    NA, NA, valores_dez_2024$divida_consolidada, NA,
-    NA, valores_dez_2024$deducoes, NA,
-    NA, valores_dez_2024$dcl, NA, NA,
-    NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA,
-    valores_dez_2024$juros_ativos, valores_dez_2024$juros_passivos, NA, NA, NA, NA, NA, NA, NA, NA
-  ),
-  mes_atual = c(
-    NA, NA, NA, dcl_mes_atual,
-    NA, NA, NA,  # Deduções mês atual seria necessário calcular
-    NA, NA, dcl_mes_atual, NA,
-    resultado_nominal_abaixo_bruto, NA,
-    variacao_saldo_rpp, receita_alienacao_inv_perm, passivos_reconhecidos_dc, NA,
-    outros_ajustes_total, total_vpd_ajuste, total_vpa_ajuste, demais_ajustes, NA,
-    resultado_nominal_ajustado, NA, NA,
-    juros_ativos_atual, juros_passivos_atual, juros_liquidos_atual, NA,
-    resultado_primario_abaixo_final, NA, NA,
-    if(exists("resultado_primario_final")) resultado_primario_final else NA,
-    resultado_primario_abaixo_final,
-    discrepancia_rp
+  valor = c(
+    NA,
+    rp_acima_linha,
+    resultado_primario_abaixo,
+    diferenca_rp,
+    NA,
+    NA,
+    rn_acima_linha,
+    resultado_nominal_ajustado,
+    diferenca_rn,
+    NA,
+    NA,
+    juros_ativos_calc,
+    juros_passivos_calc,
+    juros_liquidos,
+    NA,
+    NA,
+    passivos_a06_55,
+    -passivos_a06_66,
+    passivos_dcl_10,
+    passivos_reconhecidos
   )
 )
 
-datatable(
-  tabela_abaixo_linha %>%
-    mutate(
-      dez_2024 = ifelse(is.na(dez_2024), "", 
-                        format(round(dez_2024/1000, 0), big.mark = ".", decimal.mark = ",")),
-      mes_atual = ifelse(is.na(mes_atual), "", 
-                         format(round(mes_atual/1000, 0), big.mark = ".", decimal.mark = ","))
-    ),
-  caption = "RREO Anexo 6 - Resultado Primário e Nominal - Abaixo da Linha (R$ mil)",
-  colnames = c("Componente", "Dez/2024", "Mês Atual"),
-  options = list(pageLength = 40, dom = 't',
-                 columnDefs = list(list(className = 'dt-right', targets = c(1, 2)))),
-  rownames = FALSE
-) %>%
-  formatStyle('componente', fontWeight = styleEqual(
-    c("RESULTADO NOMINAL - Abaixo Linha Bruto (XIV) = XIIIa - XIIIb",
-      "RESULTADO NOMINAL AJUSTADO (XIX) = XIV + XV - XIX + XX + XVIII",
-      "RESULTADO PRIMÁRIO - Abaixo da Linha (XXIII) = XIX - Juros Líquidos",
-      "  DISCREPÂNCIA ESTATÍSTICA"),
-    rep("bold", 4)
-  ))
+tabela_comparativo %>%
+  mutate(valor_milhares = fmt_milhar(valor)) %>%
+  select(metrica, valor_milhares) %>%
+  knitr::kable(col.names = c("Métrica", "R$ milhares"), align = c("l", "r"),
+               caption = "Comparativo Acima x Abaixo da Linha")
 ```
 
----
+
 
 ## Fórmulas Resumo
 
 | Componente | Fórmula |
-|------------|---------|
+|------------------------------------|------------------------------------|
 | **Resultado Nominal Bruto (XIV)** | DCL(Dez/2024) - DCL(Mês Atual) |
 | **Variação Saldo RPP (XV)** | RP_Proc(Atual) - RP_Proc(Dez/2024) |
 | **Resultado Nominal Ajustado (XIX)** | XIV + XV - Alienação + Passivos DC + Outros Ajustes |
@@ -10109,18 +9863,15 @@ datatable(
 
 ## Observações
 
-1. **Valores de Dez/2024**: Podem ser informados manualmente ou lidos da planilha oficial
-2. **DCL Mês Atual**: Calculada no RGF A02
-3. **Juros**: Calculados no chunk "acima da linha" (itens 41-44 e 50-61)
-4. **Discrepância**: Diferença entre cálculo "acima" e "abaixo" da linha
-
-
-
+1.  **Valores de Dez/2024**: Podem ser informados manualmente ou lidos da planilha oficial
+2.  **DCL Mês Atual**: Calculada no RGF A02
+3.  **Juros**: Calculados no chunk "acima da linha" (itens 41-44 e 50-61)
+4.  **Discrepância**: Diferença entre cálculo "acima" e "abaixo" da linha
 
 ## 📋 Objetos Exportados
 
 | Objeto | Descrição |
-|-------------------------------|-----------------------------------------|
+|------------------------------------|------------------------------------|
 | `criterios_rreo_A06_receitas_A06` | Critérios para receitas primárias |
 | `criterios_rreo_A06_despesas_categoria_grupo_A06` | Critérios para despesas por categoria/grupo |
 | `criterios_rreo_A06_despesas_natureza_detalhada_A06` | Critérios para despesas por natureza detalhada |
@@ -10140,7 +9891,7 @@ datatable(
 ## 📊 Ficha Técnica
 
 | Item | Descrição |
-|--------------------------|----------------------------------------------|
+|------------------------------------|------------------------------------|
 | **Relatório** | RREO - Relatório Resumido da Execução Orçamentária |
 | **Anexo** | Anexo 07 - Demonstrativo dos Restos a Pagar por Poder e Órgão |
 | **Base Legal** | LRF Art. 53, inciso V |
@@ -10150,13 +9901,13 @@ datatable(
 ## 📁 Arquivos Necessários
 
 | Objeto              | Arquivo          | Descrição                             |
-|---------------------|-----------------------|----------------------------|
+|-------------------|------------------|-----------------------------------|
 | `dados_rp_anexo_07` | rreo_a07_rp.xlsx | Restos a pagar por órgão e modalidade |
 
 ## 📋 Atributos Utilizados
 
 | Atributo | Descrição | Uso no Anexo |
-|---------------------|-----------------------|-----------------------------|
+|------------------------|------------------------|------------------------|
 | `tipo_modalidade` | Tipo de modalidade | Intragovernamental / Exceto Intra |
 | `orgao_uge_orgao_maximo_codigo` | Código do órgão máximo | Agrupamento por órgão |
 | `orgao_uge_orgao_maximo_nome` | Nome do órgão máximo | Descrição do órgão |
@@ -10273,7 +10024,7 @@ if (!exists("dados_rp_anexo_07")) {
 ## 📁 Arquivos Necessários
 
 | Objeto | Arquivo | Descrição |
-|---------------------|-----------------------|----------------------------|
+|------------------------|------------------------|------------------------|
 | `dados_receita` | tg_receita\_\*.xlsx | Receitas orçamentárias (impostos) |
 | `dados_despesa` | tg_despesa\_\*.xlsx | Despesas orçamentárias com educação |
 | `dados_rp_anexo_08` | rreo_a08_rp.xlsx | Restos a pagar de educação |
@@ -10281,7 +10032,7 @@ if (!exists("dados_rp_anexo_07")) {
 ## 📋 Atributos Utilizados
 
 | Atributo | Descrição | Uso no Anexo |
-|---------------------|-----------------------|-----------------------------|
+|------------------------|------------------------|------------------------|
 | `natureza_receita_codigo_completo` | Código completo da natureza | Identificar impostos (111*, 711*) |
 | `fonte_recursos_codigo` | Código da fonte de recursos | Identificar fontes MDE (000, 008, 035, 133, 134, 213, 242) |
 | `iduso_codigo` | Identificador de uso | 8 = MDE |
@@ -10789,7 +10540,7 @@ valor_percentual_mde <- percentual_aplicacao
 ## 📋 Objetos Exportados
 
 | Objeto | Descrição |
-|-------------------------------|-----------------------------------------|
+|------------------------------------|------------------------------------|
 | `criterios_rreo_A08_mde_despesas` | Critérios para classificação das despesas MDE |
 | `receitas_base_rli` | Receitas de impostos base para RLI |
 | `rli_transf` | Transferências constitucionais |
@@ -10825,7 +10576,7 @@ valor_percentual_mde <- percentual_aplicacao
 ## 📊 Ficha Técnica
 
 | Item | Descrição |
-|--------------------------|----------------------------------------------|
+|------------------------------------|------------------------------------|
 | **Relatório** | RREO - Relatório Resumido da Execução Orçamentária |
 | **Anexo** | Anexo 09 - Demonstrativo das Receitas de Operações de Crédito e Despesas de Capital |
 | **Base Legal** | CF Art. 167, inciso III; LRF Art. 12, § 2º |
@@ -10835,7 +10586,7 @@ valor_percentual_mde <- percentual_aplicacao
 ## 📁 Arquivos Necessários
 
 | Objeto          | Arquivo                | Descrição                        |
-|---------------------|-----------------------|----------------------------|
+|------------------|-----------------------|--------------------------------|
 | `dados_receita` | tg_receita\_\*.xlsx    | Receitas de operações de crédito |
 | `dados_despesa` | tg_despesa\_\*.xlsx    | Despesas de capital              |
 | `balancete`     | rgf_a02_balancete.xlsx | Saldo da subconta da dívida      |
@@ -10843,7 +10594,7 @@ valor_percentual_mde <- percentual_aplicacao
 ## 📋 Atributos Utilizados
 
 | Atributo | Descrição | Uso no Anexo |
-|---------------------|-----------------------|-----------------------------|
+|------------------------|------------------------|------------------------|
 | `natureza_receita_codigo_completo` | Código da natureza | Identificar operações de crédito (21*, 81*) |
 | `categoria_economica_despesa_codigo` | Categoria da despesa | 4 = Capital |
 | `conta_contabil_numero` | Número da conta contábil | 111110401 = Subconta da dívida |
@@ -11475,7 +11226,7 @@ cat("💰 **Total Geral das Despesas Computadas:** R$",
 ## 📊 Ficha Técnica
 
 | Item | Descrição |
-|--------------------------|----------------------------------------------|
+|------------------------------------|------------------------------------|
 | **Relatório** | RREO - Relatório Resumido da Execução Orçamentária |
 | **Demonstrativo** | Tabela 01 - Balanço Orçamentário da Seguridade Social |
 | **Base Legal** | LRF Art. 52, inciso I |
@@ -11492,7 +11243,7 @@ cat("💰 **Total Geral das Despesas Computadas:** R$",
 ## 📋 Atributos Utilizados
 
 | Atributo | Descrição | Uso na Tabela |
-|--------------------|----------------------|------------------------------|
+|------------------------|------------------------|------------------------|
 | `nre1_categoria_economica_codigo` | Categoria econômica receita | 1=Corrente, 2=Capital, 7/8=Intra |
 | `nre2_origem_receita_codigo_origem` | Origem da receita | 1-9 conforme classificação |
 | `grupo_despesa_codigo_grupo` | Grupo de despesa | 1-6, 9 |
@@ -11942,7 +11693,7 @@ if (exists("dados_despesa")) {
 ## 📋 Objetos Exportados
 
 | Objeto | Descrição |
-|-------------------------------|-----------------------------------------|
+|------------------------------------|------------------------------------|
 | `criterios_rreo_T01_receitas` | Critérios para receitas orçamentárias |
 | `criterios_rreo_T01_despesas_T01` | Critérios para despesas orçamentárias |
 | `criterios_rreo_T01B_seguridade_T01B` | Critérios para seguridade por área |
@@ -11987,7 +11738,7 @@ if (exists("dados_despesa")) {
 ## 📋 Atributos Utilizados
 
 | Atributo | Descrição | Uso na Tabela |
-|--------------------|----------------------|------------------------------|
+|------------------------|------------------------|------------------------|
 | `grupo_despesa_codigo_grupo` | Grupo de despesa | 1 = Pessoal e Encargos |
 | `elemento_despesa_codigo` | Elemento de despesa | 00-41 conforme classificação |
 | `orgao_uge_orgao_maximo_codigo` | Órgão máximo | 52000 = Ministério da Defesa |
@@ -12383,7 +12134,7 @@ if (exists("validacao_civil") && exists("validacao_militar")) {
 ## 📋 Objetos Exportados
 
 | Objeto | Descrição |
-|-------------------------------|-----------------------------------------|
+|------------------------------------|------------------------------------|
 | `criterios_rreo_T02_despesas_T02` | Critérios para despesas com pessoal |
 | `df_t02_tipo_admin` | Despesas por tipo de administração |
 | `validacao_civil` | Validação pessoal civil por tipo admin |
@@ -12426,7 +12177,7 @@ if (exists("validacao_civil") && exists("validacao_militar")) {
 ## 📊 Ficha Técnica
 
 | Item | Descrição |
-|--------------------------|----------------------------------------------|
+|------------------------------------|------------------------------------|
 | **Relatório** | RREO - Relatório Resumido da Execução Orçamentária |
 | **Demonstrativo** | Tabela 03 - Despesas por Resultado EOF (Primárias/Financeiras) |
 | **Base Legal** | LRF Art. 52, inciso I |
@@ -12442,7 +12193,7 @@ if (exists("validacao_civil") && exists("validacao_militar")) {
 ## 📋 Atributos Utilizados
 
 | Atributo | Descrição | Uso na Tabela |
-|--------------------|----------------------|------------------------------|
+|------------------------|------------------------|------------------------|
 | `resultado_eof_codigo` | Código do resultado EOF | 6 = Primário |
 | `resultado_eof_nome` | Nome do resultado | Primário / Financeiro |
 | `orgao_uge_orgao_maximo_codigo` | Código do órgão máximo | Agrupamento por órgão |
@@ -12747,7 +12498,7 @@ if (exists("despesas_por_resultado") && exists("total_despesas_primarias")) {
 ## 📋 Objetos Exportados
 
 | Objeto | Descrição |
-|-------------------------------|-----------------------------------------|
+|------------------------------------|------------------------------------|
 | `agrupado_despesa_orgao` | Vetor de agrupamento por órgão |
 | `total_despesas_primarias` | Total das despesas primárias |
 | `despesas_por_resultado` | Despesas por resultado EOF |
@@ -13597,7 +13348,7 @@ if (file.exists(arquivo_rreo_a14)) {
 
 Substitua os chunks de validação RGF pelos códigos abaixo.
 
----
+------------------------------------------------------------------------
 
 ### Chunk 1: Mapeamento de Células do Excel Oficial
 
@@ -13625,7 +13376,7 @@ mapeamento_rgf <- tribble(
 cat("✅ Mapeamento RGF definido:", nrow(mapeamento_rgf), "itens\n")
 ```
 
----
+------------------------------------------------------------------------
 
 ### Chunk 2: Coletar Valores do Sistema
 
@@ -13792,7 +13543,7 @@ sistema_rgf <- tibble(
 cat("\n✅ DataFrame sistema_rgf criado com", nrow(sistema_rgf), "linhas\n")
 ```
 
----
+------------------------------------------------------------------------
 
 ### Chunk 3: Ler Valores do Excel Oficial
 
@@ -13897,7 +13648,7 @@ if (length(arquivos_encontrados) > 0) {
 
 ```
 
----
+------------------------------------------------------------------------
 
 ### Chunk 4: Comparação Sistema vs Oficial
 
@@ -13960,7 +13711,7 @@ comparacao_rgf <- oficial_rgf %>%
 cat("✅ Comparação RGF concluída\n")
 ```
 
----
+------------------------------------------------------------------------
 
 ### Chunk 5: Exibir Tabela de Validação
 
@@ -14010,7 +13761,7 @@ datatable(
   )
 ```
 
----
+------------------------------------------------------------------------
 
 ### Chunk 6: Resumo da Validação
 
@@ -14036,22 +13787,22 @@ cat("=" %>% rep(40) %>% paste(collapse = ""), "\n")
 cat(sprintf("   TOTAL: %d itens\n", nrow(comparacao_rgf)))
 ```
 
----
+------------------------------------------------------------------------
 
 ## Notas
 
-1. **DTP (Despesa Total com Pessoal)**: Agora é extraído corretamente do dataframe `pessoal` filtrado por `categoria_pessoal`
+1.  **DTP (Despesa Total com Pessoal)**: Agora é extraído corretamente do dataframe `pessoal` filtrado por `categoria_pessoal`
 
-2. **Disponibilidades**: 
-   - `disponibilidade_antes_rp`: Disponibilidade antes da inscrição em RP (todos os meses)
-   - `disponibilidade_apos_rp`: Disponibilidade após a inscrição em RP (só dezembro)
+2.  **Disponibilidades**:
 
-3. **RPNP do Exercício**: Só terá valor em dezembro
+    -   `disponibilidade_antes_rp`: Disponibilidade antes da inscrição em RP (todos os meses)
+    -   `disponibilidade_apos_rp`: Disponibilidade após a inscrição em RP (só dezembro)
 
-4. **Limites removidos**: A tabela agora mostra apenas valores realizados, sem os limites calculados
+3.  **RPNP do Exercício**: Só terá valor em dezembro
 
-5. **Células do Excel**: Ajustar conforme layout do arquivo `comparativo.xlsx`
+4.  **Limites removidos**: A tabela agora mostra apenas valores realizados, sem os limites calculados
 
+5.  **Células do Excel**: Ajustar conforme layout do arquivo `comparativo.xlsx`
 
 ## 📌 Observações
 
