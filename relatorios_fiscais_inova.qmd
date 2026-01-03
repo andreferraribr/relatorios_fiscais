@@ -9550,10 +9550,10 @@ rn_sem_disc <- resultado_nominal_bruto + variacao_saldo_rpp - receita_alienacao 
 discrepancia_calculada <- (rp_acima_linha + juros_ativos_calc - juros_passivos_calc) - rn_sem_disc
 
 # Parte 2: Usar ajuste_metodologico já calculado do comparativo.xlsx
-ajuste_metodologico_comparativo <- if (exists("ajuste_metodologico")) ajuste_metodologico else 0
+ajuste_metodologico_comparativo <- if (exists("ajuste_metodologico")) ajuste_metodologico*-1 else 0
 
 # C120 = Discrepância Calculada + Ajuste Metodológico
-discrepancia_metodologica <- discrepancia_calculada - ajuste_metodologico_comparativo
+discrepancia_metodologica <- discrepancia_calculada + ajuste_metodologico_comparativo
 
 # ------------------------------------------------------------------------------
 # 9. OUTROS AJUSTES COM DISCREPÂNCIA (C87)
@@ -9596,7 +9596,7 @@ diferenca_rp <- rp_acima_linha - resultado_primario_abaixo
 
 valor_outros_ajustes_sem_disc <- outros_ajustes_total        # D89
 valor_discrepancia_calculada <- discrepancia_calculada       # Parte 1
-valor_ajuste_comparativo <- ajuste_metodologico_comparativo * -1  # Parte 2
+valor_ajuste_comparativo <- ajuste_metodologico_comparativo  # Parte 2
 valor_discrepancia <- discrepancia_metodologica              # C120 = Parte1 + Parte2
 valor_outros_ajustes <- outros_ajustes_com_disc              # C87
 valor_rn_ajustado <- resultado_nominal_ajustado              # C121
