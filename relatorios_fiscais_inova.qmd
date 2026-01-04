@@ -6823,7 +6823,7 @@ RCL = RECEITAS CORRENTES
 A RCL e a base de calculo para os principais limites da LRF:
 
 | Limite                          | Percentual           | Referencia Legal     |
-|-------------------------------|---------------------|---------------------|
+|------------------------------|---------------------|---------------------|
 | Despesa com Pessoal - Uniao     | 50% (total)          | LRF Art. 19          |
 | Despesa com Pessoal - Executivo | 40,9%                | LRF Art. 20          |
 | Divida Consolidada Liquida      | Resolucao SF 40/2001 | LRF Art. 30          |
@@ -7413,7 +7413,7 @@ A RCL calculada neste anexo é utilizada como **base de cálculo** para:
 ## 📑 Ficha Técnica
 
 | Campo               | Informação                                            |
-|---------------------|---------------------------------------------------|
+|----------------------|--------------------------------------------------|
 | Relatório           | RREO - Relatório Resumido da Execução Orçamentária    |
 | Anexo               | Anexo 04                                              |
 | Nome                | Demonstrativo das Receitas e Despesas Previdenciárias |
@@ -7648,7 +7648,7 @@ DT::datatable(
 ### Filtros Gerais RPPS
 
 | Filtro         | Valor        | Descrição                                     |
-|----------------|----------------|----------------------------------------|
+|-----------------|-----------------|--------------------------------------|
 | UO excluída    | 73901        | Operações Oficiais de Crédito (vai para FCDF) |
 | Fonte excluída | 054, 00, 000 | Fontes não previdenciárias                    |
 
@@ -8217,7 +8217,7 @@ cat(strrep("=", 70), "\n")
 ### Despesas RGPS
 
 | Ordem | Item                             | Critério Principal                 |
-|---------------|----------------------------|------------------------------|
+|-----------------|---------------------------|----------------------------|
 | 01    | Aposentadorias                   | elemento = 53, 54; grupo = 3       |
 | 02    | Pensões                          | elemento = 55, 56; grupo = 3       |
 | 03    | Outros Benefícios                | elemento = 57, 58; grupo = 3       |
@@ -9369,6 +9369,7 @@ valor_ajuste_metodologico <- ajuste_metodologico
 valor_juros_ativos <- juros_ativos
 valor_juros_passivos <- juros_passivos
 ```
+
 ## 📉 Resultado Abaixo da Linha
 
 ```{r resultado-abaixo-linha-v4}
@@ -9596,7 +9597,7 @@ diferenca_rp <- rp_acima_linha - resultado_primario_abaixo
 
 valor_outros_ajustes_sem_disc <- outros_ajustes_total        # D89
 valor_discrepancia_calculada <- discrepancia_calculada       # Parte 1
-valor_ajuste_comparativo <- ajuste_metodologico_comparativo  # Parte 2
+valor_ajuste_comparativo <- ajuste_metodologico_comparativo * -1  # Parte 2
 valor_discrepancia <- discrepancia_metodologica              # C120 = Parte1 + Parte2
 valor_outros_ajustes <- outros_ajustes_com_disc              # C87
 valor_rn_ajustado <- resultado_nominal_ajustado              # C121
@@ -9762,7 +9763,7 @@ tabela_discrepancia <- tibble(
     "  Discrepância Calculada = (P63+P70-P71) - P139",
     "",
     "PARTE 2: Ajuste Metodológico (comparativo.xlsx)",
-    "  ajuste_metodologico = RP_RTN - RP_TG",
+    "  ajuste_metodologico = RP_RTN + RP_TG",
     "",
     "TOTAL C120 = Parte 1 + Parte 2"
   ),
@@ -9850,8 +9851,6 @@ tabela_comparativo %>%
                caption = "Comparativo Acima x Abaixo da Linha")
 ```
 
-
-
 ## Fórmulas Resumo
 
 | Componente | Fórmula |
@@ -9901,7 +9900,7 @@ tabela_comparativo %>%
 ## 📁 Arquivos Necessários
 
 | Objeto              | Arquivo          | Descrição                             |
-|-------------------|------------------|-----------------------------------|
+|-------------------|------------------|----------------------------------|
 | `dados_rp_anexo_07` | rreo_a07_rp.xlsx | Restos a pagar por órgão e modalidade |
 
 ## 📋 Atributos Utilizados
@@ -10586,7 +10585,7 @@ valor_percentual_mde <- percentual_aplicacao
 ## 📁 Arquivos Necessários
 
 | Objeto          | Arquivo                | Descrição                        |
-|------------------|-----------------------|--------------------------------|
+|------------------|-----------------------|-------------------------------|
 | `dados_receita` | tg_receita\_\*.xlsx    | Receitas de operações de crédito |
 | `dados_despesa` | tg_despesa\_\*.xlsx    | Despesas de capital              |
 | `balancete`     | rgf_a02_balancete.xlsx | Saldo da subconta da dívida      |
