@@ -81,22 +81,9 @@ memoria_info <- tryCatch({
   32.0  # Fallback
 })
 
-cat("\n")
-cat("╔══════════════════════════════════════════════════════════════╗\n")
-cat("║        ⚡ OTIMIZAÇÃO DE PERFORMANCE - SISTEMA ATIVADO        ║\n")
-cat("╠══════════════════════════════════════════════════════════════╣\n")
-cat(sprintf("║ 🖥️  CPU: %d cores disponíveis%s║\n", 
-    cores_disponiveis, 
-    strrep(" ", 44 - nchar(as.character(cores_disponiveis)))))
-cat(sprintf("║ 💾 RAM: %.1f GB%s║\n", 
-    memoria_info, 
-    strrep(" ", 48 - nchar(sprintf("%.1f GB", memoria_info)))))
 
 # Configurar paralelização (usar até 10 cores, deixar 2 para o sistema)
 cores_usar <- min(10, max(1, cores_disponiveis - 2))
-cat(sprintf("║ ⚙️  Cores para processamento paralelo: %d%s║\n", 
-    cores_usar,
-    strrep(" ", 29 - nchar(as.character(cores_usar)))))
 
 # Configurar backend de paralelização
 plan(multisession, workers = cores_usar)
@@ -104,12 +91,6 @@ plan(multisession, workers = cores_usar)
 # Desabilitar paralelização automática do data.table para evitar conflitos
 setDTthreads(1)
 
-cat("╠══════════════════════════════════════════════════════════════╣\n")
-cat("║ ✅ Paralelização configurada e ativa                        ║\n")
-cat("║ ✅ Otimizações de memória ativadas                          ║\n")
-cat("║ ✅ Backend: future::multisession                            ║\n")
-cat("╚══════════════════════════════════════════════════════════════╝\n")
-cat("\n")
 
 # ============================================================================
 # FUNÇÕES OTIMIZADAS PARA IMPORTAÇÃO PARALELA
@@ -126,7 +107,6 @@ importar_excel_paralelo <- function(arquivos, skip = 5, .progress = TRUE) {
     return(data.frame())
   }
   
-  cat(sprintf("📥 Importando %d arquivos em paralelo...\n", length(arquivos)))
   
   resultado <- future_map_dfr(
     arquivos, 
@@ -164,20 +144,14 @@ importar_excel_paralelo <- function(arquivos, skip = 5, .progress = TRUE) {
     .options = furrr_options(seed = TRUE)
   )
   
-  cat(sprintf("✅ Importação concluída: %s registros\n", 
-              format(nrow(resultado), big.mark = ".", decimal.mark = ",")))
   
   # Mostrar quais colunas foram convertidas
   cols_convertidas <- names(resultado)[sapply(resultado, is.numeric)]
   if (length(cols_convertidas) > 0) {
-    cat(sprintf("   📊 Colunas numéricas: %d\n", length(cols_convertidas)))
   }
   
   return(resultado)
 }
-
-cat("✅ Função importar_excel_paralelo() ATUALIZADA carregada!\n\n")
-
 
 
 # Operadores customizados
@@ -221,7 +195,6 @@ arquivos_receita <- c(
   str_c(mes_pasta, "tg_receita_previsao.xlsx")
 )
 
-cat("📥 Importando dados de receita em paralelo...\n")
 
 # Importar ambos os arquivos simultaneamente
 dados_receita <- importar_excel_paralelo(
@@ -250,10 +223,6 @@ dados_receita <- importar_excel_paralelo(
     )
   )
 
-cat(sprintf("✅ Dados de receita carregados: %s registros\n", 
-            format(nrow(dados_receita), big.mark = ".", decimal.mark = ",")))
-cat(sprintf("   • Memória utilizada: %.1f MB\n", 
-            object.size(dados_receita) / 1024^2))
 ```
 
 ## 💰 Dados de Despesa
@@ -275,7 +244,6 @@ arq_despesa <- list.files(
   full.names = TRUE
 )
 
-cat(sprintf("📥 Importando %d arquivos de despesa em paralelo...\n", length(arq_despesa)))
 
 # Importar todos os arquivos simultaneamente
 dados_despesa <- importar_excel_paralelo(
@@ -329,18 +297,34 @@ dados_despesa <- importar_excel_paralelo(
     )
   )
 
-cat(sprintf("✅ Dados de despesa carregados: %s registros\n", 
-            format(nrow(dados_despesa), big.mark = ".", decimal.mark = ",")))
-cat(sprintf("   • Arquivos processados: %d\n", length(arq_despesa)))
-cat(sprintf("   • Memória utilizada: %.1f MB\n", 
-            object.size(dados_despesa) / 1024^2))
 
 # Estatísticas rápidas
-cat("\n📊 Resumo por tipo_modalidade:\n")
 print(dados_despesa %>% count(tipo_modalidade, sort = TRUE))
 
-cat("\n📊 Resumo por refinanciamento:\n")
 print(dados_despesa %>% count(refinanciamento, sort = TRUE))
+```
+
+## 📋 Dados Balancete
+
+```{r dados_balancete}
+#| echo: true
+#| eval: true
+#| include: false
+
+# ============================================================================
+# ⚡ VERSÃO OTIMIZADA - IMPORTAÇÃO PARALELA
+# ============================================================================
+
+arq_balancete <- str_c(mes_pasta, "dados_balancete.xlsx")
+  
+
+# Importar ambos os arquivos simultaneamente
+dados_balancete <- importar_excel_paralelo(
+  arq_balancete, 
+  skip = 5, 
+  .progress = TRUE
+) 
+
 ```
 
 ## 📋 Dados de Restos a Pagar
@@ -361,7 +345,6 @@ arquivos_rp <- list(
   anexo_03_rcl = str_c(mes_pasta, "rreo_a03_rp.xlsx")
 )
 
-cat(sprintf("📥 Importando %d arquivos de RP em paralelo...\n", length(arquivos_rp)))
 
 # Importar todos simultaneamente, cada um mantém sua estrutura própria
 tempo_inicio <- Sys.time()
@@ -404,19 +387,6 @@ dados_rp_anexo_08 <- dados_rp_lista$anexo_08
 dados_rp_anexo_03_rcl <- dados_rp_lista$anexo_03_rcl
 
 # Relatório de importação
-cat("\n✅ Dados de Restos a Pagar carregados:\n")
-cat(sprintf("   • Anexo 07: %s registros (%.1f MB)\n", 
-            format(nrow(dados_rp_anexo_07), big.mark = ".", decimal.mark = ","),
-            object.size(dados_rp_anexo_07) / 1024^2))
-cat(sprintf("   • Anexo 12: %s registros (%.1f MB)\n", 
-            format(nrow(dados_rp_anexo_12), big.mark = ".", decimal.mark = ","),
-            object.size(dados_rp_anexo_12) / 1024^2))
-cat(sprintf("   • Anexo 08: %s registros (%.1f MB)\n", 
-            format(nrow(dados_rp_anexo_08), big.mark = ".", decimal.mark = ","),
-            object.size(dados_rp_anexo_08) / 1024^2))
-cat(sprintf("   • Anexo 03 RCL: %s registros (%.1f MB)\n", 
-            format(nrow(dados_rp_anexo_03_rcl), big.mark = ".", decimal.mark = ","),
-            object.size(dados_rp_anexo_03_rcl) / 1024^2))
 
 # Memória total
 memoria_total <- (object.size(dados_rp_anexo_07) + 
@@ -424,9 +394,6 @@ memoria_total <- (object.size(dados_rp_anexo_07) +
                   object.size(dados_rp_anexo_08) + 
                   object.size(dados_rp_anexo_03_rcl)) / 1024^2
 
-cat(sprintf("   • Memória total: %.1f MB\n", memoria_total))
-cat(sprintf("   • Tempo de importação: %.1f segundos\n", 
-            as.numeric(difftime(tempo_fim, tempo_inicio, units = "secs"))))
 ```
 
 ## 🏦 Dados RREO Anexo 06 - Resultado Primário
@@ -448,7 +415,6 @@ arquivos_a06 <- list(
   ajustes = str_c(mes_pasta, "rreo_a06_ajustes.xlsx")
 )
 
-cat(sprintf("📥 Importando %d arquivos do Anexo 06 em paralelo...\n", length(arquivos_a06)))
 
 # Importar todos simultaneamente
 dados_a06_lista <- future_map(
@@ -473,15 +439,6 @@ tg_RPN_juros <- dados_juros  # Alias para compatibilidade
 tg_RPN_disponibilidades <- dados_a06_lista$disponibilidades
 dados_ajustes <- dados_a06_lista$ajustes
 
-cat("\n✅ Dados do Anexo 06 carregados:\n")
-cat(sprintf("   • NDD: %s registros\n", 
-            format(nrow(dados_ndd), big.mark = ".", decimal.mark = ",")))
-cat(sprintf("   • Categoria/Grupo: %s registros\n", 
-            format(nrow(dados_categoria_grupo), big.mark = ".", decimal.mark = ",")))
-cat(sprintf("   • Juros: %s registros\n", 
-            format(nrow(dados_juros), big.mark = ".", decimal.mark = ",")))
-cat(sprintf("   • Disponibilidades: %s registros\n", 
-            format(nrow(tg_RPN_disponibilidades), big.mark = ".", decimal.mark = ",")))
 ```
 
 ## 📊 Dados RCL - RREO Anexo 03
@@ -489,14 +446,12 @@ cat(sprintf("   • Disponibilidades: %s registros\n",
 ```{r importar-dados-rcll}
 #| include: false
 
-cat("📥 Importando dados RCL (RREO A03)...\n")
 
 # ============================================================================
 # IMPORTAÇÃO
 # ============================================================================
 
 # Despesas
-cat("   • Importando RCL Despesas...\n")
 rreo_a03_rcl_despesas <- read_excel(
   str_c(mes_pasta, "rreo_a03_rcl_despesas.xlsx"), 
   skip = 5
@@ -512,7 +467,6 @@ rreo_a03_rcl_despesas <- read_excel(
   )
 
 # Receitas
-cat("   • Importando RCL Receitas...\n")
 rreo_a03_rcl_receitas <- read_excel(
   str_c(mes_pasta, "rreo_a03_rcl_receitas.xlsx"), 
   skip = 5
@@ -527,50 +481,26 @@ rreo_a03_rcl_receitas <- read_excel(
     saldo_r_item_informacao = movim_liquido_r_item_informacao
   )
 
-cat(sprintf("\n✓ RCL Despesas: %s registros\n", 
-            format(nrow(rreo_a03_rcl_despesas), big.mark = ".", decimal.mark = ",")))
-cat(sprintf("✓ RCL Receitas: %s registros\n", 
-            format(nrow(rreo_a03_rcl_receitas), big.mark = ".", decimal.mark = ",")))
 
 # ============================================================================
 # VERIFICAÇÃO
 # ============================================================================
-cat("\n🔍 Verificação:\n")
-cat(sprintf("   Colunas em despesas: %d\n", ncol(rreo_a03_rcl_despesas)))
-cat(sprintf("   Colunas em receitas: %d\n", ncol(rreo_a03_rcl_receitas)))
 
 # Verificar que alias foi criado e é numérico
-cat("\n✅ Alias 'saldo_r_item_informacao' criado:\n")
-cat(sprintf("   Despesas: %s (tipo: %s)\n", 
-            "saldo_r_item_informacao" %in% names(rreo_a03_rcl_despesas),
-            class(rreo_a03_rcl_despesas$saldo_r_item_informacao)[1]))
-cat(sprintf("   Receitas: %s (tipo: %s)\n", 
-            "saldo_r_item_informacao" %in% names(rreo_a03_rcl_receitas),
-            class(rreo_a03_rcl_receitas$saldo_r_item_informacao)[1]))
 
 # Teste de agregação
-cat("\n🧪 Teste de agregação:\n")
 teste_desp <- rreo_a03_rcl_despesas %>% 
   summarise(
     total_movim = sum(movim_liquido_r_item_informacao, na.rm = TRUE),
     total_saldo = sum(saldo_r_item_informacao, na.rm = TRUE)
   )
-cat(sprintf("   Despesas (movim_liquido): %s\n", 
-            format(teste_desp$total_movim, big.mark = ".", decimal.mark = ",")))
-cat(sprintf("   Despesas (saldo_r alias): %s\n", 
-            format(teste_desp$total_saldo, big.mark = ".", decimal.mark = ",")))
 
 teste_rec <- rreo_a03_rcl_receitas %>% 
   summarise(
     total_movim = sum(movim_liquido_r_item_informacao, na.rm = TRUE),
     total_saldo = sum(saldo_r_item_informacao, na.rm = TRUE)
   )
-cat(sprintf("   Receitas (movim_liquido): %s\n", 
-            format(teste_rec$total_movim, big.mark = ".", decimal.mark = ",")))
-cat(sprintf("   Receitas (saldo_r alias): %s\n", 
-            format(teste_rec$total_saldo, big.mark = ".", decimal.mark = ",")))
 
-cat("\n✅ Importação RCL concluída com sucesso!\n")
 ```
 
 ## 👥 Dados RGF Anexo 01 - Despesa com Pessoal
@@ -578,7 +508,6 @@ cat("\n✅ Importação RCL concluída com sucesso!\n")
 ```{r importar-dados-rgf-a01}
 #| include: false
 
-cat("📥 Importando dados RGF A01 (Despesa Pessoal)...\n")
 
 # ============================================================================
 # ⚡ VERSÃO OTIMIZADA - IMPORTAÇÃO PARALELA
@@ -587,7 +516,6 @@ cat("📥 Importando dados RGF A01 (Despesa Pessoal)...\n")
 # RGF Anexo 1
 arq_rgf_a01 <- list.files(path = mes_pasta, pattern = 'rgf_a01_', full.names = TRUE)
 
-cat(sprintf("   Encontrados %d arquivos\n", length(arq_rgf_a01)))
 
 rgf_a01 <- importar_excel_paralelo(arq_rgf_a01, skip = 5, .progress = TRUE) %>%
   mutate(
@@ -596,9 +524,6 @@ rgf_a01 <- importar_excel_paralelo(arq_rgf_a01, skip = 5, .progress = TRUE) %>%
     data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
   )
 
-cat(sprintf("✓ RGF A01: %s registros (%d arquivos)\n", 
-            format(nrow(rgf_a01), big.mark = ".", decimal.mark = ","), 
-            length(arq_rgf_a01)))
 ```
 
 ## 🏛️ Dados RGF Anexo 02 - Dívida Consolidada Líquida (DCL)
@@ -606,7 +531,6 @@ cat(sprintf("✓ RGF A01: %s registros (%d arquivos)\n",
 ```{r importar-dados-rgf-a02}
 #| include: false
 
-cat("📥 Importando dados RGF A02 (DCL)...\n")
 
 # ============================================================================
 # ⚡ VERSÃO OTIMIZADA - IMPORTAÇÃO PARALELA
@@ -643,7 +567,6 @@ arq_rgf_a02 <- list.files(
   full.names = TRUE
 )
 
-cat(sprintf("   Encontrados %d arquivos\n", length(arq_rgf_a02)))
 
 # Processar em paralelo
 rgf_a02_list <- future_map(
@@ -659,7 +582,6 @@ names(rgf_a02_list) <- basename(arq_rgf_a02) %>% str_remove("\\.xlsx$")
 # Coloca cada um no ambiente global
 list2env(rgf_a02_list, envir = .GlobalEnv)
 
-cat(sprintf("✓ RGF A02: %d arquivos importados\n", length(arq_rgf_a02)))
 ```
 
 ## 🔐 Dados RGF Anexo 03 - Garantias e Contragarantias
@@ -667,7 +589,6 @@ cat(sprintf("✓ RGF A02: %d arquivos importados\n", length(arq_rgf_a02)))
 ```{r importar-dados-rgf-a03}
 #| include: false
 
-cat("📥 Importando dados RGF A03 (Garantias)...\n")
 
 # RGF Anexo 3
 rgf_a03 <- read_excel(str_c(mes_pasta, "rgf_a03.xlsx"), skip = 5) %>%
@@ -677,8 +598,6 @@ rgf_a03 <- read_excel(str_c(mes_pasta, "rgf_a03.xlsx"), skip = 5) %>%
     data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
   )
 
-cat(sprintf("✓ RGF A03: %s registros\n", 
-            format(nrow(rgf_a03), big.mark = ".", decimal.mark = ",")))
 ```
 
 ## 💳 Dados RGF Anexo 04 - Operações de Crédito
@@ -687,7 +606,6 @@ cat(sprintf("✓ RGF A03: %s registros\n",
 #| include: false
 #| column: screen
 
-cat("📥 Importando dados RGF A04 (Operações Crédito)...\n")
 
 # ============================================================================
 # ⚡ VERSÃO OTIMIZADA - IMPORTAÇÃO PARALELA
@@ -715,10 +633,6 @@ dados_a04_lista <- future_map(
 rgf_a04_receitas <- dados_a04_lista$receitas
 rgf_a04_despesas <- dados_a04_lista$despesas
 
-cat(sprintf("✓ RGF A04 Receitas: %s registros\n", 
-            format(nrow(rgf_a04_receitas), big.mark = ".", decimal.mark = ",")))
-cat(sprintf("✓ RGF A04 Despesas: %s registros\n", 
-            format(nrow(rgf_a04_despesas), big.mark = ".", decimal.mark = ",")))
 ```
 
 ## 💰 Dados RGF Anexo 05 - Disponibilidades de Caixa
@@ -728,7 +642,6 @@ cat(sprintf("✓ RGF A04 Despesas: %s registros\n",
 
 #| include: false
 
-cat("📥 Importando dados RGF A05 (Disponibilidades)...\n")
 
 # ============================================================================
 # ⚡ VERSÃO OTIMIZADA - IMPORTAÇÃO PARALELA
@@ -737,7 +650,6 @@ cat("📥 Importando dados RGF A05 (Disponibilidades)...\n")
 # Buscar todos os arquivos rgf_a05
 arq_rgf_a05 <- list.files(path = mes_pasta, pattern = 'rgf_a05', full.names = TRUE)
 
-cat(sprintf("   Encontrados %d arquivos\n", length(arq_rgf_a05)))
 
 rgf_a05 <- importar_excel_paralelo(arq_rgf_a05, skip = 5, .progress = TRUE) %>%
   mutate(
@@ -746,9 +658,6 @@ rgf_a05 <- importar_excel_paralelo(arq_rgf_a05, skip = 5, .progress = TRUE) %>%
     data_lancamento = ceiling_date(ymd(paste0(mes_lancamento, "01")), "month") - days(1)
   )
 
-cat(sprintf("✓ RGF A05: %s registros (%d arquivos)\n", 
-            format(nrow(rgf_a05), big.mark = ".", decimal.mark = ","), 
-            length(arq_rgf_a05)))
 ```
 
 # Funções {#sec-funcoes-aux}
@@ -786,7 +695,6 @@ mapear_arquivos_tg <- function(pasta, pattern = "\\.xlsx$") {
     return(data.frame())
   }
   
-  cat(sprintf("Mapeando %d arquivos...\n", length(arquivos)))
   
   # Extrair filtros de cada arquivo (celula A4)
   resultado <- map_df(arquivos, function(arq) {
@@ -808,7 +716,6 @@ mapear_arquivos_tg <- function(pasta, pattern = "\\.xlsx$") {
   # Salvar no ambiente global
   assign("df_arquivos_tg", resultado, envir = .GlobalEnv)
   
-  cat(sprintf("Tabela gerada: df_arquivos_tg (%d arquivos)\n", nrow(resultado)))
   
   return(resultado)
 }
@@ -841,10 +748,10 @@ mapear_arquivos_tg <- function(pasta, pattern = "\\.xlsx$") {
 #'
 #' @examples
 #' # Uso moderno (recomendado)
-#' resultado <- aplicar_criterios(dados_despesa, criterios_rgf_A01)
+#' resultado <- aplicar_criterios(dados_despesa, criterios_rgf_a01)
 #' 
 #' # Compatibilidade com código antigo
-#' aplicar_criterios(dados_despesa, criterios_rgf_A01, save_global = TRUE)
+#' aplicar_criterios(dados_despesa, criterios_rgf_a01, save_global = TRUE)
 #'
 aplicar_criterios <- function(df, 
                                criterios, 
@@ -909,7 +816,7 @@ aplicar_criterios <- function(df,
   relatorio <- if (length(partes) >= 1) partes[1] else NA
   anexo_codigo <- if (length(partes) >= 2) partes[2] else NA
   anexo_nome <- if (length(partes) >= 3) partes[3] else NA
-  detalhe <- if (length(partes) >= 4) paste(partes[4:length(partes)], collapse = "_") else NA
+  detalhe <- if (length(partes) >= 4) paste(partes[4:length(partes)], collapse = "_") else NA_character_
   
   # ============================================================================
   # 5. VALIDAR CRITÉRIOS (OPCIONAL)
@@ -1584,7 +1491,6 @@ rgf_a01 <- rgf_a01 %>%
   )
 
 # Exibir contagem por categoria
-cat("\n📊 Distribuição por categoria:\n")
 rgf_a01 %>%
   count(categoria_pessoal) %>%
   arrange(desc(n)) %>%
@@ -1605,7 +1511,7 @@ rgf_a01 %>%
 #   - Grupo II (2x): Despesas Não Computadas
 # =============================================================================
 
-criterios_rgf_A01_pessoal_rgf <- list(
+criterios_rgf_a01_pessoal <- list(
   
   # ===========================================================================
   # GRUPO I - COMPONENTES DA DESPESA BRUTA
@@ -1839,8 +1745,6 @@ criterios_rgf_A01_pessoal_rgf <- list(
   )
 )
 
-cat("✅ Critérios RGF Anexo 01 definidos\n")
-cat(sprintf("   Total de categorias: %d\n", length(criterios_rgf_A01_pessoal_rgf)))
 ```
 
 ## Aplicação dos Critérios
@@ -1863,11 +1767,10 @@ cat(sprintf("   Total de categorias: %d\n", length(criterios_rgf_A01_pessoal_rgf
 
 pessoal <- aplicar_criterios(
   rgf_a01 %>% filter(item_informacao_codigo == "25"),
-  criterios_rgf_A01_pessoal_rgf,
+  criterios_rgf_a01_pessoal,
   group_vars = c("categoria_pessoal")
 )
 
-cat(sprintf("✅ Despesa liquidada processada: %d registros\n", nrow(pessoal)))
 
 # -----------------------------------------------------------------------------
 # 2. Restos a Pagar Não Processados (item 27)
@@ -1875,11 +1778,10 @@ cat(sprintf("✅ Despesa liquidada processada: %d registros\n", nrow(pessoal)))
 
 pessoal_rp <- aplicar_criterios(
   rgf_a01 %>% filter(item_informacao_codigo == "27"),
-  criterios_rgf_A01_pessoal_rgf,
+  criterios_rgf_a01_pessoal,
   group_vars = c("categoria_pessoal")
 )
 
-cat(sprintf("✅ RPNP processado: %d registros\n", nrow(pessoal_rp)))
 
 # -----------------------------------------------------------------------------
 # 3. Categorias para exibição
@@ -2154,7 +2056,7 @@ arquivos <- tibble::tribble(
   "rgf_a02_creditos_bancarios.xlsx",           "Créditos bancários",                          "Orç. Fiscal, UG IN (170705, 170526, 170700)",
   "rgf_a02_entidade.xlsx",                     "Dívida mobiliária por entidade",              "Orç. Fiscal, Contas específicas",
   "rgf_a02_aplicacao_titulos_publicos.xlsx",   "Aplicações em títulos públicos",              "Orç. Fiscal, Órgão UGE != 25901, Tipo Admin IN (3,4,5,6,8)",
-  "rgf_a02_balancete.xlsx",                    "Balancete geral (principal)",                 "Orç. Fiscal",
+  "dados_balancete.xlsx",                    "Balancete geral (principal)",                 "Orç. Fiscal",
   "rgf_a02_balancete_fat.xlsx",                "Disponibilidades FAT",                        "Orç. Fiscal, UG = 380916",
   "rgf_a02_balancete_fundos.xlsx",             "Aplicações em fundos (Tipo Admin 7)",         "Orç. Fiscal, Órgão != 25915,37904, Tipo Admin = 7",
   "rgf_a02_balancete_fundos_111215100.xlsx",   "Aplicações em fundos (conta específica)",     "Orç. Fiscal, Órgão != 25915,37904, Conta = 111215100",
@@ -2273,7 +2175,7 @@ knitr::kable(estrutura, col.names = c("Ordem", "Item", "Sinal"))
 # Filtros TG: Orçamento Fiscal, Contas específicas
 # =============================================================================
 
-criterios_rgf_A02_dcl_precatorios <- list(
+criterios_rgf_a02_precatorios <- list(
   
   # ---------------------------------------------------------------------------
   # 08 - PRECATÓRIOS POSTERIORES A 05/05/2000
@@ -2315,7 +2217,7 @@ criterios_rgf_A02_dcl_precatorios <- list(
 # Filtros TG: Contas específicas, UG != 170600, Ação != 0005
 # =============================================================================
 
-criterios_rgf_A02_dcl_rp_exceto_170600 <- list(
+criterios_rgf_a02_rp_exceto_170600 <- list(
   
   `25 Restos a pagar processados parte 1` = list(
     criterio = "TRUE"
@@ -2327,7 +2229,7 @@ criterios_rgf_A02_dcl_rp_exceto_170600 <- list(
 # Filtros TG: Contas específicas, Ação != 0005
 # =============================================================================
 
-criterios_rgf_A02_dcl_rp_todas_ugs <- list(
+criterios_rgf_a02_rp_todas_ugs <- list(
   
   `25 Restos a pagar processados parte 2` = list(
     criterio = "TRUE"
@@ -2346,7 +2248,7 @@ criterios_rgf_A02_dcl_rp_todas_ugs <- list(
 # Filtros TG: Orçamento Fiscal, UG = 170512 (Secretaria do Tesouro Nacional)
 # =============================================================================
 
-criterios_rgf_A02_dcl_ug_170512 <- list(
+criterios_rgf_a02_ug_170512 <- list(
   
   # ---------------------------------------------------------------------------
   # 09 - DÍVIDA ASSUMIDA PELA UNIÃO
@@ -2473,7 +2375,7 @@ criterios_rgf_A02_dcl_ug_170512 <- list(
 # Filtros TG: Orçamento Fiscal, UG IN (170705, 170526, 170700)
 # =============================================================================
 
-criterios_rgf_A02_dcl_creditos_bancarios <- list(
+criterios_rgf_a02_creditos_bancarios <- list(
   
   # ---------------------------------------------------------------------------
   # 22 - OUTROS CRÉDITOS BANCÁRIOS (DEDUÇÃO)
@@ -2515,7 +2417,7 @@ criterios_rgf_A02_dcl_creditos_bancarios <- list(
 # Filtros TG: Orçamento Fiscal, Contas específicas
 # =============================================================================
 
-criterios_rgf_A02_dcl_entidade <- list(
+criterios_rgf_a02_entidade <- list(
   
   # ---------------------------------------------------------------------------
   # 01 - DÍVIDA MOBILIÁRIA TN INTERNA
@@ -2594,7 +2496,7 @@ criterios_rgf_A02_dcl_entidade <- list(
 #             Tipo Admin IN (3,4,5,6,8), Conta começa com 1111150
 # =============================================================================
 
-criterios_rgf_A02_dcl_aplicacao_titulos_publicos <- list(
+criterios_rgf_a02_aplicacao_titulos_publicos <- list(
   
   # ---------------------------------------------------------------------------
   # 02 - APLICAÇÃO EM TÍTULOS PÚBLICOS (DEDUÇÃO)
@@ -2616,12 +2518,12 @@ criterios_rgf_A02_dcl_aplicacao_titulos_publicos <- list(
 #| code-summary: "Ver critérios - Balancete"
 
 # =============================================================================
-# BASE: rgf_a02_balancete (renomeado de rgf_a02_balancete)
+# BASE: dados_balancete (renomeado de dados_balancete)
 # Filtros TG: Orçamento Fiscal
 # NOTA: Esta base é usada em diversos anexos além do RGF A02
 # =============================================================================
 
-criterios_rgf_A02_dcl_balancete <- list(
+criterios_rgf_a02_balancete <- list(
   
   # ---------------------------------------------------------------------------
   # 05 - DÍVIDA MOBILIÁRIA EXTERNA
@@ -2733,7 +2635,7 @@ criterios_rgf_A02_dcl_balancete <- list(
 # Filtros TG: Orçamento Fiscal, UG = 380916
 # =============================================================================
 
-criterios_rgf_A02_dcl_balancete_fat <- list(
+criterios_rgf_a02_balancete_fat <- list(
   
   # ---------------------------------------------------------------------------
   # 13 - DISPONIBILIDADES FAT (DEDUÇÃO)
@@ -2778,7 +2680,7 @@ criterios_rgf_A02_dcl_balancete_fat <- list(
 # Filtros TG: Orçamento Fiscal, Órgão != 25915,37904, Conta = 111215100
 # =============================================================================
 
-criterios_rgf_A02_dcl_balancete_fundos_111215100 <- list(
+criterios_rgf_a02_balancete_fundos_111215100 <- list(
   
   `14 Aplicações em fundos diversos 1 dedução` = list(
     criterio = "TRUE"
@@ -2790,7 +2692,7 @@ criterios_rgf_A02_dcl_balancete_fundos_111215100 <- list(
 # Filtros TG: Orçamento Fiscal, Órgão != 25915,37904, Tipo Admin = 7
 # =============================================================================
 
-criterios_rgf_A02_dcl_balancete_fundos <- list(
+criterios_rgf_a02_balancete_fundos <- list(
   
   # ---------------------------------------------------------------------------
   # 15 - APLICAÇÕES EM FUNDOS DIVERSOS 2 (DEDUÇÃO)
@@ -2824,7 +2726,7 @@ criterios_rgf_A02_dcl_balancete_fundos <- list(
 # Filtros TG: Orçamento Fiscal, Órgão != 25901, UG != 380916
 # =============================================================================
 
-criterios_rgf_A02_dcl_balancete_deducoes_depositos_a_vista <- list(
+criterios_rgf_a02_balancete_deducoes_depositos_vista <- list(
   
   `12 Depósitos à vista dedução` = list(
     criterio = "
@@ -2845,7 +2747,7 @@ criterios_rgf_A02_dcl_balancete_deducoes_depositos_a_vista <- list(
 # Filtros TG: Orçamento Fiscal
 # =============================================================================
 
-criterios_rgf_A02_dcl_passivo_atuarial <- list(
+criterios_rgf_a02_passivo_atuarial <- list(
   
   # ---------------------------------------------------------------------------
   # 40 - RPPS CIVIL
@@ -2911,138 +2813,126 @@ criterios_rgf_A02_dcl_passivo_atuarial <- list(
 # Cada base de dados tem seus critérios aplicados separadamente
 # =============================================================================
 
-cat("📊 Processando critérios do RGF Anexo 02...\n")
 
 # -----------------------------------------------------------------------------
 # 1. Precatórios
 # -----------------------------------------------------------------------------
 
-df_criterios_rgf_A02_dcl_precatorios <- aplicar_criterios(
+df_criterios_rgf_a02_precatorios <- aplicar_criterios(
   df = rgf_a02_precatorios,
-  criterios = criterios_rgf_A02_dcl_precatorios
+  criterios = criterios_rgf_a02_precatorios
 )
 
-cat("✅ Precatórios processados\n")
 
 # -----------------------------------------------------------------------------
 # 2. Restos a Pagar (duas bases)
 # -----------------------------------------------------------------------------
 
-df_criterios_rgf_A02_dcl_rp_exceto_170600 <- aplicar_criterios(
+df_criterios_rgf_a02_rp_exceto_170600 <- aplicar_criterios(
   df = rgf_a02_rp_exceto_170600,
-  criterios = criterios_rgf_A02_dcl_rp_exceto_170600
+  criterios = criterios_rgf_a02_rp_exceto_170600
 )
 
-df_criterios_rgf_A02_dcl_rp_todas_ugs <- aplicar_criterios(
+df_criterios_rgf_a02_rp_todas_ugs <- aplicar_criterios(
   df = rgf_a02_rp_todas_ugs,
-  criterios = criterios_rgf_A02_dcl_rp_todas_ugs
+  criterios = criterios_rgf_a02_rp_todas_ugs
 )
 
-cat("✅ Restos a Pagar processados\n")
 
 # -----------------------------------------------------------------------------
 # 3. UG 170512 (STN)
 # -----------------------------------------------------------------------------
 
-df_criterios_rgf_A02_dcl_ug_170512 <- aplicar_criterios(
+df_criterios_rgf_a02_ug_170512 <- aplicar_criterios(
   df = rgf_a02_ug_170512,
-  criterios = criterios_rgf_A02_dcl_ug_170512
+  criterios = criterios_rgf_a02_ug_170512
 )
 
-cat("✅ UG 170512 processada\n")
 
 # -----------------------------------------------------------------------------
 # 4. Créditos Bancários
 # -----------------------------------------------------------------------------
 
-df_criterios_rgf_A02_dcl_creditos_bancarios <- aplicar_criterios(
+df_criterios_rgf_a02_creditos_bancarios <- aplicar_criterios(
   df = rgf_a02_creditos_bancarios,
-  criterios = criterios_rgf_A02_dcl_creditos_bancarios
+  criterios = criterios_rgf_a02_creditos_bancarios
 )
 
-cat("✅ Créditos bancários processados\n")
 
 # -----------------------------------------------------------------------------
 # 5. Entidade (Dívida Mobiliária)
 # -----------------------------------------------------------------------------
 
-df_criterios_rgf_A02_dcl_entidade <- aplicar_criterios(
+df_criterios_rgf_a02_entidade <- aplicar_criterios(
   df = rgf_a02_entidade,
-  criterios = criterios_rgf_A02_dcl_entidade
+  criterios = criterios_rgf_a02_entidade
 )
 
-cat("✅ Entidade processada\n")
 
 # -----------------------------------------------------------------------------
 # 6. Balancete (Principal)
 # -----------------------------------------------------------------------------
 
-df_criterios_rgf_A02_dcl_balancete <- aplicar_criterios(
-  df = rgf_a02_balancete,
-  criterios = criterios_rgf_A02_dcl_balancete
+df_criterios_rgf_a02_balancete <- aplicar_criterios(
+  df = dados_balancete,
+  criterios = criterios_rgf_a02_balancete
 )
 
-cat("✅ Balancete processado\n")
 
 # -----------------------------------------------------------------------------
 # 7. Aplicação em Títulos Públicos
 # -----------------------------------------------------------------------------
 
-df_criterios_rgf_A02_dcl_aplicacao_titulos_publicos <- aplicar_criterios(
+df_criterios_rgf_a02_aplicacao_titulos_publicos <- aplicar_criterios(
   df = rgf_a02_aplicacao_titulos_publicos,
-  criterios = criterios_rgf_A02_dcl_aplicacao_titulos_publicos
+  criterios = criterios_rgf_a02_aplicacao_titulos_publicos
 )
 
-cat("✅ Aplicação em títulos processada\n")
 
 # -----------------------------------------------------------------------------
 # 8. Balancete FAT
 # -----------------------------------------------------------------------------
 
-df_criterios_rgf_A02_dcl_balancete_fat <- aplicar_criterios(
+df_criterios_rgf_a02_balancete_fat <- aplicar_criterios(
   df = rgf_a02_balancete_fat,
-  criterios = criterios_rgf_A02_dcl_balancete_fat
+  criterios = criterios_rgf_a02_balancete_fat
 )
 
-cat("✅ Balancete FAT processado\n")
 
 # -----------------------------------------------------------------------------
 # 9. Balancete Fundos (duas bases)
 # -----------------------------------------------------------------------------
 
-df_criterios_rgf_A02_dcl_balancete_fundos_111215100 <- aplicar_criterios(
+df_criterios_rgf_a02_balancete_fundos_111215100 <- aplicar_criterios(
   df = rgf_a02_balancete_fundos_111215100,
-  criterios = criterios_rgf_A02_dcl_balancete_fundos_111215100
+  criterios = criterios_rgf_a02_balancete_fundos_111215100
 )
 
-df_criterios_rgf_A02_dcl_balancete_fundos <- aplicar_criterios(
+df_criterios_rgf_a02_balancete_fundos <- aplicar_criterios(
   df = rgf_a02_balancete_fundos,
-  criterios = criterios_rgf_A02_dcl_balancete_fundos
+  criterios = criterios_rgf_a02_balancete_fundos
 )
 
-cat("✅ Balancete Fundos processado\n")
 
 # -----------------------------------------------------------------------------
 # 10. Depósitos à Vista (deduções)
 # -----------------------------------------------------------------------------
 
-df_criterios_rgf_A02_dcl_balancete_deducoes_depositos_a_vista <- aplicar_criterios(
+df_criterios_rgf_a02_balancete_deducoes_depositos_vista <- aplicar_criterios(
   df = rgf_a02_balancete_deducoes_depositos_a_vista,
-  criterios = criterios_rgf_A02_dcl_balancete_deducoes_depositos_a_vista
+  criterios = criterios_rgf_a02_balancete_deducoes_depositos_vista
 )
 
-cat("✅ Depósitos à vista processados\n")
 
 # -----------------------------------------------------------------------------
 # 11. Passivo Atuarial
 # -----------------------------------------------------------------------------
 
-df_criterios_rgf_A02_dcl_passivo_atuarial <- aplicar_criterios(
+df_criterios_rgf_a02_passivo_atuarial <- aplicar_criterios(
   df = rgf_a02_dcl_passivo_atuarial,
-  criterios = criterios_rgf_A02_dcl_passivo_atuarial
+  criterios = criterios_rgf_a02_passivo_atuarial
 )
 
-cat("✅ Passivo atuarial processado\n")
 ```
 
 ## Consolidação dos Resultados
@@ -3059,9 +2949,9 @@ cat("✅ Passivo atuarial processado\n")
 # 1. Consolidar Restos a Pagar (partes 1 e 2)
 # -----------------------------------------------------------------------------
 
-df_criterios_rgf_A02_dcl_rp <- bind_rows(
-  df_criterios_rgf_A02_dcl_rp_exceto_170600,
-  df_criterios_rgf_A02_dcl_rp_todas_ugs
+df_criterios_rgf_a02_rp <- bind_rows(
+  df_criterios_rgf_a02_rp_exceto_170600,
+  df_criterios_rgf_a02_rp_todas_ugs
 ) %>%
   mutate(
     nome = str_replace(nome, " parte [12]$", "")
@@ -3075,9 +2965,9 @@ df_criterios_rgf_A02_dcl_rp <- bind_rows(
 # 2. Consolidar Depósitos à Vista (partes 1 e 2)
 # -----------------------------------------------------------------------------
 
-df_criterios_rgf_A02_dcl_depositos_vista <- bind_rows(
-  df_criterios_rgf_A02_dcl_balancete_deducoes_depositos_a_vista,
-  df_criterios_rgf_A02_dcl_balancete %>% 
+df_criterios_rgf_a02_depositos_vista <- bind_rows(
+  df_criterios_rgf_a02_balancete_deducoes_depositos_vista,
+  df_criterios_rgf_a02_balancete %>% 
     filter(str_detect(nome, "^12 "))
 ) %>%
   mutate(
@@ -3093,23 +2983,22 @@ df_criterios_rgf_A02_dcl_depositos_vista <- bind_rows(
 # -----------------------------------------------------------------------------
 
 df_rgf_A02_dcl_consolidado <- bind_rows(
-  df_criterios_rgf_A02_dcl_precatorios,
-  df_criterios_rgf_A02_dcl_rp,
-  df_criterios_rgf_A02_dcl_ug_170512,
-  df_criterios_rgf_A02_dcl_creditos_bancarios,
-  df_criterios_rgf_A02_dcl_entidade,
-  df_criterios_rgf_A02_dcl_balancete %>% 
+  df_criterios_rgf_a02_precatorios,
+  df_criterios_rgf_a02_rp,
+  df_criterios_rgf_a02_ug_170512,
+  df_criterios_rgf_a02_creditos_bancarios,
+  df_criterios_rgf_a02_entidade,
+  df_criterios_rgf_a02_balancete %>% 
     filter(!str_detect(nome, "^12 ")),
-  df_criterios_rgf_A02_dcl_aplicacao_titulos_publicos,
-  df_criterios_rgf_A02_dcl_balancete_fat,
-  df_criterios_rgf_A02_dcl_balancete_fundos_111215100,
-  df_criterios_rgf_A02_dcl_balancete_fundos,
-  df_criterios_rgf_A02_dcl_depositos_vista,
-  df_criterios_rgf_A02_dcl_passivo_atuarial
+  df_criterios_rgf_a02_aplicacao_titulos_publicos,
+  df_criterios_rgf_a02_balancete_fat,
+  df_criterios_rgf_a02_balancete_fundos_111215100,
+  df_criterios_rgf_a02_balancete_fundos,
+  df_criterios_rgf_a02_depositos_vista,
+  df_criterios_rgf_a02_passivo_atuarial
 ) %>%
   arrange(mes_lancamento, ordem)
 
-cat(sprintf("✅ Consolidação concluída: %d linhas\n", nrow(df_rgf_A02_dcl_consolidado)))
 ```
 
 ## Ajuste de Sinais
@@ -3163,7 +3052,6 @@ valor_dcl_num <- (valores_linhas %>%
 # Valor formatado para exibição
 valor_dcl <- formatar_numero(valor_dcl_num)
 
-cat(sprintf("✅ DCL calculada: R$ %s\n", valor_dcl))
 ```
 
 ## Resultados
@@ -3224,13 +3112,6 @@ deducoes_tn_bcb <- valores_linhas %>%
   pull(valor)
 
 # Exibir resumo
-cat("\n📊 RESUMO DA DCL\n")
-cat("================\n")
-cat(sprintf("Dívida Mobiliária:   R$ %s\n", formatar_numero(divida_mobiliaria)))
-cat(sprintf("Dívida Consolidada:  R$ %s\n", formatar_numero(divida_consolidada)))
-cat(sprintf("Precatórios:         R$ %s\n", formatar_numero(precatorios)))
-cat(sprintf("Deduções TN/BCB:     R$ %s\n", formatar_numero(deducoes_tn_bcb)))
-cat(sprintf("DCL (valor_dcl_num): R$ %s\n", valor_dcl))
 ```
 
 ## Notas Metodológicas
@@ -3267,7 +3148,7 @@ O RGF Anexo 02 é o demonstrativo mais complexo, utilizando **13 bases de dados 
 ::: callout-note
 ### Sobre o Balancete
 
-O arquivo `rgf_a02_balancete.xlsx` (renomeado para "balancete") é utilizado em diversos anexos além do RGF A02. Por isso, foi sugerida a renomeação para um nome mais genérico que reflita seu uso compartilhado.
+O arquivo `dados_balancete.xlsx` (renomeado para "balancete") é utilizado em diversos anexos além do RGF A02. Por isso, foi sugerida a renomeação para um nome mais genérico que reflita seu uso compartilhado.
 :::
 
 ::: callout-tip
@@ -3441,7 +3322,7 @@ knitr::kable(contas_correntes, col.names = c("Conta Corrente", "Beneficiário", 
 #   II - Contragarantias Recebidas (15-24)
 # =============================================================================
 
-criterios_rgf_A03_garantias <- list(
+criterios_rgf_a03_garantias <- list(
   
   # ===========================================================================
   # GRUPO I - GARANTIAS CONCEDIDAS
@@ -3663,8 +3544,6 @@ criterios_rgf_A03_garantias <- list(
   )
 )
 
-cat("✅ Critérios RGF Anexo 03 definidos\n")
-cat(sprintf("   Total de categorias: %d\n", length(criterios_rgf_A03_garantias)))
 ```
 
 ## Aplicação dos Critérios
@@ -3677,7 +3556,6 @@ cat(sprintf("   Total de categorias: %d\n", length(criterios_rgf_A03_garantias))
 # APLICAÇÃO DOS CRITÉRIOS DE GARANTIAS
 # =============================================================================
 
-cat("📊 Processando critérios do RGF Anexo 03...\n")
 
 # -----------------------------------------------------------------------------
 # Aplicar critérios
@@ -3685,10 +3563,9 @@ cat("📊 Processando critérios do RGF Anexo 03...\n")
 
 garantias_processado <- aplicar_criterios(
   rgf_a03, 
-  criterios_rgf_A03_garantias
+  criterios_rgf_a03_garantias
 )
 
-cat(sprintf("✅ Critérios aplicados: %d registros\n", nrow(garantias_processado)))
 
 # -----------------------------------------------------------------------------
 # Agregar por ordem/nome
@@ -3719,8 +3596,6 @@ valor_contragarantias_total <- garantias_agregado %>%
 # Garantias líquidas (garantias - contragarantias)
 valor_garantias_liquidas <- valor_garantias_total - valor_contragarantias_total
 
-cat(sprintf("✅ Total Garantias: R$ %s\n", formatar_numero(valor_garantias_total)))
-cat(sprintf("✅ Total Contragarantias: R$ %s\n", formatar_numero(valor_contragarantias_total)))
 ```
 
 ## Resultados
@@ -3768,23 +3643,8 @@ contragarantias_municipios <- garantias_agregado %>% filter(ordem == "18") %>% p
 contragarantias_entidades <- garantias_agregado %>% filter(ordem == "21") %>% pull(valor)
 
 # Exibir resumo
-cat("\n📊 RESUMO DAS GARANTIAS\n")
-cat("=======================\n\n")
 
-cat("GARANTIAS CONCEDIDAS:\n")
-cat(sprintf("  Estados:              R$ %s\n", formatar_numero(garantias_estados)))
-cat(sprintf("  Municípios:           R$ %s\n", formatar_numero(garantias_municipios)))
-cat(sprintf("  Entidades Controladas:R$ %s\n", formatar_numero(garantias_entidades)))
-cat(sprintf("  Fundos e Programas:   R$ %s\n", formatar_numero(garantias_fundos)))
-cat(sprintf("  TOTAL:                R$ %s\n\n", formatar_numero(valor_garantias_total)))
 
-cat("CONTRAGARANTIAS RECEBIDAS:\n")
-cat(sprintf("  Estados:              R$ %s\n", formatar_numero(contragarantias_estados)))
-cat(sprintf("  Municípios:           R$ %s\n", formatar_numero(contragarantias_municipios)))
-cat(sprintf("  Entidades Controladas:R$ %s\n", formatar_numero(contragarantias_entidades)))
-cat(sprintf("  TOTAL:                R$ %s\n\n", formatar_numero(valor_contragarantias_total)))
-
-cat(sprintf("GARANTIAS LÍQUIDAS:     R$ %s\n", formatar_numero(valor_garantias_liquidas)))
 ```
 
 ## Notas Metodológicas
@@ -3868,7 +3728,7 @@ arquivos <- tibble::tribble(
   ~Arquivo,                    ~Descrição,                                    ~Filtros_TG,
   "rgf_a04_receitas.xlsx",     "Receitas de operações de crédito",            "Orç. Fiscal, Contas 621*",
   "rgf_a04_despesas.xlsx",     "Aplicação dos recursos (despesas)",           "Orç. Fiscal, Contas 622*",
-  "rgf_a02_balancete.xlsx",    "Operações extraorçamentárias",                "Orç. Fiscal, Contas 896* e 212*"
+  "dados_balancete.xlsx",    "Operações extraorçamentárias",                "Orç. Fiscal, Contas 896* e 212*"
 )
 
 knitr::kable(arquivos, col.names = c("Arquivo", "Descrição", "Filtros no TG"))
@@ -3968,7 +3828,7 @@ knitr::kable(estrutura, col.names = c("Ordem", "Item", "Grupo"))
 # Contas contábeis: 621* (Receitas de Operações de Crédito)
 # =============================================================================
 
-criterios_rgf_A04_receitas <- list(
+criterios_rgf_a04_receitas <- list(
   
   # ---------------------------------------------------------------------------
   # MOBILIÁRIA INTERNA
@@ -4060,7 +3920,6 @@ criterios_rgf_A04_receitas <- list(
   )
 )
 
-cat("✅ Critérios de Receitas definidos\n")
 ```
 
 ### Parte 2: Operações Extraorçamentárias
@@ -4071,11 +3930,11 @@ cat("✅ Critérios de Receitas definidos\n")
 
 # =============================================================================
 # PARTE 2: OPERAÇÕES EXTRAORÇAMENTÁRIAS
-# Base: rgf_a02_balancete (compartilhado com RGF A02)
+# Base: dados_balancete (compartilhado com RGF A02)
 # Contas contábeis: 896* (Emissões extraorçamentárias) e 212*
 # =============================================================================
 
-criterios_rgf_A04_extra_orcamentarias <- list(
+criterios_rgf_a04_extra_orcamentarias <- list(
   
   # ---------------------------------------------------------------------------
   # MOBILIÁRIA INTERNA - EXTRAORÇAMENTÁRIAS
@@ -4134,7 +3993,6 @@ criterios_rgf_A04_extra_orcamentarias <- list(
   )
 )
 
-cat("✅ Critérios Extraorçamentários definidos\n")
 ```
 
 ### Parte 3: Aplicação dos Recursos (Despesas)
@@ -4149,7 +4007,7 @@ cat("✅ Critérios Extraorçamentários definidos\n")
 # Contas contábeis: 622* (Execução de Despesa)
 # =============================================================================
 
-criterios_rgf_A04_despesas <- list(
+criterios_rgf_a04_despesas <- list(
   
   # ---------------------------------------------------------------------------
   # APLICAÇÃO DOS RECURSOS POR GRUPO DE DESPESA
@@ -4198,7 +4056,6 @@ criterios_rgf_A04_despesas <- list(
   )
 )
 
-cat("✅ Critérios de Despesas definidos\n")
 ```
 
 ## Aplicação dos Critérios
@@ -4211,41 +4068,36 @@ cat("✅ Critérios de Despesas definidos\n")
 # APLICAÇÃO DOS CRITÉRIOS
 # =============================================================================
 
-cat("📊 Processando critérios do RGF Anexo 04...\n")
 
 # -----------------------------------------------------------------------------
 # 1. Receitas Orçamentárias
 # -----------------------------------------------------------------------------
 
-df_criterios_rgf_A04_receitas <- aplicar_criterios(
+df_criterios_rgf_a04_receitas <- aplicar_criterios(
   rgf_a04_receitas, 
-  criterios_rgf_A04_receitas
+  criterios_rgf_a04_receitas
 )
 
-cat(sprintf("✅ Receitas processadas: %d registros\n", nrow(df_criterios_rgf_A04_receitas)))
 
 # -----------------------------------------------------------------------------
 # 2. Operações Extraorçamentárias
 # -----------------------------------------------------------------------------
 
-df_criterios_rgf_A04_extra_orcamentarias <- aplicar_criterios(
-  rgf_a02_balancete, 
-  criterios_rgf_A04_extra_orcamentarias
+df_criterios_rgf_a04_extra_orcamentarias <- aplicar_criterios(
+  dados_balancete, 
+  criterios_rgf_a04_extra_orcamentarias
 )
 
-cat(sprintf("✅ Extraorçamentárias processadas: %d registros\n", 
-            nrow(df_criterios_rgf_A04_extra_orcamentarias)))
 
 # -----------------------------------------------------------------------------
 # 3. Despesas (Aplicação dos Recursos)
 # -----------------------------------------------------------------------------
 
-df_criterios_rgf_A04_despesas <- aplicar_criterios(
+df_criterios_rgf_a04_despesas <- aplicar_criterios(
   rgf_a04_despesas, 
-  criterios_rgf_A04_despesas
+  criterios_rgf_a04_despesas
 )
 
-cat(sprintf("✅ Despesas processadas: %d registros\n", nrow(df_criterios_rgf_A04_despesas)))
 ```
 
 ## Consolidação dos Resultados
@@ -4263,9 +4115,9 @@ cat(sprintf("✅ Despesas processadas: %d registros\n", nrow(df_criterios_rgf_A0
 # -----------------------------------------------------------------------------
 
 df_rgf_A04_consolidado <- bind_rows(
-  df_criterios_rgf_A04_receitas,
-  df_criterios_rgf_A04_extra_orcamentarias,
-  df_criterios_rgf_A04_despesas
+  df_criterios_rgf_a04_receitas,
+  df_criterios_rgf_a04_extra_orcamentarias,
+  df_criterios_rgf_a04_despesas
 ) %>%
   arrange(ordem)
 
@@ -4297,9 +4149,6 @@ valor_aplicacao_recursos_total <- operacoes_credito_agregado %>%
   summarise(valor = sum(valor, na.rm = TRUE)) %>%
   pull(valor)
 
-cat(sprintf("\n✅ Consolidação concluída\n"))
-cat(sprintf("   Total Operações de Crédito: R$ %s\n", formatar_numero(valor_operacoes_credito_total)))
-cat(sprintf("   Total Aplicação Recursos:   R$ %s\n", formatar_numero(valor_aplicacao_recursos_total)))
 ```
 
 ## Resultados
@@ -4315,7 +4164,7 @@ cat(sprintf("   Total Aplicação Recursos:   R$ %s\n", formatar_numero(valor_ap
 # =============================================================================
 
 datatable(
-  df_criterios_rgf_A04_receitas %>%
+  df_criterios_rgf_a04_receitas %>%
     group_by(ordem, nome) %>%
     summarise(valor = sum(valor, na.rm = TRUE), .groups = "drop") %>%
     arrange(ordem),
@@ -4341,7 +4190,7 @@ datatable(
 # =============================================================================
 
 datatable(
-  df_criterios_rgf_A04_extra_orcamentarias %>%
+  df_criterios_rgf_a04_extra_orcamentarias %>%
     group_by(ordem, nome) %>%
     summarise(valor = sum(valor, na.rm = TRUE), .groups = "drop") %>%
     arrange(ordem),
@@ -4367,7 +4216,7 @@ datatable(
 # =============================================================================
 
 datatable(
-  df_criterios_rgf_A04_despesas %>%
+  df_criterios_rgf_a04_despesas %>%
     group_by(ordem, nome) %>%
     summarise(valor = sum(valor, na.rm = TRUE), .groups = "drop") %>%
     arrange(ordem),
@@ -4438,18 +4287,8 @@ contratual_externa <- operacoes_credito_agregado %>%
   pull(valor)
 
 # Exibir resumo
-cat("\n📊 RESUMO DAS OPERAÇÕES DE CRÉDITO\n")
-cat("===================================\n\n")
 
-cat("OPERAÇÕES DE CRÉDITO:\n")
-cat(sprintf("  Mobiliária Interna:   R$ %s\n", formatar_numero(mobiliaria_interna)))
-cat(sprintf("  Mobiliária Externa:   R$ %s\n", formatar_numero(mobiliaria_externa)))
-cat(sprintf("  Contratual Interna:   R$ %s\n", formatar_numero(contratual_interna)))
-cat(sprintf("  Contratual Externa:   R$ %s\n", formatar_numero(contratual_externa)))
-cat(sprintf("  TOTAL:                R$ %s\n\n", formatar_numero(valor_operacoes_credito_total)))
 
-cat("APLICAÇÃO DOS RECURSOS:\n")
-cat(sprintf("  TOTAL:                R$ %s\n", formatar_numero(valor_aplicacao_recursos_total)))
 ```
 
 ## Notas Metodológicas
@@ -4469,7 +4308,7 @@ notas <- tibble::tribble(
   "4", "Contas 896* = Emissões extraorçamentárias de títulos",
   "5", "Operações mobiliárias = títulos públicos",
   "6", "Operações contratuais = empréstimos e financiamentos",
-  "7", "O balancete (rgf_a02_balancete) é compartilhado com o RGF Anexo 02"
+  "7", "O balancete (dados_balancete) é compartilhado com o RGF Anexo 02"
 )
 
 knitr::kable(notas, col.names = c("Item", "Descrição"))
@@ -4486,7 +4325,7 @@ O limite de operações de crédito conforme a LRF é de **16% da RCL** para a U
 ::: callout-warning
 ### Operações Extraorçamentárias
 
-As operações extraorçamentárias (linhas 03-05, 07, 10, 13-14) utilizam dados do **balancete** (rgf_a02_balancete), que é compartilhado com o RGF Anexo 02. Certifique-se de que este arquivo foi importado antes de processar o Anexo 04.
+As operações extraorçamentárias (linhas 03-05, 07, 10, 13-14) utilizam dados do **balancete** (dados_balancete), que é compartilhado com o RGF Anexo 02. Certifique-se de que este arquivo foi importado antes de processar o Anexo 04.
 :::
 
 ::: callout-tip
@@ -4751,10 +4590,8 @@ if (!"linhas" %in% names(rgf_a05)) {
     )
 }
 
-cat("✅ Dados preparados com classificação de linhas\n")
 
 # Verificar distribuição
-cat("\n📊 Distribuição por linha:\n")
 rgf_a05 %>% 
   count(linhas) %>%
   arrange(linhas) %>%
@@ -4960,8 +4797,6 @@ criterios_rgf_a05_disponibilidade <- list(
   )
 )
 
-cat("✅ Critérios RGF Anexo 05 definidos\n")
-cat(sprintf("   Total de categorias: %d\n", length(criterios_rgf_a05_disponibilidade)))
 ```
 
 ## Aplicação dos Critérios
@@ -4974,7 +4809,6 @@ cat(sprintf("   Total de categorias: %d\n", length(criterios_rgf_a05_disponibili
 # APLICAÇÃO DOS CRITÉRIOS
 # =============================================================================
 
-cat("📊 Processando critérios do RGF Anexo 05...\n")
 
 # -----------------------------------------------------------------------------
 # Função auxiliar para obter coluna (com fallback para 0)
@@ -5007,10 +4841,6 @@ rgf_a05_executivo <- rgf_a05 %>%
 # Combinar as duas abrangências
 rgf_a05_abrangencia <- bind_rows(rgf_a05_uniao, rgf_a05_executivo)
 
-cat(sprintf("✅ União: %s registros\n", 
-            format(nrow(rgf_a05_uniao), big.mark = ".", decimal.mark = ",")))
-cat(sprintf("✅ Executivo: %s registros\n", 
-            format(nrow(rgf_a05_executivo), big.mark = ".", decimal.mark = ",")))
 
 # -----------------------------------------------------------------------------
 # Aplicar critérios COM abrangência
@@ -5022,7 +4852,6 @@ resultado_rgf_a05 <- aplicar_criterios(
   group_vars = c("linhas", "abrangencia")
 )
 
-cat(sprintf("✅ Critérios aplicados: %d registros\n", nrow(resultado_rgf_a05)))
 ```
 
 ## Cálculos e Consolidação
@@ -5138,13 +4967,11 @@ if (file.exists(arquivo_disp_inicial)) {
   rgf_a05_clean <- rgf_a05_clean %>%
     left_join(disponibilidade_inicial, by = c("linhas", "abrangencia"))
   
-  cat("✅ Disponibilidade inicial carregada\n")
 } else {
   # Criar coluna com zeros se arquivo não existir
   rgf_a05_clean <- rgf_a05_clean %>%
     mutate(disponibilidade_inicial = 0)
   
-  cat("⚠️ Arquivo disponibilidade_inicial.xlsx não encontrado - usando zeros\n")
 }
 
 # -----------------------------------------------------------------------------
@@ -5186,7 +5013,6 @@ rgf_a05_clean <- rgf_a05_clean %>%
       rp_empenhados_nao_liquidados_exercicio
   )
 
-cat("✅ Cálculos concluídos\n")
 ```
 
 ## Resultados Finais
@@ -5289,10 +5115,6 @@ valor_disponibilidade_uniao_apos_rp <- rgf_a05_uniao_formatada %>%
   pull(disponibilidade_apos_inscr_rp_clean)
 
 
-cat(sprintf("\n✅ Disponibilidade Final - União: R$ %s\n", 
-            formatar_numero(valor_disponibilidade_uniao)))
-cat(sprintf("✅ Disponibilidade Final - Executivo: R$ %s\n", 
-            formatar_numero(valor_disponibilidade_executivo)))
 ```
 
 ### Tabela União (Todos os Poderes)
@@ -5651,7 +5473,7 @@ knitr::kable(estrutura_despesas, col.names = c("Ordem", "Item", "Grupo"))
 # 85 critérios para classificação das receitas orçamentárias
 # =============================================================================
 
-criterios_rreo_A01_receitas_bo <- list(
+criterios_rreo_a01_receitas <- list(
   
   # ===========================================================================
   # RECEITAS CORRENTES
@@ -6079,8 +5901,6 @@ criterios_rreo_A01_receitas_bo <- list(
   )
 )
 
-cat("✅ Critérios de Receitas definidos\n")
-cat(sprintf("   Total de categorias: %d\n", length(criterios_rreo_A01_receitas_bo)))
 ```
 
 ### Despesas
@@ -6095,7 +5915,7 @@ cat(sprintf("   Total de categorias: %d\n", length(criterios_rreo_A01_receitas_b
 # 34 critérios para classificação das despesas orçamentárias
 # =============================================================================
 
-criterios_rreo_A01_despesas_bo <- list(
+criterios_rreo_a01_despesas <- list(
   
   # ===========================================================================
   # DESPESAS (EXCETO INTRA-ORÇAMENTÁRIAS)
@@ -6329,8 +6149,6 @@ criterios_rreo_A01_despesas_bo <- list(
   )
 )
 
-cat("✅ Critérios de Despesas definidos\n")
-cat(sprintf("   Total de categorias: %d\n", length(criterios_rreo_A01_despesas_bo)))
 ```
 
 ## Aplicação dos Critérios
@@ -6343,31 +6161,28 @@ cat(sprintf("   Total de categorias: %d\n", length(criterios_rreo_A01_despesas_b
 # APLICAÇÃO DOS CRITÉRIOS
 # =============================================================================
 
-cat("📊 Processando critérios do RREO Anexo 01...\n")
 
 # -----------------------------------------------------------------------------
 # Aplicar critérios de Receitas
 # -----------------------------------------------------------------------------
 
-df_criterios_rreo_A01_receitas_bo <- aplicar_criterios(
+df_criterios_rreo_a01_receitas <- aplicar_criterios(
   dados_receita, 
-  criterios_rreo_A01_receitas_bo, 
+  criterios_rreo_a01_receitas, 
   group_vars = c("item_informacao_codigo", "item_informacao_nome")
 )
 
-cat(sprintf("✅ Receitas processadas: %d registros\n", nrow(df_criterios_rreo_A01_receitas_bo)))
 
 # -----------------------------------------------------------------------------
 # Aplicar critérios de Despesas
 # -----------------------------------------------------------------------------
 
-df_criterios_rreo_A01_despesas_bo <- aplicar_criterios(
+df_criterios_rreo_a01_despesas <- aplicar_criterios(
   dados_despesa, 
-  criterios_rreo_A01_despesas_bo, 
+  criterios_rreo_a01_despesas, 
   group_vars = c("item_informacao_codigo", "item_informacao_nome")
 )
 
-cat(sprintf("✅ Despesas processadas: %d registros\n", nrow(df_criterios_rreo_A01_despesas_bo)))
 ```
 
 ## Resultados
@@ -6382,7 +6197,7 @@ cat(sprintf("✅ Despesas processadas: %d registros\n", nrow(df_criterios_rreo_A
 # EXIBIR RECEITAS - Receita Realizada (item_informacao_codigo = 5)
 # =============================================================================
 
-receitas_realizadas <- df_criterios_rreo_A01_receitas_bo %>%
+receitas_realizadas <- df_criterios_rreo_a01_receitas %>%
   filter(item_informacao_codigo == "5") %>%
   group_by(ordem, nome) %>%
   summarise(valor = sum(valor, na.rm = TRUE), .groups = "drop") %>%
@@ -6411,7 +6226,7 @@ datatable(
 # EXIBIR DESPESAS - Despesas Pagas (item_informacao_codigo = 25)
 # =============================================================================
 
-despesas_pagas <- df_criterios_rreo_A01_despesas_bo %>%
+despesas_pagas <- df_criterios_rreo_a01_despesas %>%
   filter(item_informacao_codigo == "25") %>%
   group_by(ordem, nome) %>%
   summarise(valor = sum(valor, na.rm = TRUE), .groups = "drop") %>%
@@ -6441,13 +6256,13 @@ datatable(
 # =============================================================================
 
 # Receita total com refinanciamento (linha 85, item 5)
-receita_total <- df_criterios_rreo_A01_receitas_bo %>% 
+receita_total <- df_criterios_rreo_a01_receitas %>% 
   filter(ordem == "85", item_informacao_codigo == "5") %>% 
   summarise(valor = sum(valor, na.rm = TRUE)) %>%
   pull(valor)
 
 # Despesa total com refinanciamento (linha 34, item 25)
-despesa_total <- df_criterios_rreo_A01_despesas_bo %>% 
+despesa_total <- df_criterios_rreo_a01_despesas %>% 
   filter(ordem == "34", item_informacao_codigo == "25") %>% 
   summarise(valor = sum(valor, na.rm = TRUE)) %>%
   pull(valor)
@@ -6456,16 +6271,9 @@ despesa_total <- df_criterios_rreo_A01_despesas_bo %>%
 resultado_orcamentario <- receita_total - despesa_total
 
 # Exibir resultado
-cat("\n📊 RESULTADO ORÇAMENTÁRIO\n")
-cat("=========================\n\n")
-cat(sprintf("Receita Total (com refinanc.): R$ %s\n", formatar_numero(receita_total)))
-cat(sprintf("Despesa Total (com refinanc.): R$ %s\n", formatar_numero(despesa_total)))
-cat(sprintf("RESULTADO ORÇAMENTÁRIO:        R$ %s\n", formatar_numero(resultado_orcamentario)))
 
 if (resultado_orcamentario >= 0) {
-  cat("\n✅ SUPERÁVIT ORÇAMENTÁRIO\n")
 } else {
-  cat("\n⚠️ DÉFICIT ORÇAMENTÁRIO\n")
 }
 ```
 
@@ -6677,7 +6485,6 @@ if (exists("dados_despesa")) {
   ) %>%
     formatRound("saldo_r_item_informacao", 2, mark = ".", dec.mark = ",")
 } else {
-  cat("Dados não disponíveis\n")
 }
 ```
 
@@ -6701,20 +6508,11 @@ if (exists("despesas_funcao") && exists("despesas_refinanciamento")) {
   
   n_funcoes <- nrow(despesas_funcao) - 1  # Excluir linha de total
   
-  cat("\n")
-  cat(strrep("=", 60), "\n")
-  cat("RESUMO - RREO ANEXO 02\n")
-  cat(strrep("=", 60), "\n")
-  cat(sprintf("Total de Funções: %d\n", n_funcoes))
-  cat(sprintf("Despesa Liquidada Total: R$ %s\n", 
-              format(round(total_geral, 2), big.mark = ".", decimal.mark = ",")))
-  cat(strrep("=", 60), "\n")
   
   # Exportar variáveis
   valor_liquidado_total_a02 <- total_geral
   
 } else {
-  cat("Dados não disponíveis para resumo\n")
 }
 ```
 
@@ -6851,7 +6649,7 @@ A RCL e calculada considerando os **ultimos 12 meses**, incluindo o mes de refer
 # do Anexo 03 do RREO
 # =============================================================================
 
-criterios_rreo_A03_rcl_receitas_rcl <- list(
+criterios_rreo_a03_receitas <- list(
   
   # ---------------------------------------------------------------------------
   # RECEITAS CORRENTES POR ORIGEM (01-09)
@@ -7003,11 +6801,10 @@ criterios_rreo_A03_rcl_receitas_rcl <- list(
 # Aplicar critérios de receitas
 aplicar_criterios(
   rreo_a03_rcl_receitas, 
-  criterios_rreo_A03_rcl_receitas_rcl, 
+  criterios_rreo_a03_receitas, 
   group_vars = c("item_informacao_codigo")
 )
 
-cat("✅ Critérios de Receitas aplicados!\n")
 ```
 
 ### Critérios para Despesas (Deduções)
@@ -7022,7 +6819,7 @@ cat("✅ Critérios de Receitas aplicados!\n")
 # Estes critérios classificam as despesas que são deduzidas da RCL
 # =============================================================================
 
-criterios_rreo_A03_rcl_despesas_rcl <- list(
+criterios_rreo_a03_despesas <- list(
   
   # ---------------------------------------------------------------------------
   # TRANSFERÊNCIAS CONSTITUCIONAIS E LEGAIS (DESPESAS)
@@ -7065,11 +6862,10 @@ criterios_rreo_A03_rcl_despesas_rcl <- list(
 # Aplicar critérios de despesas
 aplicar_criterios(
   df = rreo_a03_rcl_despesas, 
-  criterios_rreo_A03_rcl_despesas_rcl, 
+  criterios_rreo_a03_despesas, 
   group_vars = c("item_informacao_codigo")
 )
 
-cat("✅ Critérios de Despesas (Deduções) aplicados!\n")
 ```
 
 ### Critérios para RP Cancelados
@@ -7084,7 +6880,7 @@ cat("✅ Critérios de Despesas (Deduções) aplicados!\n")
 # RP cancelados de transferências constitucionais devem ser somados de volta
 # =============================================================================
 
-criterios_rreo_A03_rcl_rp_cancelado_rcl <- list(
+criterios_rreo_a03_rp_cancelado <- list(
   
   `19 RP Cancelados de Transferências Constitucionais e Legais` = list(
     criterio = "
@@ -7105,11 +6901,10 @@ criterios_rreo_A03_rcl_rp_cancelado_rcl <- list(
 # Aplicar critérios de RP cancelados
 aplicar_criterios(
   df = rreo_a03_rcl_despesas, 
-  criterios_rreo_A03_rcl_rp_cancelado_rcl, 
+  criterios_rreo_a03_rp_cancelado, 
   group_vars = c("item_informacao_codigo")
 )
 
-cat("✅ Critérios de RP Cancelados aplicados!\n")
 ```
 
 ------------------------------------------------------------------------
@@ -7125,26 +6920,25 @@ cat("✅ Critérios de RP Cancelados aplicados!\n")
 # Fórmula: RCL = Receitas Correntes - Deduções + RP Cancelados
 # =============================================================================
 
-cat("📊 Consolidando dados da RCL...\n")
 
 # -----------------------------------------------------------------------------
 # 1. COMBINAR OS RESULTADOS
 # -----------------------------------------------------------------------------
 
 # Receitas (itens 01-09)
-rcl <- df_criterios_rreo_A03_rcl_receitas_rcl
+rcl <- df_criterios_rreo_a03_receitas
 
 # Adicionar Deduções (item 25 e 27 das despesas, item 17)
 rcl <- rbind(
   rcl, 
-  df_criterios_rreo_A03_rcl_despesas_rcl %>% 
+  df_criterios_rreo_a03_despesas %>% 
     filter(item_informacao_codigo %in% c("25", "27"))
 )
 
 # Adicionar RP Cancelados (item 51)
 rcl <- rbind(
   rcl, 
-  df_criterios_rreo_A03_rcl_rp_cancelado_rcl %>% 
+  df_criterios_rreo_a03_rp_cancelado %>% 
     filter(item_informacao_codigo == "51")
 )
 
@@ -7169,8 +6963,6 @@ rcl <- rcl %>%
     )
   )
 
-cat(sprintf("   ✓ Total de registros consolidados: %s\n", 
-            format(nrow(rcl), big.mark = ".", decimal.mark = ",")))
 
 # -----------------------------------------------------------------------------
 # 3. CALCULAR RCL DOS ÚLTIMOS 12 MESES
@@ -7179,7 +6971,6 @@ cat(sprintf("   ✓ Total de registros consolidados: %s\n",
 # Fórmula: RCL = Receitas - Deduções + RP Cancelados
 # -----------------------------------------------------------------------------
 
-cat("\n📈 Calculando RCL dos últimos 12 meses...\n")
 
 # Definir período: últimos 12 meses até o mês de referência
 data_inicio <- ym(mes_filtro) - months(11)
@@ -7202,10 +6993,6 @@ rcl_12_meses <- rcl %>%
     resultado = receitas - deducoes + rp_cancelado
   )
 
-cat(sprintf("   ✓ Período: %s a %s\n", 
-            format(data_inicio, "%m/%Y"), 
-            format(ym(mes_filtro), "%m/%Y")))
-cat(sprintf("   ✓ Meses processados: %d\n", nrow(rcl_12_meses)))
 
 # -----------------------------------------------------------------------------
 # 4. CALCULAR MÍNIMO PARA SAÚDE (15% da RCL do exercício)
@@ -7216,8 +7003,6 @@ minimo_saude <- sum(
      filter(year(data_lancamento) == year(ym(mes_filtro))))$resultado * 0.15
 )
 
-cat(sprintf("\n💉 Mínimo para Saúde (15%% RCL exercício): R$ %s\n",
-            format(minimo_saude, big.mark = ".", decimal.mark = ",", nsmall = 2)))
 
 # -----------------------------------------------------------------------------
 # 5. FUNÇÃO DE FORMATAÇÃO
@@ -7236,7 +7021,6 @@ formatar_real <- function(valor, decimais = 2, prefixo = "R$ ") {
   )
 }
 
-cat("\n✅ Cálculo da RCL concluído!\n")
 ```
 
 ------------------------------------------------------------------------
@@ -7252,13 +7036,9 @@ cat("\n✅ Cálculo da RCL concluído!\n")
 # EXIBIR RCL TOTAL
 # =============================================================================
 
-cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-cat("            RECEITA CORRENTE LÍQUIDA (RCL)           \n")
-cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
 
 # RCL dos últimos 12 meses
 rcl_total_12_meses <- sum(rcl_12_meses$resultado, na.rm = TRUE)
-cat(sprintf("💰 RCL (últimos 12 meses): %s\n\n", formatar_real(rcl_total_12_meses)))
 
 # RCL do exercício corrente
 rcl_exercicio <- sum(
@@ -7266,15 +7046,9 @@ rcl_exercicio <- sum(
      filter(year(data_lancamento) == year(ym(mes_filtro))))$resultado,
   na.rm = TRUE
 )
-cat(sprintf("📅 RCL (exercício %s): %s\n\n", 
-            year(ym(mes_filtro)), 
-            formatar_real(rcl_exercicio)))
 
 # Mínimo Constitucional para Saúde
-cat(sprintf("💉 Mínimo Saúde (15%% RCL exercício): %s\n", 
-            formatar_real(minimo_saude)))
 
-cat("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 ```
 
 ### RCL Mensal (Últimos 12 meses)
@@ -7487,7 +7261,7 @@ O **Anexo 04** apresenta o demonstrativo das receitas e despesas previdenciária
 ```{r criterios-receitas-rgps}
 #| include: false
 
-criterios_rreo_A04_rgps_receitas_rgps <- list(
+criterios_rreo_a04_rgps_receitas <- list(
   
   `01  Receitas Correntes - Dos Empregadores, Trabalhadores e Demais Segurados` = list(
     criterio = "natureza_receita_codigo_completo %in% c('12100311', '12100312', '12100313', '12100311') & nre2_origem_receita_codigo_origem %in% c(2) | startsWith(natureza_receita_codigo_completo, '1214') "
@@ -7524,7 +7298,7 @@ criterios_rreo_A04_rgps_receitas_rgps <- list(
 ```{r criterios-despesas-rgps}
 #| include: false
 
-criterios_rreo_A04_rgps_despesas_rgps <- list(
+criterios_rreo_a04_rgps_despesas <- list(
   
   `01  Aposentadorias` = list(
     criterio = "elemento_despesa_codigo %in% c('53', '54') & grupo_despesa_codigo_grupo %in% c(3) & modalidade_aplicacao_codigo %notin% c('91')"
@@ -7567,7 +7341,7 @@ aplicar_criterios(
       unidade_orcamentaria_codigo %in% c(33904, 40904, 55902, 25917) | 
       natureza_receita_codigo_completo == 79900211
     ), 
-  criterios_rreo_A04_rgps_receitas_rgps
+  criterios_rreo_a04_rgps_receitas
 )
 ```
 
@@ -7579,7 +7353,7 @@ aplicar_criterios(
 aplicar_criterios(
   df = dados_despesa %>% 
     filter(unidade_orcamentaria_codigo %in% c(33904, 40904, 55902, 25917)), 
-  criterios_rreo_A04_rgps_despesas_rgps
+  criterios_rreo_a04_rgps_despesas
 )
 ```
 
@@ -7592,7 +7366,7 @@ aplicar_criterios(
 # CALCULO DO RESULTADO PREVIDENCIARIO RGPS
 # =============================================================================
 
-if (!exists("dados_receita") || !exists("criterios_rreo_A04_rgps_receitas_rgps")) {
+if (!exists("dados_receita") || !exists("criterios_rreo_a04_rgps_receitas")) {
   warning("Objetos necessarios nao encontrados para calculo RGPS")
   df_resultado_rgps <- tibble(
     Tipo = c("Receita_RGPS", "Despesa_RGPS", "Resultado_RGPS"), 
@@ -7607,7 +7381,7 @@ if (!exists("dados_receita") || !exists("criterios_rreo_A04_rgps_receitas_rgps")
           natureza_receita_codigo_completo == 79900211,
           item_informacao_codigo %in% c("5", 5)
         ), 
-      criterios_rreo_A04_rgps_receitas_rgps
+      criterios_rreo_a04_rgps_receitas
     ) %>% 
       filter(ordem != "02") %>% 
       summarise(valor = sum(valor, na.rm = TRUE)) %>% 
@@ -7619,7 +7393,7 @@ if (!exists("dados_receita") || !exists("criterios_rreo_A04_rgps_receitas_rgps")
           unidade_orcamentaria_codigo %in% c(33904, 40904, 55902, 25917),
           item_informacao_codigo %in% c("25", 25)
         ), 
-      criterios_rreo_A04_rgps_despesas_rgps
+      criterios_rreo_a04_rgps_despesas
     ) %>% 
       summarise(valor = sum(valor, na.rm = TRUE)) %>% 
       pull(valor)
@@ -7657,7 +7431,7 @@ DT::datatable(
 ```{r criterios-receitas-rpps}
 #| include: false
 
-criterios_rreo_A04_rpps_receitas_civil_militar_rpps <- list(
+criterios_rreo_a04_rpps_receitas_civil_militar <- list(
   
   `01  CIVIS - RECEITA SEGURADOS - Ativo` = list(
     criterio = "fonte_recursos_codigo %notin% c('00', '000') & (natureza_receita_codigo_completo %in% c('12100423', '12100421', '12100422', '12100424', '12100461', '12100462', '12100463', '12100464') | startsWith(natureza_receita_codigo_completo, '1215011') | startsWith(natureza_receita_codigo_completo, '1215014') | startsWith(natureza_receita_codigo_completo, '121503'))"
@@ -7694,7 +7468,7 @@ criterios_rreo_A04_rpps_receitas_civil_militar_rpps <- list(
 ```{r criterios-despesas-rpps}
 #| include: false
 
-criterios_rreo_A04_rpps_despesas_civil_militar_rpps <- list(
+criterios_rreo_a04_rpps_despesas_civil_militar <- list(
   
   `01  CIVIS - DESPESAS - A detalhar` = list(
     criterio = "esfera_orcamentaria_codigo %in% c(2) & subfuncao_governo_codigo %in% c('272', '273', '274', '845') & grupo_despesa_codigo_grupo %in% c(1) & elemento_despesa_codigo %in% c('00') & acao_governo_codigo %in% c('0053', '0181') & funcao_governo_codigo %notin% c('10', '08')"
@@ -7754,7 +7528,7 @@ datatable(
         unidade_orcamentaria_codigo %notin% c(73901),
         fonte_recursos_codigo %notin% c('054')
       ), 
-    criterios_rreo_A04_rpps_receitas_civil_militar_rpps
+    criterios_rreo_a04_rpps_receitas_civil_militar
   )
 )
 ```
@@ -7772,7 +7546,7 @@ datatable(
         elemento_despesa_codigo %notin% c('04', '07', '11', '13', '16', '39', '67', '96'),
         acao_governo_codigo != '09HB'
       ), 
-    criterios_rreo_A04_rpps_despesas_civil_militar_rpps
+    criterios_rreo_a04_rpps_despesas_civil_militar
   )
 )
 ```
@@ -7786,7 +7560,7 @@ datatable(
 # CALCULO DO RESULTADO PREVIDENCIARIO RPPS CIVIL
 # =============================================================================
 
-if (!exists("dados_receita") || !exists("criterios_rreo_A04_rpps_receitas_civil_militar_rpps")) {
+if (!exists("dados_receita") || !exists("criterios_rreo_a04_rpps_receitas_civil_militar")) {
   warning("Objetos necessarios nao encontrados para RPPS Civil")
   df_resultado_rpps_civil <- tibble(
     Tipo = c("Receita_RPPS_Civil", "Despesa_RPPS_Civil", "Resultado_RPPS_Civil"), 
@@ -7801,7 +7575,7 @@ if (!exists("dados_receita") || !exists("criterios_rreo_A04_rpps_receitas_civil_
           fonte_recursos_codigo %notin% c('054'),
           item_informacao_codigo %in% c("5", 5)
         ), 
-      criterios_rreo_A04_rpps_receitas_civil_militar_rpps
+      criterios_rreo_a04_rpps_receitas_civil_militar
     ) %>%
       # Filtra apenas linhas de CIVIS (01 a 06)
       filter(grepl("^0[1-6]", ordem)) %>%
@@ -7816,7 +7590,7 @@ if (!exists("dados_receita") || !exists("criterios_rreo_A04_rpps_receitas_civil_
           acao_governo_codigo != '09HB',
           item_informacao_codigo %in% c("25", 25)
         ), 
-      criterios_rreo_A04_rpps_despesas_civil_militar_rpps
+      criterios_rreo_a04_rpps_despesas_civil_militar
     ) %>%
       # Filtra apenas linhas de CIVIS (01 a 04)
       filter(str_detect(nome, "CIVIS")) %>%
@@ -7849,7 +7623,7 @@ DT::datatable(
 # CALCULO DO RESULTADO PREVIDENCIARIO RPPS MILITAR
 # =============================================================================
 
-if (!exists("dados_receita") || !exists("criterios_rreo_A04_rpps_receitas_civil_militar_rpps")) {
+if (!exists("dados_receita") || !exists("criterios_rreo_a04_rpps_receitas_civil_militar")) {
   warning("Objetos necessarios nao encontrados para RPPS Militar")
   df_resultado_rpps_militar <- tibble(
     Tipo = c("Receita_RPPS_Militar", "Despesa_RPPS_Militar", "Resultado_RPPS_Militar"), 
@@ -7864,7 +7638,7 @@ if (!exists("dados_receita") || !exists("criterios_rreo_A04_rpps_receitas_civil_
           fonte_recursos_codigo %notin% c('054'),
           item_informacao_codigo %in% c("5", 5)
         ), 
-      criterios_rreo_A04_rpps_receitas_civil_militar_rpps
+      criterios_rreo_a04_rpps_receitas_civil_militar
     ) %>%
       # Filtra apenas linha de MILITARES (07)
       filter(grepl("^07", ordem)) %>%
@@ -7879,7 +7653,7 @@ if (!exists("dados_receita") || !exists("criterios_rreo_A04_rpps_receitas_civil_
           acao_governo_codigo != '09HB',
           item_informacao_codigo %in% c("25", 25)
         ), 
-      criterios_rreo_A04_rpps_despesas_civil_militar_rpps
+      criterios_rreo_a04_rpps_despesas_civil_militar
     ) %>%
       filter(str_detect(nome, "MILITARES")) %>%
       summarise(valor = sum(valor, na.rm = TRUE)) %>% 
@@ -7911,7 +7685,7 @@ DT::datatable(
 # CALCULO DO RESULTADO PREVIDENCIARIO RPPS TOTAL
 # =============================================================================
 
-if (!exists("dados_receita") || !exists("criterios_rreo_A04_rpps_receitas_civil_militar_rpps")) {
+if (!exists("dados_receita") || !exists("criterios_rreo_a04_rpps_receitas_civil_militar")) {
   warning("Objetos necessarios nao encontrados para RPPS Total")
   df_resultado_rpps <- tibble(
     Tipo = c("Receita_RPPS", "Despesa_RPPS", "Resultado_RPPS"), 
@@ -7926,7 +7700,7 @@ if (!exists("dados_receita") || !exists("criterios_rreo_A04_rpps_receitas_civil_
           fonte_recursos_codigo %notin% c('054'),
           item_informacao_codigo %in% c("5", 5)
         ), 
-      criterios_rreo_A04_rpps_receitas_civil_militar_rpps
+      criterios_rreo_a04_rpps_receitas_civil_militar
     ) %>% 
       summarise(valor = sum(valor, na.rm = TRUE)) %>% 
       pull(valor),
@@ -7939,7 +7713,7 @@ if (!exists("dados_receita") || !exists("criterios_rreo_A04_rpps_receitas_civil_
           acao_governo_codigo != '09HB',
           item_informacao_codigo %in% c("25", 25)
         ), 
-      criterios_rreo_A04_rpps_despesas_civil_militar_rpps
+      criterios_rreo_a04_rpps_despesas_civil_militar
     ) %>% 
       summarise(valor = sum(valor, na.rm = TRUE)) %>% 
       pull(valor)
@@ -7970,7 +7744,7 @@ DT::datatable(
 ```{r criterios-receitas-fcdf}
 #| include: false
 
-criterios_rreo_A04_rpps_receitas_fcdf <- list(
+criterios_rreo_a04_rpps_receitas_fcdf <- list(
   
   `01  FCDF - RECEITA SEGURADOS - Ativo` = list(
     criterio = "fonte_recursos_codigo %notin% c('00', '000') & (natureza_receita_codigo_completo %in% c('12100431', '12104211', '12104221', '12104231', '12104411', '12104421', '12104431', '12104611', '12104621', '12104631', '12191111', '12191321', '12191411') | startsWith(natureza_receita_codigo_completo, '121503') | startsWith(natureza_receita_codigo_completo, '1215011') | startsWith(natureza_receita_codigo_completo, '1215014'))"
@@ -8007,7 +7781,7 @@ criterios_rreo_A04_rpps_receitas_fcdf <- list(
 ```{r criterios-despesas-fcdf}
 #| include: false
 
-criterios_rreo_A04_rpps_despesas_fcdf <- list(
+criterios_rreo_a04_rpps_despesas_fcdf <- list(
   
   `01  FCDF - DESPESAS - A detalhar` = list(
     criterio = "esfera_orcamentaria_codigo %in% c(1, 2) & subfuncao_governo_codigo %in% c('272', '273', '274', '845') & grupo_despesa_codigo_grupo %in% c(1) & elemento_despesa_codigo %in% c('00') & acao_governo_codigo %in% c('00Q2', '00QN', '00NS')"
@@ -8036,7 +7810,7 @@ datatable(
   aplicar_criterios(
     df = dados_receita %>% 
       filter(unidade_orcamentaria_codigo %in% c(73901)),
-    criterios_rreo_A04_rpps_receitas_fcdf
+    criterios_rreo_a04_rpps_receitas_fcdf
   )
 )
 ```
@@ -8054,7 +7828,7 @@ datatable(
         elemento_despesa_codigo %notin% c('04', '07', '11', '13', '16', '39', '67', '96'),
         acao_governo_codigo != '09HB'
       ),
-    criterios_rreo_A04_rpps_despesas_fcdf
+    criterios_rreo_a04_rpps_despesas_fcdf
   )
 )
 ```
@@ -8068,7 +7842,7 @@ datatable(
 # CALCULO DO RESULTADO PREVIDENCIARIO FCDF
 # =============================================================================
 
-if (!exists("dados_receita") || !exists("criterios_rreo_A04_rpps_receitas_fcdf")) {
+if (!exists("dados_receita") || !exists("criterios_rreo_a04_rpps_receitas_fcdf")) {
   warning("Objetos necessarios nao encontrados para FCDF")
   df_resultado_fcdf <- tibble(
     Tipo = c("Receita_FCDF", "Despesa_FCDF", "Resultado_FCDF"), 
@@ -8082,7 +7856,7 @@ if (!exists("dados_receita") || !exists("criterios_rreo_A04_rpps_receitas_fcdf")
           unidade_orcamentaria_codigo %in% c(73901),
           item_informacao_codigo %in% c("5", 5)
         ), 
-      criterios_rreo_A04_rpps_receitas_fcdf
+      criterios_rreo_a04_rpps_receitas_fcdf
     ) %>% 
       summarise(valor = sum(valor, na.rm = TRUE)) %>% 
       pull(valor),
@@ -8095,7 +7869,7 @@ if (!exists("dados_receita") || !exists("criterios_rreo_A04_rpps_receitas_fcdf")
           acao_governo_codigo != '09HB',
           item_informacao_codigo %in% c("25", 25)
         ), 
-      criterios_rreo_A04_rpps_despesas_fcdf
+      criterios_rreo_a04_rpps_despesas_fcdf
     ) %>% 
       summarise(valor = sum(valor, na.rm = TRUE)) %>% 
       pull(valor)
@@ -8128,10 +7902,6 @@ DT::datatable(
 # RESUMO CONSOLIDADO - TODOS OS REGIMES
 # =============================================================================
 
-cat("\n")
-cat(strrep("=", 70), "\n")
-cat("RESUMO PREVIDENCIÁRIO - RREO ANEXO 04\n")
-cat(strrep("=", 70), "\n\n")
 
 # RGPS
 if (exists("df_resultado_rgps")) {
@@ -8139,10 +7909,6 @@ if (exists("df_resultado_rgps")) {
   rgps_desp <- df_resultado_rgps %>% filter(Tipo == "Despesa_RGPS") %>% pull(Valor)
   rgps_res <- df_resultado_rgps %>% filter(Tipo == "Resultado_RGPS") %>% pull(Valor)
   
-  cat("📊 RGPS - Regime Geral de Previdência Social\n")
-  cat(sprintf("   Receitas:  R$ %s\n", format(rgps_rec, big.mark = ".", decimal.mark = ",", nsmall = 2)))
-  cat(sprintf("   Despesas:  R$ %s\n", format(rgps_desp, big.mark = ".", decimal.mark = ",", nsmall = 2)))
-  cat(sprintf("   Resultado: R$ %s\n\n", format(rgps_res, big.mark = ".", decimal.mark = ",", nsmall = 2)))
 }
 
 # RPPS Civil
@@ -8151,10 +7917,6 @@ if (exists("df_resultado_rpps_civil")) {
   rpps_civ_desp <- df_resultado_rpps_civil %>% filter(Tipo == "Despesa_RPPS_Civil") %>% pull(Valor)
   rpps_civ_res <- df_resultado_rpps_civil %>% filter(Tipo == "Resultado_RPPS_Civil") %>% pull(Valor)
   
-  cat("👥 RPPS Civil - Servidores Civis\n")
-  cat(sprintf("   Receitas:  R$ %s\n", format(rpps_civ_rec, big.mark = ".", decimal.mark = ",", nsmall = 2)))
-  cat(sprintf("   Despesas:  R$ %s\n", format(rpps_civ_desp, big.mark = ".", decimal.mark = ",", nsmall = 2)))
-  cat(sprintf("   Resultado: R$ %s\n\n", format(rpps_civ_res, big.mark = ".", decimal.mark = ",", nsmall = 2)))
 }
 
 # RPPS Militar
@@ -8163,10 +7925,6 @@ if (exists("df_resultado_rpps_militar")) {
   rpps_mil_desp <- df_resultado_rpps_militar %>% filter(Tipo == "Despesa_RPPS_Militar") %>% pull(Valor)
   rpps_mil_res <- df_resultado_rpps_militar %>% filter(Tipo == "Resultado_RPPS_Militar") %>% pull(Valor)
   
-  cat("🎖️ RPPS Militar - Militares das Forças Armadas\n")
-  cat(sprintf("   Receitas:  R$ %s\n", format(rpps_mil_rec, big.mark = ".", decimal.mark = ",", nsmall = 2)))
-  cat(sprintf("   Despesas:  R$ %s\n", format(rpps_mil_desp, big.mark = ".", decimal.mark = ",", nsmall = 2)))
-  cat(sprintf("   Resultado: R$ %s\n\n", format(rpps_mil_res, big.mark = ".", decimal.mark = ",", nsmall = 2)))
 }
 
 # FCDF
@@ -8175,13 +7933,8 @@ if (exists("df_resultado_fcdf")) {
   fcdf_desp <- df_resultado_fcdf %>% filter(Tipo == "Despesa_FCDF") %>% pull(Valor)
   fcdf_res <- df_resultado_fcdf %>% filter(Tipo == "Resultado_FCDF") %>% pull(Valor)
   
-  cat("🏛️ FCDF - Fundo Constitucional do DF\n")
-  cat(sprintf("   Receitas:  R$ %s\n", format(fcdf_rec, big.mark = ".", decimal.mark = ",", nsmall = 2)))
-  cat(sprintf("   Despesas:  R$ %s\n", format(fcdf_desp, big.mark = ".", decimal.mark = ",", nsmall = 2)))
-  cat(sprintf("   Resultado: R$ %s\n\n", format(fcdf_res, big.mark = ".", decimal.mark = ",", nsmall = 2)))
 }
 
-cat(strrep("=", 70), "\n")
 ```
 
 ------------------------------------------------------------------------
@@ -8287,12 +8040,12 @@ Quando **negativo**, indica **déficit previdenciário** que deve ser coberto pe
 
 | Objeto | Descrição |
 |------------------------------------|------------------------------------|
-| criterios_rreo_A04_rgps_receitas_rgps | Critérios receitas RGPS |
-| criterios_rreo_A04_rgps_despesas_rgps | Critérios despesas RGPS |
-| criterios_rreo_A04_rpps_receitas_civil_militar_rpps | Critérios receitas RPPS |
-| criterios_rreo_A04_rpps_despesas_civil_militar_rpps | Critérios despesas RPPS |
-| criterios_rreo_A04_rpps_receitas_fcdf | Critérios receitas FCDF |
-| criterios_rreo_A04_rpps_despesas_fcdf | Critérios despesas FCDF |
+| criterios_rreo_a04_rgps_receitas | Critérios receitas RGPS |
+| criterios_rreo_a04_rgps_despesas | Critérios despesas RGPS |
+| criterios_rreo_a04_rpps_receitas_civil_militar | Critérios receitas RPPS |
+| criterios_rreo_a04_rpps_despesas_civil_militar | Critérios despesas RPPS |
+| criterios_rreo_a04_rpps_receitas_fcdf | Critérios receitas FCDF |
+| criterios_rreo_a04_rpps_despesas_fcdf | Critérios despesas FCDF |
 | df_resultado_rgps | Resultado Previdenciário RGPS |
 | df_resultado_rpps_civil | Resultado RPPS Civis |
 | df_resultado_rpps_militar | Resultado RPPS Militares |
@@ -8349,7 +8102,7 @@ Quando **negativo**, indica **déficit previdenciário** que deve ser coberto pe
 # ===============================================================================
 # 1. RECEITAS PRIMÁRIAS (dados_receita)
 # ===============================================================================
-criterios_rreo_A06_receitas_A06 <- list(
+criterios_rreo_a06_receitas <- list(
   
   # RECEITAS CORRENTES (I) - Total
   `01  RECEITAS CORRENTES (I)` = list(
@@ -8557,7 +8310,7 @@ criterios_rreo_A06_receitas_A06 <- list(
 # ===============================================================================
 # 2. DESPESAS - CATEGORIA/GRUPO (dados_categoria_grupo)
 # ===============================================================================
-criterios_rreo_A06_despesas_categoria_grupo_A06 <- list(
+criterios_rreo_a06_despesas_categoria_grupo <- list(
   
   # DESPESAS CORRENTES (XIII)
   `23  DESPESAS CORRENTES (XIII)` = list(
@@ -8654,7 +8407,7 @@ criterios_rreo_A06_despesas_categoria_grupo_A06 <- list(
 # ===============================================================================
 # 3. DESPESAS - NATUREZA DETALHADA (dados_ndd)
 # ===============================================================================
-criterios_rreo_A06_despesas_natureza_detalhada_A06 <- list(
+criterios_rreo_a06_despesas_natureza_detalhada <- list(
   
   # TRANSFERÊNCIAS CONSTITUCIONAIS E LEGAIS
   `32  ______Transferências Constitucionais e Legais` = list(
@@ -8713,7 +8466,7 @@ criterios_rreo_A06_despesas_natureza_detalhada_A06 <- list(
 # ===============================================================================
 # 4. DISPONIBILIDADES (tg_RPN_disponibilidades)
 # ===============================================================================
-criterios_rreo_A06_disponibilidades_A06 <- list(
+criterios_rreo_a06_disponibilidades <- list(
   
   # DISPONIBILIDADES - RECURSOS A CLASSIFICAR
   `39  Disponibilidades - Recursos a Classificar` = list(
@@ -8735,7 +8488,7 @@ criterios_rreo_A06_disponibilidades_A06 <- list(
 # ===============================================================================
 # 5. JUROS ATIVOS E PASSIVOS (dados_juros)
 # ===============================================================================
-criterios_rreo_A06_juros_ativos_passivos_A06 <- list(
+criterios_rreo_a06_juros_ativos_passivos <- list(
   
   # JUROS ATIVOS (XXV) - VPA Classe 4
   `41  Juros Ativos` = list(
@@ -8785,7 +8538,7 @@ criterios_rreo_A06_juros_ativos_passivos_A06 <- list(
 # ===============================================================================
 # 6. SUBSÍDIOS CESEF (dados_despesa) - Item 37
 # ===============================================================================
-criterios_rreo_A06_subsidios_cesef <- list(
+criterios_rreo_a06_subsidios_cesef <- list(
   
   `37  ______Subsídios (metodologia CESEF - financeiro primário)` = list(
     criterio = "
@@ -8798,11 +8551,10 @@ criterios_rreo_A06_subsidios_cesef <- list(
 )
 
 
-
 # ===============================================================================
 # 6.1 emprestimos (dados_ndd) - Item 38
 # ===============================================================================
-criterios_rreo_A06_emprestimos <- list(
+criterios_rreo_a06_emprestimos <- list(
   
   
   `38  ______Concessão de Empréstimos e Financiamentos` = list(
@@ -8821,7 +8573,7 @@ criterios_rreo_A06_emprestimos <- list(
 # 7. AJUSTES PARA O ANEXO 6 DO RREO (VPA/VPD de ajustes patrimoniais)
 # ===============================================================================
 
-criterios_rreo_A06_ajuste <- list(
+criterios_rreo_a06_ajuste <- list(
 
   # VPD - VARIAÇÕES MONETÁRIAS DA DÍVIDA CONTRATUAL
   `50 VPD - Variações Monetárias da Dívida Contratual` = list(
@@ -9085,37 +8837,37 @@ rreo_a06_final <- rreo_a06_consolidado
 rreo_a06_consolidado <- bind_rows(
   aplicar_criterios(
     df = dados_categoria_grupo %>% filter(mes_lancamento == mes_filtro, item_informacao_codigo == "56"),
-    criterios = criterios_rreo_A06_despesas_categoria_grupo_A06
+    criterios = criterios_rreo_a06_despesas_categoria_grupo
   ),
   aplicar_criterios(
     df = dados_receita,
-    criterios = criterios_rreo_A06_receitas_A06
+    criterios = criterios_rreo_a06_receitas
   ),
   aplicar_criterios(
     df = dados_ndd %>% filter(item_informacao_codigo == "56", mes_lancamento == mes_filtro),
-    criterios = criterios_rreo_A06_despesas_natureza_detalhada_A06
+    criterios = criterios_rreo_a06_despesas_natureza_detalhada
   ),
   # Item 37 - Subsídios CESEF (fonte: dados_despesa)
   aplicar_criterios(
     df = dados_despesa %>% filter(mes_lancamento == mes_filtro, item_informacao_codigo == "56"),
-    criterios = criterios_rreo_A06_subsidios_cesef
+    criterios = criterios_rreo_a06_subsidios_cesef
   ),
   aplicar_criterios(
     df = dados_juros,
-    criterios = criterios_rreo_A06_juros_ativos_passivos_A06
+    criterios = criterios_rreo_a06_juros_ativos_passivos
   ),
   aplicar_criterios(
     df = tg_RPN_disponibilidades,
-    criterios = criterios_rreo_A06_disponibilidades_A06
+    criterios = criterios_rreo_a06_disponibilidades
   ),
   aplicar_criterios(
     df = dados_ajustes,
-    criterios = criterios_rreo_A06_ajuste
+    criterios = criterios_rreo_a06_ajuste
   ),
   # Item 38 - emprestimos (fonte: dados_ndd)
   aplicar_criterios(
     df = dados_ndd %>% filter(mes_lancamento == mes_filtro, item_informacao_codigo == "56"),
-    criterios = criterios_rreo_A06_emprestimos
+    criterios = criterios_rreo_a06_emprestimos
   )
 )
 
@@ -9871,13 +9623,13 @@ tabela_comparativo %>%
 
 | Objeto | Descrição |
 |------------------------------------|------------------------------------|
-| `criterios_rreo_A06_receitas_A06` | Critérios para receitas primárias |
-| `criterios_rreo_A06_despesas_categoria_grupo_A06` | Critérios para despesas por categoria/grupo |
-| `criterios_rreo_A06_despesas_natureza_detalhada_A06` | Critérios para despesas por natureza detalhada |
-| `criterios_rreo_A06_disponibilidades_A06` | Critérios para disponibilidades |
-| `criterios_rreo_A06_juros_ativos_passivos_A06` | Critérios para juros ativos e passivos |
-| `criterios_rreo_A06_subsidios_cesef` | Critérios para subsídios CESEF |
-| `criterios_rreo_A06_ajuste` | Critérios para ajustes VPA/VPD |
+| `criterios_rreo_a06_receitas` | Critérios para receitas primárias |
+| `criterios_rreo_a06_despesas_categoria_grupo` | Critérios para despesas por categoria/grupo |
+| `criterios_rreo_a06_despesas_natureza_detalhada` | Critérios para despesas por natureza detalhada |
+| `criterios_rreo_a06_disponibilidades` | Critérios para disponibilidades |
+| `criterios_rreo_a06_juros_ativos_passivos` | Critérios para juros ativos e passivos |
+| `criterios_rreo_a06_subsidios_cesef` | Critérios para subsídios CESEF |
+| `criterios_rreo_a06_ajuste` | Critérios para ajustes VPA/VPD |
 | `rreo_a06_final` | Dados consolidados de todos os critérios |
 | `valor_resultado_primario` | Resultado primário final |
 | `valor_resultado_nominal` | Resultado nominal final |
@@ -10076,7 +9828,7 @@ if (!exists("dados_rp_anexo_07")) {
 # CRITÉRIOS RREO ANEXO 08 - MDE (Manutenção e Desenvolvimento do Ensino)
 # ==============================================================================
 
-criterios_rreo_A08_mde_despesas <- list(
+criterios_rreo_a08_mde_despesas <- list(
   
   # COMPLEMENTAÇÃO DA UNIÃO AO FUNDEB
   `01 - COMPLEMENTAÇÃO DA UNIÃO AO FUNDEB` = list(
@@ -10349,7 +10101,6 @@ if (exists("receitas_base_rli") && exists("rli_transf")) {
     options = list(pageLength = 15, dom = 'ft')
   )
 } else {
-  cat("Dados não disponíveis para cálculo da RLI\n")
   rli_mensal <- tibble(mes_lancamento = NA, receita = 0, transferencia_total = 0, rli = 0)
 }
 ```
@@ -10368,11 +10119,8 @@ if (exists("rli_mensal") && exists("mes_filtro")) {
     summarise(minimo_mde = sum(rli, na.rm = TRUE)) %>%
     pull(minimo_mde)
   
-  cat(paste("📅 RLI para", mes_filtro, ":", 
-            format(round(rli_atual, 2), big.mark = ".", decimal.mark = ",")))
 } else {
   rli_atual <- 0
-  cat("RLI não calculada - dados não disponíveis\n")
 }
 ```
 
@@ -10385,7 +10133,7 @@ if (exists("rli_mensal") && exists("mes_filtro")) {
 if (exists("dados_despesa") && exists("mes_filtro")) {
   despesa_mde <- aplicar_criterios(
     dados_despesa %>% filter(item_informacao_codigo %in% c(25, 27)), 
-    criterios_rreo_A08_mde_despesas
+    criterios_rreo_a08_mde_despesas
   ) %>% 
     filter(
       mes_lancamento == mes_filtro,
@@ -10393,11 +10141,8 @@ if (exists("dados_despesa") && exists("mes_filtro")) {
     ) %>% 
     summarise(valor = sum(valor, na.rm = TRUE)) 
   
-  cat(paste("💰 Despesas MDE Principais:", 
-            format(round(despesa_mde$valor, 2), big.mark = ".", decimal.mark = ",")))
 } else {
   despesa_mde <- tibble(valor = 0)
-  cat("Despesas MDE não calculadas - dados não disponíveis\n")
 }
 ```
 
@@ -10417,11 +10162,8 @@ if (exists("dados_despesa") && exists("mes_filtro")) {
     summarise(comp_fundeb = sum(saldo_r_item_informacao, na.rm = TRUE)) %>%
     pull(comp_fundeb)
   
-  cat(paste("🎯 Complementação FUNDEB (100%):", 
-            format(round(complementacao_fundeb, 2), big.mark = ".", decimal.mark = ",")))
 } else {
   complementacao_fundeb <- 0
-  cat("Complementação FUNDEB não calculada - dados não disponíveis\n")
 }
 ```
 
@@ -10454,11 +10196,8 @@ if (exists("dados_rp_anexo_08") && exists("mes_filtro")) {
   # Total consolidado para cálculos
   despesa_mde_rp <- sum(despesa_mde_rp_detalhado$valor, na.rm = TRUE)
   
-  cat(paste("📋 Total RP MDE:", 
-            format(round(despesa_mde_rp, 2), big.mark = ".", decimal.mark = ",")))
 } else {
   despesa_mde_rp <- 0
-  cat("RP MDE não calculado - dados não disponíveis\n")
 }
 ```
 
@@ -10515,18 +10254,6 @@ knitr::kable(resumo_aplicacao,
       align = c("l", "r", "c"))
 
 # Resultado resumido
-cat("\n")
-cat(strrep("=", 70), "\n")
-cat("RESULTADO FINAL - APLICAÇÃO EM MDE\n")
-cat(strrep("=", 70), "\n")
-cat(sprintf("Total de Despesas MDE: R$ %s\n", 
-            format(round(total_despesas_mde, 2), big.mark = ".", decimal.mark = ",")))
-cat(sprintf("18%% da RLI (Base): R$ %s\n", 
-            format(round(rli_atual, 2), big.mark = ".", decimal.mark = ",")))
-cat(sprintf("Percentual Aplicado: %.2f%%\n", percentual_aplicacao))
-cat(sprintf("Situação: %s ao mínimo constitucional\n", 
-            ifelse(percentual_aplicacao >= 100, "✅ ATENDE", "❌ NÃO ATENDE")))
-cat(strrep("=", 70), "\n")
 
 # Exportar variáveis
 valor_rli_atual <- rli_atual
@@ -10540,7 +10267,7 @@ valor_percentual_mde <- percentual_aplicacao
 
 | Objeto | Descrição |
 |------------------------------------|------------------------------------|
-| `criterios_rreo_A08_mde_despesas` | Critérios para classificação das despesas MDE |
+| `criterios_rreo_a08_mde_despesas` | Critérios para classificação das despesas MDE |
 | `receitas_base_rli` | Receitas de impostos base para RLI |
 | `rli_transf` | Transferências constitucionais |
 | `rli_mensal` | RLI mensal calculada |
@@ -10584,11 +10311,11 @@ valor_percentual_mde <- percentual_aplicacao
 
 ## 📁 Arquivos Necessários
 
-| Objeto          | Arquivo                | Descrição                        |
-|------------------|-----------------------|-------------------------------|
-| `dados_receita` | tg_receita\_\*.xlsx    | Receitas de operações de crédito |
-| `dados_despesa` | tg_despesa\_\*.xlsx    | Despesas de capital              |
-| `balancete`     | rgf_a02_balancete.xlsx | Saldo da subconta da dívida      |
+| Objeto          | Arquivo              | Descrição                        |
+|-----------------|----------------------|----------------------------------|
+| `dados_receita` | tg_receita\_\*.xlsx  | Receitas de operações de crédito |
+| `dados_despesa` | tg_despesa\_\*.xlsx  | Despesas de capital              |
+| `balancete`     | dados_balancete.xlsx | Saldo da subconta da dívida      |
 
 ## 📋 Atributos Utilizados
 
@@ -10647,8 +10374,6 @@ Se Regra de Ouro > 0: NÃO CUMPRIDA
 # Este valor deve ser atualizado no início de cada exercício
 saldo_inicial_divida <- 731471695519.71  # Saldo abertura 2025 (000/2025)
 
-cat(sprintf("📅 Saldo Inicial da Subconta da Dívida: R$ %s\n",
-            format(round(saldo_inicial_divida, 2), big.mark = ".", decimal.mark = ",")))
 ```
 
 ## 📈 Processamento dos Dados
@@ -10689,8 +10414,6 @@ if (!exists("dados_receita")) {
     summarise(valor = sum(saldo_r_item_informacao, na.rm = TRUE)) %>%
     pull(valor)
   
-  cat(sprintf("💰 Receitas de Operações de Crédito (I): R$ %s\n",
-              format(round(receitas_op_credito, 2), big.mark = ".", decimal.mark = ",")))
 }
 ```
 
@@ -10722,8 +10445,6 @@ if (!exists("dados_despesa")) {
     summarise(valor = sum(saldo_r_item_informacao, na.rm = TRUE)) %>%
     pull(valor)
   
-  cat(sprintf("💸 Despesas de Capital (IV): R$ %s\n",
-              format(round(despesas_capital, 2), big.mark = ".", decimal.mark = ",")))
 }
 ```
 
@@ -10741,14 +10462,13 @@ if (!exists("dados_despesa")) {
 # ==============================================================================
 
 if (!exists("balancete")) {
-  warning("balancete nao encontrado - usando rgf_a02_balancete se disponivel")
+  warning("balancete nao encontrado - usando dados_balancete se disponivel")
   
-  if (exists("rgf_a02_balancete")) {
-    balancete <- rgf_a02_balancete
+  if (exists("dados_balancete")) {
+    balancete <- dados_balancete
   } else {
     saldo_atual_divida <- 0
     variacao_divida <- 0
-    cat("⚠️ Dados do balancete não disponíveis\n")
   }
 }
 
@@ -10763,10 +10483,6 @@ if (exists("balancete")) {
   
   variacao_divida <- saldo_atual_divida - saldo_inicial_divida
   
-  cat(sprintf("📊 Saldo Atual da Subconta: R$ %s\n",
-              format(round(saldo_atual_divida, 2), big.mark = ".", decimal.mark = ",")))
-  cat(sprintf("📉 Variação da Subconta (II): R$ %s\n",
-              format(round(variacao_divida, 2), big.mark = ".", decimal.mark = ",")))
 }
 ```
 
@@ -10831,29 +10547,6 @@ datatable(
 # RESULTADO FINAL DA REGRA DE OURO
 # ==============================================================================
 
-cat("\n")
-cat(strrep("=", 70), "\n")
-cat("RESULTADO DA REGRA DE OURO\n")
-cat(strrep("=", 70), "\n")
-cat(sprintf("Período de Referência: %s\n", mes_filtro))
-cat(strrep("-", 70), "\n")
-cat(sprintf("Receitas de Operações de Crédito (I):  R$ %s\n",
-            format(round(receitas_op_credito, 2), big.mark = ".", decimal.mark = ",")))
-cat(sprintf("(-) Variação Subconta da Dívida (II):  R$ %s\n",
-            format(round(variacao_divida, 2), big.mark = ".", decimal.mark = ",")))
-cat(sprintf("= Receitas Líquidas (III):             R$ %s\n",
-            format(round(receitas_liquidas, 2), big.mark = ".", decimal.mark = ",")))
-cat(strrep("-", 70), "\n")
-cat(sprintf("Despesas de Capital (IV):              R$ %s\n",
-            format(round(despesas_capital, 2), big.mark = ".", decimal.mark = ",")))
-cat(strrep("-", 70), "\n")
-cat(sprintf("REGRA DE OURO (IV - III):              R$ %s\n",
-            format(round(regra_ouro, 2), big.mark = ".", decimal.mark = ",")))
-cat(strrep("=", 70), "\n")
-cat(sprintf("STATUS: %s %s\n",
-            ifelse(status_regra_ouro == "CUMPRIDA", "✅", "❌"),
-            status_regra_ouro))
-cat(strrep("=", 70), "\n")
 
 # Exportar variáveis
 valor_receitas_op_credito <- receitas_op_credito
@@ -10973,8 +10666,6 @@ tabela_saude_especificas <- despesas_saude %>%
 
 # Calcular total das subfunções específicas
 total_subfuncoes_especificas <- sum(despesas_saude$saldo_r_item_informacao)
-cat("\n💰 **Total das Subfunções Específicas de Saúde:** R$", 
-    format(total_subfuncoes_especificas, big.mark = ".", decimal.mark = ","), "\n")
 ```
 
 ### 2. Despesas em Outras Subfunções (Demais)
@@ -10994,13 +10685,9 @@ despesas_saude_demais <- as.numeric(
   summarise(saldo_r_item_informacao = sum(saldo_r_item_informacao))
 )
 
-cat("💰 **Total das Demais Subfunções de Saúde:** R$", 
-    format(despesas_saude_demais, big.mark = ".", decimal.mark = ","), "\n")
 
 # Total geral das despesas computadas
 total_despesas_computadas <- total_subfuncoes_especificas + despesas_saude_demais
-cat("💰 **Total Geral das Despesas Computadas:** R$", 
-    format(total_despesas_computadas, big.mark = ".", decimal.mark = ","), "\n\n")
 ```
 
 ### 3. Análise Consolidada de Todas as Despesas
@@ -11069,11 +10756,6 @@ tabela_consolidada <- despesas_saude_completa %>%
 
 # Total consolidado em milhares
 total_consolidado <- sum(despesas_saude_completa$saldo_r_item_informacao) / 1000
-cat("\n💰 **Total Consolidado das Despesas com Saúde:** R$", 
-    format(total_consolidado, big.mark = ".", decimal.mark = ","), "mil\n")
-
-cat("\n💰 **cumprimento do mínimo:** ", 
-    format(total_consolidado*1000/minimo_saude*100, big.mark = ".", decimal.mark = ","), "%\n")
 
 
 # filter(fonte_recursos_codigo %notin% c(448,449), grupo_despesa_codigo_grupo %notin% c(2,6), acao_governo_codigo %notin% c('0181', '2004', '20YS'), modalidade_aplicacao_codigo %in% c(35, 45, 73, 78)) %>% summarise(saldo_r_item_informacao = sum(saldo_r_item_informacao))
@@ -11183,34 +10865,22 @@ if (exists("dados_despesa") && exists("mes_filtro")) {
   
   total_despesas_rp_cancelados <- sum(despesas_rp_cancelados$valor, na.rm = TRUE)
   
-  cat("Despesas Custeadas com Disp. Caixa Vinculada aos RP Cancelados: R$", 
-      format(total_despesas_rp_cancelados, big.mark = ".", decimal.mark = ","), "\n")
   
 } else {
   total_despesas_rp_cancelados <- 0
   despesas_rp_cancelados <- tibble()
-  cat("Dados nao disponiveis para calculo de RP Cancelados\n")
 }
 ```
 
 ```{r}
 
 
-
 # Calcular total das subfunções específicas
 total_subfuncoes_especificas <- sum(despesas_saude$saldo_r_item_informacao)
-cat("\n💰 **Total das Subfunções Específicas de Saúde:** R$", 
-    format(total_subfuncoes_especificas, big.mark = ".", decimal.mark = ","), "\n")
 
-cat("💰 **Total das Demais Subfunções de Saúde:** R$", 
-    format(despesas_saude_demais, big.mark = ".", decimal.mark = ","), "\n")
 
 # Total geral das despesas computadas
 total_despesas_computadas <- total_subfuncoes_especificas + despesas_saude_demais
-cat("💰 **Total Geral das Despesas Computadas:** R$", 
-    format(total_despesas_computadas, big.mark = ".", decimal.mark = ","), "\n\n")
-
-
 
 
 # Cumprimento do minimo
@@ -11283,7 +10953,7 @@ cat("💰 **Total Geral das Despesas Computadas:** R$",
 # CRITÉRIOS DA TABELA 01 - RECEITAS ORÇAMENTÁRIAS
 # ==============================================================================
 
-criterios_rreo_T01_receitas <- list(
+criterios_rreo_t01_receitas <- list(
   
   # === RECEITAS CORRENTES ===
   
@@ -11409,18 +11079,18 @@ criterios_rreo_T01_receitas <- list(
 
 if (!exists("dados_receita")) {
   warning("dados_receita nao encontrado")
-  df_criterios_rreo_T01_receitas <- tibble(
+  df_criterios_rreo_t01_receitas <- tibble(
     categoria = "ERRO - Dados não disponíveis",
     ordem = "00",
     valor = NA_real_
   )
 } else {
   # Aplicar critérios nas receitas da Seguridade Social
-  df_criterios_rreo_T01_receitas <- aplicar_criterios(
+  df_criterios_rreo_t01_receitas <- aplicar_criterios(
     df = dados_receita %>% 
       filter(esfera_orcamentaria_codigo == 2, item_informacao_codigo == "5") %>% 
       unique(),
-    criterios = criterios_rreo_T01_receitas
+    criterios = criterios_rreo_t01_receitas
   ) %>% 
     group_by(categoria, ordem) %>% 
     summarise(valor = sum(valor, na.rm = TRUE), .groups = "drop") %>%
@@ -11428,7 +11098,7 @@ if (!exists("dados_receita")) {
   
   # Exibir resultado
   datatable(
-    df_criterios_rreo_T01_receitas,
+    df_criterios_rreo_t01_receitas,
     caption = "📊 Receitas Orçamentárias - Seguridade Social",
     options = list(pageLength = 20, dom = 'ft'),
     rownames = FALSE
@@ -11446,7 +11116,7 @@ if (!exists("dados_receita")) {
 # CRITÉRIOS DA TABELA 01 - DESPESAS ORÇAMENTÁRIAS
 # ==============================================================================
 
-criterios_rreo_T01_despesas_T01 <- list(
+criterios_rreo_t01_despesas <- list(
   
   # === DESPESAS CORRENTES ===
   
@@ -11530,18 +11200,18 @@ criterios_rreo_T01_despesas_T01 <- list(
 
 if (!exists("dados_despesa")) {
   warning("dados_despesa nao encontrado")
-  df_criterios_rreo_T01_despesas_T01 <- tibble(
+  df_criterios_rreo_t01_despesas <- tibble(
     categoria = "ERRO - Dados não disponíveis",
     ordem = "00",
     valor = NA_real_
   )
 } else {
   # Aplicar critérios nas despesas da Seguridade Social
-  df_criterios_rreo_T01_despesas_T01 <- aplicar_criterios(
+  df_criterios_rreo_t01_despesas <- aplicar_criterios(
     df = dados_despesa %>% 
       filter(esfera_orcamentaria_codigo == 2, item_informacao_codigo %in% c(25, 27 )) %>% 
       unique(),
-    criterios = criterios_rreo_T01_despesas_T01
+    criterios = criterios_rreo_t01_despesas
   ) %>% 
     group_by(categoria, ordem) %>% 
     summarise(valor = sum(valor, na.rm = TRUE), .groups = "drop") %>%
@@ -11549,7 +11219,7 @@ if (!exists("dados_despesa")) {
   
   # Exibir resultado
   datatable(
-    df_criterios_rreo_T01_despesas_T01,
+    df_criterios_rreo_t01_despesas,
     caption = "📊 Despesas Orçamentárias - Seguridade Social",
     options = list(pageLength = 15, dom = 'ft'),
     rownames = FALSE
@@ -11568,14 +11238,14 @@ if (!exists("dados_despesa")) {
 # Fórmula: Resultado = Receitas (SUBTOTAL I) - Despesas (SUBTOTAL III)
 # ==============================================================================
 
-if (exists("df_criterios_rreo_T01_receitas") && exists("df_criterios_rreo_T01_despesas_T01")) {
+if (exists("df_criterios_rreo_t01_receitas") && exists("df_criterios_rreo_t01_despesas")) {
   
   # Obter totais
-  receita_total <- df_criterios_rreo_T01_receitas %>% 
+  receita_total <- df_criterios_rreo_t01_receitas %>% 
     filter(ordem == "14") %>% 
     pull(valor)
   
-  despesa_total <- df_criterios_rreo_T01_despesas_T01 %>% 
+  despesa_total <- df_criterios_rreo_t01_despesas %>% 
     filter(ordem == "11") %>% 
     pull(valor)
   
@@ -11600,23 +11270,9 @@ if (exists("df_criterios_rreo_T01_receitas") && exists("df_criterios_rreo_T01_de
   )
   
   # Resultado no console
-  cat("\n")
-  cat(strrep("=", 60), "\n")
-  cat("RESULTADO DA SEGURIDADE SOCIAL\n")
-  cat(strrep("=", 60), "\n")
-  cat(sprintf("Receitas Totais:   R$ %s\n", 
-              format(round(receita_total, 2), big.mark = ".", decimal.mark = ",")))
-  cat(sprintf("Despesas Totais:   R$ %s\n", 
-              format(round(despesa_total, 2), big.mark = ".", decimal.mark = ",")))
-  cat(strrep("-", 60), "\n")
-  cat(sprintf("RESULTADO:         R$ %s (%s)\n", 
-              format(round(resultado_seguridade, 2), big.mark = ".", decimal.mark = ","),
-              ifelse(resultado_seguridade >= 0, "SUPERÁVIT", "DÉFICIT")))
-  cat(strrep("=", 60), "\n")
   
 } else {
   resultado_seguridade <- NA
-  cat("Dados não disponíveis para cálculo do resultado\n")
 }
 ```
 
@@ -11629,7 +11285,7 @@ if (exists("df_criterios_rreo_T01_receitas") && exists("df_criterios_rreo_T01_de
 # CRITÉRIOS PARA ANÁLISE DA SEGURIDADE SOCIAL POR ÁREA
 # ==============================================================================
 
-criterios_rreo_T01B_seguridade_T01B <- list(
+criterios_rreo_t01b_seguridade <- list(
   
   # SAÚDE (IDUSO 6)
   `01  Saúde` = list(
@@ -11672,7 +11328,7 @@ if (exists("dados_despesa")) {
     df = dados_despesa %>% 
       filter(esfera_orcamentaria_codigo == 2, item_informacao_codigo %in% c(25 , 27)) %>% 
       unique(),
-    criterios = criterios_rreo_T01B_seguridade_T01B
+    criterios = criterios_rreo_t01b_seguridade
   ) %>% 
     group_by(categoria) %>% 
     summarise(valor = sum(valor, na.rm = TRUE), .groups = "drop")
@@ -11685,21 +11341,20 @@ if (exists("dados_despesa")) {
   ) %>%
     formatRound(c("valor"), 2, mark = ".", dec.mark = ",")
 } else {
-  cat("Dados não disponíveis\n")
 }
 ```
 
 ## 📋 Objetos Exportados
 
-| Objeto | Descrição |
-|------------------------------------|------------------------------------|
-| `criterios_rreo_T01_receitas` | Critérios para receitas orçamentárias |
-| `criterios_rreo_T01_despesas_T01` | Critérios para despesas orçamentárias |
-| `criterios_rreo_T01B_seguridade_T01B` | Critérios para seguridade por área |
-| `df_criterios_rreo_T01_receitas` | Receitas processadas |
-| `df_criterios_rreo_T01_despesas_T01` | Despesas processadas |
-| `df_seguridade_area` | Despesas por área da seguridade |
-| `resultado_seguridade` | Resultado (Receitas - Despesas) |
+| Objeto                           | Descrição                             |
+|----------------------------------|---------------------------------------|
+| `criterios_rreo_t01_receitas`    | Critérios para receitas orçamentárias |
+| `criterios_rreo_t01_despesas`    | Critérios para despesas orçamentárias |
+| `criterios_rreo_t01b_seguridade` | Critérios para seguridade por área    |
+| `df_criterios_rreo_t01_receitas` | Receitas processadas                  |
+| `df_criterios_rreo_t01_despesas` | Despesas processadas                  |
+| `df_seguridade_area`             | Despesas por área da seguridade       |
+| `resultado_seguridade`           | Resultado (Receitas - Despesas)       |
 
 ## 📌 Observações Importantes
 
@@ -11788,7 +11443,7 @@ if (exists("dados_despesa")) {
 # CRITÉRIOS DA TABELA 02 - DESPESAS COM PESSOAL POR MODALIDADE
 # ==============================================================================
 
-criterios_rreo_T02_despesas_T02 <- list(
+criterios_rreo_t02_despesas <- list(
   
   # APLICAÇÃO DIRETA (será calculado por soma dos subitens)
   `01  Aplicação Direta` = list(
@@ -11961,7 +11616,7 @@ if (!exists("dados_despesa")) {
         mes_lancamento == mes_filtro,
         item_informacao_codigo %in% c(25,27)
       ),
-    criterios = criterios_rreo_T02_despesas_T02,
+    criterios = criterios_rreo_t02_despesas,
     group_vars = c("orgao_uge_tipo_administracao_nome")
   ) %>% 
     group_by(categoria, orgao_uge_tipo_administracao_nome) %>% 
@@ -12023,7 +11678,6 @@ if (exists("dados_despesa") && exists("mes_filtro")) {
   ) %>%
     formatRound(c('saldo_r_item_informacao'), 2, mark = ".", dec.mark = ",")
 } else {
-  cat("Dados não disponíveis para validação\n")
 }
 ```
 
@@ -12064,7 +11718,6 @@ if (exists("dados_despesa") && exists("mes_filtro")) {
   ) %>%
     formatRound(c('saldo_r_item_informacao'), 2, mark = ".", dec.mark = ",")
 } else {
-  cat("Dados não disponíveis para validação\n")
 }
 ```
 
@@ -12105,20 +11758,6 @@ if (exists("validacao_civil") && exists("validacao_militar")) {
   )
   
   # Resultado no console
-  cat("\n")
-  cat(strrep("=", 60), "\n")
-  cat("RESUMO - DESPESAS COM PESSOAL\n")
-  cat(strrep("=", 60), "\n")
-  cat(sprintf("Pessoal Civil:    R$ %s (%.2f%%)\n", 
-              format(round(total_civil, 2), big.mark = ".", decimal.mark = ","),
-              total_civil / total_geral * 100))
-  cat(sprintf("Pessoal Militar:  R$ %s (%.2f%%)\n", 
-              format(round(total_militar, 2), big.mark = ".", decimal.mark = ","),
-              total_militar / total_geral * 100))
-  cat(strrep("-", 60), "\n")
-  cat(sprintf("TOTAL GERAL:      R$ %s\n", 
-              format(round(total_geral, 2), big.mark = ".", decimal.mark = ",")))
-  cat(strrep("=", 60), "\n")
   
   # Exportar variáveis
   valor_pessoal_civil <- total_civil
@@ -12126,21 +11765,20 @@ if (exists("validacao_civil") && exists("validacao_militar")) {
   valor_pessoal_total <- total_geral
   
 } else {
-  cat("Dados não disponíveis para resumo consolidado\n")
 }
 ```
 
 ## 📋 Objetos Exportados
 
-| Objeto | Descrição |
-|------------------------------------|------------------------------------|
-| `criterios_rreo_T02_despesas_T02` | Critérios para despesas com pessoal |
-| `df_t02_tipo_admin` | Despesas por tipo de administração |
-| `validacao_civil` | Validação pessoal civil por tipo admin |
-| `validacao_militar` | Validação pessoal militar por tipo admin |
-| `valor_pessoal_civil` | Total pessoal civil |
-| `valor_pessoal_militar` | Total pessoal militar |
-| `valor_pessoal_total` | Total geral de pessoal |
+| Objeto                        | Descrição                                |
+|-------------------------------|------------------------------------------|
+| `criterios_rreo_t02_despesas` | Critérios para despesas com pessoal      |
+| `df_t02_tipo_admin`           | Despesas por tipo de administração       |
+| `validacao_civil`             | Validação pessoal civil por tipo admin   |
+| `validacao_militar`           | Validação pessoal militar por tipo admin |
+| `valor_pessoal_civil`         | Total pessoal civil                      |
+| `valor_pessoal_militar`       | Total pessoal militar                    |
+| `valor_pessoal_total`         | Total geral de pessoal                   |
 
 ## 📌 Observações Importantes
 
@@ -12255,8 +11893,6 @@ if (!exists("dados_despesa")) {
     pull(saldo_r_item_informacao)
   
   # Formatar e exibir
-  cat(sprintf("💰 Total das Despesas Primárias (Dotação Atualizada): R$ %s\n",
-              format(round(total_despesas_primarias, 2), big.mark = ".", decimal.mark = ",")))
 }
 ```
 
@@ -12291,7 +11927,6 @@ if (exists("dados_despesa")) {
   ) %>%
     formatRound("saldo_r_item_informacao", 2, mark = ".", dec.mark = ",")
 } else {
-  cat("Dados não disponíveis\n")
 }
 ```
 
@@ -12332,96 +11967,8 @@ if (exists("dados_despesa")) {
   ) %>%
     formatRound("saldo_r_item_informacao", 2, mark = ".", dec.mark = ",")
 } else {
-  cat("Dados não disponíveis\n")
 }
 ```
-
-### Despesas Primárias por Item de Informação
-
-```{r despesas-primarias-item}
-#| echo: true
-#| label: despesas-primarias-por-item
-
-# ==============================================================================
-# DESPESAS PRIMÁRIAS POR ITEM DE INFORMAÇÃO
-# ==============================================================================
-# Compara diferentes estágios da despesa
-# ==============================================================================
-
-if (exists("dados_despesa")) {
-  # Agrupar por item de informação
-  despesas_primarias_item <- dados_despesa %>% 
-    filter(resultado_eof_codigo == 6) %>%
-    group_by(item_informacao_codigo, item_informacao_nome) %>%
-    summarise(
-      saldo_r_item_informacao = sum(saldo_r_item_informacao, na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
-    arrange(item_informacao_codigo)
-  
-  # Exibir tabela
-  datatable(
-    despesas_primarias_item,
-    caption = "📊 Despesas Primárias por Item de Informação",
-    options = list(dom = 't', pageLength = 15),
-    rownames = FALSE
-  ) %>%
-    formatRound("saldo_r_item_informacao", 2, mark = ".", dec.mark = ",")
-} else {
-  cat("Dados não disponíveis\n")
-}
-```
-
-### Despesas Primárias por Órgão e Item de Informação
-
-```{r despesas-primarias-orgao-item}
-#| echo: true
-#| label: despesas-primarias-orgao-item
-
-# ==============================================================================
-# DESPESAS PRIMÁRIAS DETALHADAS POR ÓRGÃO E ITEM
-# ==============================================================================
-
-if (exists("dados_despesa")) {
-  # Agrupar por órgão e item
-  despesas_primarias_detalhado <- dados_despesa %>% 
-    filter(resultado_eof_codigo == 6) %>%
-    group_by(
-      orgao_uge_orgao_maximo_codigo, 
-      orgao_uge_orgao_maximo_nome,
-      item_informacao_nome
-    ) %>%
-    summarise(
-      saldo_r_item_informacao = sum(saldo_r_item_informacao, na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
-    # Pivotar para ter itens como colunas
-    pivot_wider(
-      names_from = item_informacao_nome,
-      values_from = saldo_r_item_informacao,
-      values_fill = 0
-    ) %>%
-    arrange(orgao_uge_orgao_maximo_codigo)
-  
-  # Exibir tabela
-  datatable(
-    despesas_primarias_detalhado,
-    caption = "📊 Despesas Primárias por Órgão e Estágio",
-    options = list(pageLength = 50, dom = 'ft', scrollX = TRUE),
-    rownames = FALSE
-  ) %>%
-    formatRound(
-      columns = names(despesas_primarias_detalhado)[sapply(despesas_primarias_detalhado, is.numeric)],
-      digits = 2, 
-      mark = ".", 
-      dec.mark = ","
-    )
-} else {
-  cat("Dados não disponíveis\n")
-}
-```
-
-## 📊 Resumo Consolidado
 
 ```{r resumo-tabela03}
 #| echo: true
@@ -12446,17 +11993,6 @@ if (exists("despesas_por_resultado") && exists("total_despesas_primarias")) {
   percentual_primario <- (total_despesas_primarias / total_geral) * 100
   
   # Resultado no console
-  cat("\n")
-  cat(strrep("=", 70), "\n")
-  cat("RESUMO - RREO TABELA 03\n")
-  cat(strrep("=", 70), "\n")
-  cat(sprintf("Total de Despesas Primárias:    R$ %s\n",
-              format(round(total_despesas_primarias, 2), big.mark = ".", decimal.mark = ",")))
-  cat(sprintf("Total Geral de Despesas:        R$ %s\n",
-              format(round(total_geral, 2), big.mark = ".", decimal.mark = ",")))
-  cat(strrep("-", 70), "\n")
-  cat(sprintf("Percentual Primário:            %.2f%%\n", percentual_primario))
-  cat(strrep("=", 70), "\n")
   
   # Criar tabela resumo
   resumo_t03 <- tibble(
@@ -12490,7 +12026,6 @@ if (exists("despesas_por_resultado") && exists("total_despesas_primarias")) {
   valor_despesas_total_t03 <- total_geral
   
 } else {
-  cat("Dados não disponíveis para resumo\n")
 }
 ```
 
@@ -12541,7 +12076,6 @@ if (exists("despesas_por_resultado") && exists("total_despesas_primarias")) {
 # Criar consolidação temporária para diagnóstico
 dados_consolidados_temp <- consolidar_criterios(save_global = FALSE)
 
-cat("\n📊 ESTRUTURA COMPLETA DOS DADOS CONSOLIDADOS:\n\n")
 
 # Ver distribuição por relatório e anexo
 dados_consolidados_temp %>%
@@ -12559,14 +12093,11 @@ dados_consolidados_temp %>%
 # 1. INVESTIGAR RGF A01 (Pessoal)
 # ==============================================================================
 
-cat("\n\n🔍 RGF A01 - PESSOAL:\n")
 
 rgf_a01_todos <- dados_consolidados_temp %>%
   filter(relatorio == "rgf", anexo_codigo == "A01")
 
 if (nrow(rgf_a01_todos) == 0) {
-  cat("❌ Nenhum dado encontrado para RGF A01\n")
-  cat("Verificando possíveis variações:\n")
   
   # Tentar outras combinações
   dados_consolidados_temp %>%
@@ -12574,32 +12105,24 @@ if (nrow(rgf_a01_todos) == 0) {
     distinct(relatorio, anexo_codigo, anexo_nome) %>%
     print()
 } else {
-  cat(sprintf("✅ Encontrados %d linhas em RGF A01\n", nrow(rgf_a01_todos)))
-  cat("\nValores únicos:\n")
-  cat("  - detalhe: ", paste(unique(rgf_a01_todos$detalhe), collapse = ", "), "\n")
-  cat("  - anexo_nome: ", paste(unique(rgf_a01_todos$anexo_nome), collapse = ", "), "\n")
 }
 
 # ==============================================================================
 # 2. INVESTIGAR RGF A03 (Garantias)
 # ==============================================================================
 
-cat("\n\n🔍 RGF A03 - GARANTIAS:\n")
 
 rgf_a03_todos <- dados_consolidados_temp %>%
   filter(relatorio == "rgf", anexo_codigo == "A03")
 
 if (nrow(rgf_a03_todos) == 0) {
-  cat("❌ Nenhum dado encontrado para RGF A03\n")
 } else {
-  cat(sprintf("✅ Encontrados %d linhas em RGF A03\n", nrow(rgf_a03_todos)))
 }
 
 # ==============================================================================
 # 3. INVESTIGAR RGF A05 (Disponibilidades)
 # ==============================================================================
 
-cat("\n\n🔍 RGF A05 - DISPONIBILIDADES:\n")
 
 # Tentar com 'A05' maiúsculo
 rgf_a05_maiusculo <- dados_consolidados_temp %>%
@@ -12609,12 +12132,8 @@ rgf_a05_maiusculo <- dados_consolidados_temp %>%
 rgf_a05_minusculo <- dados_consolidados_temp %>%
   filter(relatorio == "rgf", anexo_codigo == "a05")
 
-cat(sprintf("  Com 'A05' maiúsculo: %d linhas\n", nrow(rgf_a05_maiusculo)))
-cat(sprintf("  Com 'a05' minúsculo: %d linhas\n", nrow(rgf_a05_minusculo)))
 
 if (nrow(rgf_a05_maiusculo) == 0 && nrow(rgf_a05_minusculo) == 0) {
-  cat("❌ Nenhum dado encontrado para RGF A05\n")
-  cat("Códigos de anexo disponíveis em RGF:\n")
   dados_consolidados_temp %>%
     filter(relatorio == "rgf") %>%
     distinct(anexo_codigo) %>%
@@ -12626,13 +12145,10 @@ if (nrow(rgf_a05_maiusculo) == 0 && nrow(rgf_a05_minusculo) == 0) {
 # 4. INVESTIGAR RREO A01 - Balanço Orçamentário (Receitas/Despesas)
 # ==============================================================================
 
-cat("\n\n🔍 RREO A01 - BALANÇO ORÇAMENTÁRIO:\n")
 
 rreo_a01_todos <- dados_consolidados_temp %>%
   filter(relatorio == "rreo", anexo_codigo == "A01")
 
-cat(sprintf("Total: %d linhas\n", nrow(rreo_a01_todos)))
-cat("\nValores únicos de 'detalhe':\n")
 print(unique(rreo_a01_todos$detalhe))
 
 # Testar filtros
@@ -12642,14 +12158,11 @@ bo_receitas_teste <- rreo_a01_todos %>%
 bo_despesas_teste <- rreo_a01_todos %>%
   filter(grepl("despesas", detalhe, ignore.case = TRUE))
 
-cat(sprintf("\nCom filtro 'receitas': %d linhas\n", nrow(bo_receitas_teste)))
-cat(sprintf("Com filtro 'despesas': %d linhas\n", nrow(bo_despesas_teste)))
 
 # ==============================================================================
 # 5. RESUMO DE TODOS OS CÓDIGOS DISPONÍVEIS
 # ==============================================================================
 
-cat("\n\n📋 TODOS OS CÓDIGOS DISPONÍVEIS:\n\n")
 
 dados_consolidados_temp %>%
   group_by(relatorio, anexo_codigo) %>%
@@ -12706,14 +12219,14 @@ v_rcl <- safe_extract(if (exists("rcl_12_meses")) sum(rcl_12_meses$resultado, na
 v_pessoal <- safe_extract(if (exists("pessoal")) sum(pessoal$valor, na.rm = TRUE) else NA_real_)
 
 # Pessoal Civil e Militar (Tabela 2)
-v_pessoal_civil <- safe_extract(if (exists("df_criterios_rreo_T02_despesas_T02")) {
-  df_criterios_rreo_T02_despesas_T02 %>% 
+v_pessoal_civil <- safe_extract(if (exists("df_criterios_rreo_t02_despesas")) {
+  df_criterios_rreo_t02_despesas %>% 
     filter(grepl("CIVIL|Civil", categoria, ignore.case = TRUE)) %>% 
     summarise(v = sum(valor, na.rm = TRUE)) %>% pull(v)
 } else NA_real_)
 
-v_pessoal_militar <- safe_extract(if (exists("df_criterios_rreo_T02_despesas_T02")) {
-  df_criterios_rreo_T02_despesas_T02 %>% 
+v_pessoal_militar <- safe_extract(if (exists("df_criterios_rreo_t02_despesas")) {
+  df_criterios_rreo_t02_despesas %>% 
     filter(grepl("MILITAR|Militar", categoria, ignore.case = TRUE)) %>% 
     summarise(v = sum(valor, na.rm = TRUE)) %>% pull(v)
 } else NA_real_)
@@ -12758,9 +12271,9 @@ v_tabela3 <- safe_extract(if (exists("dados_despesa")) {
 
 # Resultado Seguridade (Tabela 1)
 v_seguridade <- safe_extract(if (exists("resultado_seguridade")) resultado_seguridade else {
-  if (exists("df_criterios_rreo_T01_receitas") && exists("df_criterios_rreo_T01_despesas_T01")) {
-    rec <- df_criterios_rreo_T01_receitas %>% filter(ordem == "14") %>% pull(valor) %>% first()
-    desp <- df_criterios_rreo_T01_despesas_T01 %>% filter(ordem == "11") %>% pull(valor) %>% first()
+  if (exists("df_criterios_rreo_t01_receitas") && exists("df_criterios_rreo_t01_despesas")) {
+    rec <- df_criterios_rreo_t01_receitas %>% filter(ordem == "14") %>% pull(valor) %>% first()
+    desp <- df_criterios_rreo_t01_despesas %>% filter(ordem == "11") %>% pull(valor) %>% first()
     as.numeric(rec) - as.numeric(desp)
   } else NA_real_
 })
@@ -12860,10 +12373,6 @@ indicadores_fiscais <- tibble(
   )
 )
 
-cat("\n")
-cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-cat("                    INDICADORES FISCAIS PRINCIPAIS\n")
-cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 
 knitr::kable(
   indicadores_fiscais,
@@ -12896,10 +12405,6 @@ indicadores_prev <- tibble(
   )
 )
 
-cat("\n")
-cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-cat("                    PREVIDÊNCIA - RESULTADOS POR REGIME\n")
-cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 
 knitr::kable(
   indicadores_prev,
@@ -12921,10 +12426,6 @@ indicadores_pessoal <- tibble(
   )
 )
 
-cat("\n")
-cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-cat("                    DESPESAS COM PESSOAL (TABELA 2)\n")
-cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 
 knitr::kable(
   indicadores_pessoal,
@@ -12959,10 +12460,6 @@ indicadores_outros <- tibble(
   )
 )
 
-cat("\n")
-cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-cat("                    OUTROS INDICADORES\n")
-cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 
 knitr::kable(
   indicadores_outros,
@@ -12988,17 +12485,12 @@ indicadores_const <- tibble(
   )
 )
 
-cat("\n")
-cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-cat("                    APLICAÇÕES CONSTITUCIONAIS\n")
-cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 
 knitr::kable(
   indicadores_const,
   align = c("l", "r", "c")
 )
 
-cat("\n")
 ```
 
 # Validação RREO
@@ -13058,9 +12550,7 @@ exibir_validacao <- function(df, titulo) {
   
   # Resumo por status
   resumo <- df %>% count(status)
-  cat(sprintf("\n=== %s ===\n", titulo))
   for (i in 1:nrow(resumo)) {
-    cat(sprintf("  %s: %d\n", resumo$status[i], resumo$n[i]))
   }
   
   # Tabela formatada
@@ -13324,7 +12814,6 @@ sistema_rreo <- tibble(
 arquivo_rreo_a14 <- str_c(mes_pasta, "Anexo 14 - Simplificado.xlsm")
 
 if (file.exists(arquivo_rreo_a14)) {
-  cat(sprintf("📂 Lendo: %s\n", basename(arquivo_rreo_a14)))
   
   # Ler valores oficiais
   rreo_oficial <- mapa_rreo_a14 %>%
@@ -13339,7 +12828,6 @@ if (file.exists(arquivo_rreo_a14)) {
   exibir_validacao(comparacao_rreo, "VALIDAÇÃO RREO ANEXO 14 - Sistema vs Oficial (R$ milhares)")
   
 } else {
-  cat(sprintf("⚠️ Arquivo não encontrado: %s\n", arquivo_rreo_a14))
 }
 ```
 
@@ -13372,7 +12860,6 @@ mapeamento_rgf <- tribble(
   "disponibilidade_antes_rp",   "C52",   "Disp. Caixa ANTES Inscrição RP",    "A05"
 )
 
-cat("✅ Mapeamento RGF definido:", nrow(mapeamento_rgf), "itens\n")
 ```
 
 ------------------------------------------------------------------------
@@ -13495,18 +12982,6 @@ valor_disp_apos_rp <- if (exists("rgf_a05_executivo_formatada") &&
 # -----------------------------------------------------------------------------
 # Debug: mostrar valores capturados
 # -----------------------------------------------------------------------------
-cat("📊 Valores capturados do sistema RGF:\n\n")
-cat(sprintf("   RCL:              %s\n", format(valor_rcl_rgf, big.mark = ".", decimal.mark = ",")))
-cat(sprintf("   DTP Executivo:    %s\n", format(valor_dtp_exec, big.mark = ".", decimal.mark = ",")))
-cat(sprintf("   DTP Amapá:        %s\n", format(valor_dtp_ap, big.mark = ".", decimal.mark = ",")))
-cat(sprintf("   DTP Roraima:      %s\n", format(valor_dtp_rr, big.mark = ".", decimal.mark = ",")))
-cat(sprintf("   DTP DF:           %s\n", format(valor_dtp_df, big.mark = ".", decimal.mark = ",")))
-cat(sprintf("   DCL:              %s\n", format(valor_dcl_rgf, big.mark = ".", decimal.mark = ",")))
-cat(sprintf("   Garantias:        %s\n", format(valor_garantias_rgf, big.mark = ".", decimal.mark = ",")))
-cat(sprintf("   Op. Crédito:      %s\n", format(valor_op_cred, big.mark = ".", decimal.mark = ",")))
-cat(sprintf("   RPNP Exercício:   %s\n", format(valor_rpnp_ex, big.mark = ".", decimal.mark = ",")))
-cat(sprintf("   Disp. ANTES RP:   %s\n", format(valor_disp_antes_rp, big.mark = ".", decimal.mark = ",")))
-cat(sprintf("   Disp. APÓS RP:    %s\n", format(valor_disp_apos_rp, big.mark = ".", decimal.mark = ",")))
 
 # -----------------------------------------------------------------------------
 # Montar dataframe do sistema (sem disponibilidade_apos_rp)
@@ -13539,7 +13014,6 @@ sistema_rgf <- tibble(
 ) %>%
   mutate(valor_milhar = valor / 1000)
 
-cat("\n✅ DataFrame sistema_rgf criado com", nrow(sistema_rgf), "linhas\n")
 ```
 
 ------------------------------------------------------------------------
@@ -13565,10 +13039,8 @@ arquivos_encontrados <- list.files(
 if (length(arquivos_encontrados) > 0) {
   
   arquivo_comparativo <- arquivos_encontrados[1]
-  cat("📁 Arquivo encontrado:", basename(arquivo_comparativo), "\n")
   
   abas_disponiveis <- excel_sheets(arquivo_comparativo)
-  cat("📋 Abas disponíveis:", paste(abas_disponiveis, collapse = ", "), "\n")
   
   aba_usar <- abas_disponiveis[1]
   
@@ -13627,22 +13099,15 @@ if (length(arquivos_encontrados) > 0) {
     ungroup()
   
   # Debug: mostrar valores lidos
-  cat("\n📊 Valores lidos do Excel:\n")
   for (i in 1:nrow(oficial_rgf)) {
-    cat(sprintf("   %s (%s): %s\n", 
-                oficial_rgf$item[i], 
-                oficial_rgf$celula[i],
-                format(oficial_rgf$valor_oficial[i], big.mark = ".", decimal.mark = ",")))
   }
   
-  cat("\n✅ Valores oficiais RGF lidos:", sum(!is.na(oficial_rgf$valor_oficial)), "de", nrow(oficial_rgf), "\n")
   
 } else {
   
   oficial_rgf <- mapeamento_rgf %>%
     mutate(valor_oficial = NA_real_)
   
-  cat("⚠️ Arquivo 'Anexo 6 Simplificado' não encontrado em:", mes_pasta, "\n")
 }
 
 ```
@@ -13707,7 +13172,6 @@ comparacao_rgf <- oficial_rgf %>%
   ) %>%
   select(item, descricao, fonte, celula, oficial, sistema, diferenca, dif_pct, status)
 
-cat("✅ Comparação RGF concluída\n")
 ```
 
 ------------------------------------------------------------------------
@@ -13775,15 +13239,10 @@ resumo_rgf <- comparacao_rgf %>%
   count(status) %>%
   arrange(desc(n))
 
-cat("\n📊 RESUMO DA VALIDAÇÃO RGF\n")
-cat("=" %>% rep(40) %>% paste(collapse = ""), "\n")
 
 for (i in 1:nrow(resumo_rgf)) {
-  cat(sprintf("   %s: %d itens\n", resumo_rgf$status[i], resumo_rgf$n[i]))
 }
 
-cat("=" %>% rep(40) %>% paste(collapse = ""), "\n")
-cat(sprintf("   TOTAL: %d itens\n", nrow(comparacao_rgf)))
 ```
 
 ------------------------------------------------------------------------
@@ -13931,7 +13390,6 @@ processar_se_existe <- function(nome_criterio, demonstrativo, anexo, tipo = "cri
 # COLETA DE ATRIBUTOS DE TODOS OS CRITÉRIOS DEFINIDOS
 # ==============================================================================
 
-cat("📊 Coletando atributos de todos os critérios...\n\n")
 
 atributos_coletados <- bind_rows(
   
@@ -13940,31 +13398,31 @@ atributos_coletados <- bind_rows(
   # =========================================================================
   
   # RGF A01 - Despesa com Pessoal
-  processar_se_existe("criterios_rgf_A01_pessoal_rgf", "RGF", "A01 - Despesa com Pessoal"),
+  processar_se_existe("criterios_rgf_a01_pessoal", "RGF", "A01 - Despesa com Pessoal"),
   
 
   # RGF A02 - Dívida Consolidada Líquida
-  processar_se_existe("criterios_rgf_A02_dcl_precatorios", "RGF", "A02 - DCL"),
-  processar_se_existe("criterios_rgf_A02_dcl_rp_exceto_170600", "RGF", "A02 - DCL"),
-  processar_se_existe("criterios_rgf_A02_dcl_rp_todas_ugs", "RGF", "A02 - DCL"),
-  processar_se_existe("criterios_rgf_A02_dcl_ug_170512", "RGF", "A02 - DCL"),
-  processar_se_existe("criterios_rgf_A02_dcl_creditos_bancarios", "RGF", "A02 - DCL"),
-  processar_se_existe("criterios_rgf_A02_dcl_entidade", "RGF", "A02 - DCL"),
-  processar_se_existe("criterios_rgf_A02_dcl_aplicacao_titulos_publicos", "RGF", "A02 - DCL"),
-  processar_se_existe("criterios_rgf_A02_dcl_balancete", "RGF", "A02 - DCL"),
-  processar_se_existe("criterios_rgf_A02_dcl_balancete_fat", "RGF", "A02 - DCL"),
-  processar_se_existe("criterios_rgf_A02_dcl_balancete_fundos_111215100", "RGF", "A02 - DCL"),
-  processar_se_existe("criterios_rgf_A02_dcl_balancete_fundos", "RGF", "A02 - DCL"),
-  processar_se_existe("criterios_rgf_A02_dcl_balancete_deducoes_depositos_a_vista", "RGF", "A02 - DCL"),
-  processar_se_existe("criterios_rgf_A02_dcl_passivo_atuarial", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_a02_precatorios", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_a02_rp_exceto_170600", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_a02_rp_todas_ugs", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_a02_ug_170512", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_a02_creditos_bancarios", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_a02_entidade", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_a02_aplicacao_titulos_publicos", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_a02_balancete", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_a02_balancete_fat", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_a02_balancete_fundos_111215100", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_a02_balancete_fundos", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_a02_balancete_deducoes_depositos_vista", "RGF", "A02 - DCL"),
+  processar_se_existe("criterios_rgf_a02_passivo_atuarial", "RGF", "A02 - DCL"),
   
   # RGF A03 - Garantias e Contragarantias
-  processar_se_existe("criterios_rgf_A03_garantias", "RGF", "A03 - Garantias"),
+  processar_se_existe("criterios_rgf_a03_garantias", "RGF", "A03 - Garantias"),
   
   # RGF A04 - Operações de Crédito
-  processar_se_existe("criterios_rgf_A04_receitas", "RGF", "A04 - Op. Crédito"),
-  processar_se_existe("criterios_rgf_A04_extra_orcamentarias", "RGF", "A04 - Op. Crédito"),
-  processar_se_existe("criterios_rgf_A04_despesas", "RGF", "A04 - Op. Crédito"),
+  processar_se_existe("criterios_rgf_a04_receitas", "RGF", "A04 - Op. Crédito"),
+  processar_se_existe("criterios_rgf_a04_extra_orcamentarias", "RGF", "A04 - Op. Crédito"),
+  processar_se_existe("criterios_rgf_a04_despesas", "RGF", "A04 - Op. Crédito"),
   
   # RGF A05 - Disponibilidade de Caixa
   processar_se_existe("criterios_rgf_a05_disponibilidade", "RGF", "A05 - Disponibilidade"),
@@ -13974,46 +13432,44 @@ atributos_coletados <- bind_rows(
   # =========================================================================
   
   # RREO A01 - Balanço Orçamentário
-  processar_se_existe("criterios_rreo_A01_receitas_bo", "RREO", "A01 - Balanço Orçamentário"),
-  processar_se_existe("criterios_rreo_A01_despesas_bo", "RREO", "A01 - Balanço Orçamentário"),
+  processar_se_existe("criterios_rreo_a01_receitas", "RREO", "A01 - Balanço Orçamentário"),
+  processar_se_existe("criterios_rreo_a01_despesas", "RREO", "A01 - Balanço Orçamentário"),
   
   # RREO A03 - Receita Corrente Líquida
-  processar_se_existe("criterios_rreo_A03_rcl_receitas_rcl", "RREO", "A03 - RCL"),
-  processar_se_existe("criterios_rreo_A03_rcl_despesas_rcl", "RREO", "A03 - RCL"),
-  processar_se_existe("criterios_rreo_A03_rcl_rp_cancelado_rcl", "RREO", "A03 - RCL"),
+  processar_se_existe("criterios_rreo_a03_receitas", "RREO", "A03 - RCL"),
+  processar_se_existe("criterios_rreo_a03_despesas", "RREO", "A03 - RCL"),
+  processar_se_existe("criterios_rreo_a03_rp_cancelado", "RREO", "A03 - RCL"),
   
   # RREO A04 - Previdência
-  processar_se_existe("criterios_rreo_A04_rgps_receitas_rgps", "RREO", "A04 - RGPS"),
-  processar_se_existe("criterios_rreo_A04_rgps_despesas_rgps", "RREO", "A04 - RGPS"),
-  processar_se_existe("criterios_rreo_A04_rpps_receitas_civil_militar_rpps", "RREO", "A04 - RPPS"),
-  processar_se_existe("criterios_rreo_A04_rpps_despesas_civil_militar_rpps", "RREO", "A04 - RPPS"),
-  processar_se_existe("criterios_rreo_A04_rpps_receitas_fcdf", "RREO", "A04 - FCDF"),
-  processar_se_existe("criterios_rreo_A04_rpps_despesas_fcdf", "RREO", "A04 - FCDF"),
+  processar_se_existe("criterios_rreo_a04_rgps_receitas", "RREO", "A04 - RGPS"),
+  processar_se_existe("criterios_rreo_a04_rgps_despesas", "RREO", "A04 - RGPS"),
+  processar_se_existe("criterios_rreo_a04_rpps_receitas_civil_militar", "RREO", "A04 - RPPS"),
+  processar_se_existe("criterios_rreo_a04_rpps_despesas_civil_militar", "RREO", "A04 - RPPS"),
+  processar_se_existe("criterios_rreo_a04_rpps_receitas_fcdf", "RREO", "A04 - FCDF"),
+  processar_se_existe("criterios_rreo_a04_rpps_despesas_fcdf", "RREO", "A04 - FCDF"),
   
   # RREO A06 - Resultado Primário e Nominal
-  processar_se_existe("criterios_rreo_A06_receitas_A06", "RREO", "A06 - Result. Primário"),
-  processar_se_existe("criterios_rreo_A06_despesas_categoria_grupo_A06", "RREO", "A06 - Result. Primário"),
-  processar_se_existe("criterios_rreo_A06_despesas_natureza_detalhada_A06", "RREO", "A06 - Result. Primário"),
-  processar_se_existe("criterios_rreo_A06_disponibilidades_A06", "RREO", "A06 - Result. Primário"),
-  processar_se_existe("criterios_rreo_A06_juros_ativos_passivos_A06", "RREO", "A06 - Result. Primário"),
-  processar_se_existe("criterios_rreo_A06_subsidios_cesef", "RREO", "A06 - Result. Primário"),
-  processar_se_existe("criterios_rreo_A06_emprestimos", "RREO", "A06 - Result. Primário"),
-  processar_se_existe("criterios_rreo_A06_ajuste", "RREO", "A06 - Result. Primário"),
+  processar_se_existe("criterios_rreo_a06_receitas", "RREO", "A06 - Result. Primário"),
+  processar_se_existe("criterios_rreo_a06_despesas_categoria_grupo", "RREO", "A06 - Result. Primário"),
+  processar_se_existe("criterios_rreo_a06_despesas_natureza_detalhada", "RREO", "A06 - Result. Primário"),
+  processar_se_existe("criterios_rreo_a06_disponibilidades", "RREO", "A06 - Result. Primário"),
+  processar_se_existe("criterios_rreo_a06_juros_ativos_passivos", "RREO", "A06 - Result. Primário"),
+  processar_se_existe("criterios_rreo_a06_subsidios_cesef", "RREO", "A06 - Result. Primário"),
+  processar_se_existe("criterios_rreo_a06_emprestimos", "RREO", "A06 - Result. Primário"),
+  processar_se_existe("criterios_rreo_a06_ajuste", "RREO", "A06 - Result. Primário"),
   
   # RREO A08 - MDE (Educação)
-  processar_se_existe("criterios_rreo_A08_mde_despesas", "RREO", "A08 - MDE"),
+  processar_se_existe("criterios_rreo_a08_mde_despesas", "RREO", "A08 - MDE"),
   
   # RREO T01 - Receitas e Despesas Seguridade
-  processar_se_existe("criterios_rreo_T01_receitas", "RREO", "T01 - Seguridade"),
-  processar_se_existe("criterios_rreo_T01_despesas_T01", "RREO", "T01 - Seguridade"),
-  processar_se_existe("criterios_rreo_T01B_seguridade_T01B", "RREO", "T01B - Seguridade Área"),
+  processar_se_existe("criterios_rreo_t01_receitas", "RREO", "T01 - Seguridade"),
+  processar_se_existe("criterios_rreo_t01_despesas", "RREO", "T01 - Seguridade"),
+  processar_se_existe("criterios_rreo_t01b_seguridade", "RREO", "T01B - Seguridade Área"),
   
   # RREO T02 - Despesas com Pessoal
-  processar_se_existe("criterios_rreo_T02_despesas_T02", "RREO", "T02 - Pessoal")
+  processar_se_existe("criterios_rreo_t02_despesas", "RREO", "T02 - Pessoal")
 )
 
-cat(sprintf("✅ Total de registros coletados: %d\n", nrow(atributos_coletados)))
-cat(sprintf("✅ Atributos únicos identificados: %d\n", n_distinct(atributos_coletados$atributo)))
 ```
 
 ## 📋 Resumo por Demonstrativo e Anexo
@@ -14062,7 +13518,6 @@ if (nrow(atributos_coletados) > 0) {
   )
   
 } else {
-  cat("⚠️ Nenhum atributo coletado. Verifique se os critérios estão definidos.\n")
 }
 ```
 
@@ -14104,7 +13559,6 @@ if (nrow(atributos_coletados) > 0) {
   )
   
 } else {
-  cat("⚠️ Nenhum atributo coletado.\n")
 }
 ```
 
@@ -14249,12 +13703,6 @@ if (nrow(atributos_coletados) > 0) {
     data_geracao = Sys.time()
   )
   
-  cat("✅ Objetos de mapeamento disponíveis:\n")
-  cat("   - mapeamento_atributos$dados_completos\n")
-  cat("   - mapeamento_atributos$resumo_por_anexo\n")
-  cat("   - mapeamento_atributos$ranking_atributos\n")
-  cat("   - mapeamento_atributos$matriz_atributos\n")
-  cat("   - mapeamento_atributos$lista_criterios\n")
   
 }
 ```
