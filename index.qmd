@@ -1,0 +1,187 @@
+# Prefácio {.unnumbered}
+
+Este livro documenta o sistema de geração automatizada dos demonstrativos fiscais da União, desenvolvido em linguagem R com o framework Quarto. O trabalho tem como objetivo principal transformar o processo de elaboração dos relatórios fiscais — tradicionalmente manual e fragmentado — em um fluxo automatizado, auditável e reprodutível.
+
+## Contexto
+
+A Lei de Responsabilidade Fiscal (Lei Complementar nº 101/2000) estabelece a obrigatoriedade de publicação periódica de dois grandes conjuntos de demonstrativos fiscais:
+
+- **RREO** (Relatório Resumido da Execução Orçamentária): publicação bimestral
+- **RGF** (Relatório de Gestão Fiscal): publicação quadrimestral
+
+A elaboração desses relatórios exige o processamento de grandes volumes de dados extraídos do Tesouro Gerencial, aplicação de critérios metodológicos definidos pela STN, e validação contra os relatórios oficiais publicados.
+
+## Do Excel ao R: Uma Transformação Necessária
+
+### O Cenário Anterior
+
+Historicamente, os demonstrativos fiscais eram elaborados utilizando um conjunto extenso de planilhas Excel. A tabela abaixo ilustra a dimensão desse ecossistema:
+
+| Indicador | Quantidade |
+|-----------|------------|
+| Arquivos Excel | Mais de 20 |
+| Total de abas | ~200 |
+| Linhas preenchidas | Dezenas de milhares |
+| Células com fórmulas | Dezenas de milhares |
+| Tempo por ciclo | ~40 horas |
+| Ciclos por ano | 12 |
+
+Os arquivos mais complexos incluíam:
+
+| Arquivo | Abas | Linhas | Fórmulas |
+|---------|------|--------|----------|
+| Tabela 04 - Disponibilidades e RP | 13 | ~5.000 | ~2.000 |
+| Tabela 01 - Seguridade | 19 | ~4.000 | ~5.000 |
+| Anexo 2 - Dívida Consolidada Líquida | 11 | ~3.000 | ~2.000 |
+| Anexo 01 - Balanço Orçamentário | 13 | ~3.000 | ~2.000 |
+| Anexo 08 - Educação (MDE) | 15 | ~1.500 | ~2.000 |
+| Anexo 04 - Previdência | 19 | ~1.000 | ~800 |
+
+Cada arquivo continha múltiplas abas para diferentes finalidades: elaboração, verificação, fontes de informação, critérios do SIAFI Operacional, memórias de cálculo, entre outras. A manutenção desse conjunto era trabalhosa, propensa a erros e de difícil auditoria.
+
+### Problemas Específicos Identificados
+
+1. **Fórmulas dispersas**: Aproximadamente 200 abas tornavam impossível auditar a origem dos valores calculados.
+
+2. **Critérios ocultos**: Muitos critérios e filtros ficavam ocultos no Tesouro Gerencial (sistema utilizado para obter os dados do Siafi), dificultando a compreensão e auditoria da metodologia aplicada.
+
+3. **Processo manual**: Alto risco de erro humano não detectado, com verificação apenas visual.
+
+4. **Conhecimento tácito**: Informações concentradas na cabeça de poucos servidores criavam risco de perda por mobilidade ou aposentadoria.
+
+5. **Manutenção trabalhosa**: Qualquer alteração exigia editar múltiplos arquivos.
+
+6. **Sem reprodutibilidade**: Resultados podiam variar dependendo de quem executava o processo.
+
+### Comparativo: Excel vs R/Quarto
+
+| Aspecto | Planilhas Excel | Código R/Quarto |
+|---------|-----------------|-----------------|
+| **Lógica/Complexidade** | Baixa: fórmulas dispersas em múltiplas abas | Alta: código centralizado e estruturado |
+| **Automação** | Mínima: trabalho manual para cada período | Total: processa todos os arquivos automaticamente |
+| **Escalabilidade** | Limitada: análise manual em ~200 abas | Excelente: paralelização e processamento em lote |
+| **Reprodutibilidade** | Baixa: depende de abertura manual | Alta: mesmo resultado a cada execução |
+| **Rastreabilidade** | Difícil: fórmulas espalhadas | Clara: fluxo documentado do dado bruto ao resultado |
+| **Critérios TG** | Ocultos no sistema | Documentados e visíveis no código |
+| **Validação** | Manual: comparação visual | Automática: testes integrados ao código |
+| **Manutenção** | Trabalhosa: alterações em múltiplos arquivos | Centralizada: mudança em um ponto reflete em todo o sistema |
+| **Documentação** | Dispersa: comentários em células | Integrada: código e explicação no mesmo documento |
+
+### Resultados Alcançados
+
+| Métrica | Antes | Depois | Melhoria |
+|---------|-------|--------|----------|
+| **Tempo de processamento** | ~40 horas | < 2 minutos | **99,9%** |
+| **Arquivos a gerenciar** | 20+ arquivos | 1 sistema | **95%** |
+| **Pontos de falha** | ~200 abas | 1 pipeline | **99,5%** |
+| **Rastreabilidade** | 0% | 100% | **Total** |
+| **Critérios documentados** | Ocultos | 100% visíveis | **Total** |
+| **Reprodutibilidade** | Variável | 100% | **Total** |
+| **Custo de licença** | Potencial | R$ 0 | **100%** |
+
+### Benefícios da Nova Abordagem
+
+1. **Automação completa**: O sistema processa mais de 50 arquivos do Tesouro Gerencial e gera todos os anexos automaticamente em menos de 2 minutos.
+
+2. **Rastreabilidade**: Cada valor calculado pode ser rastreado até sua origem nos dados brutos, com registro dos critérios aplicados — incluindo aqueles que antes ficavam ocultos no Tesouro Gerencial.
+
+3. **Reprodutibilidade**: Qualquer pessoa pode executar o código e obter exatamente os mesmos resultados.
+
+4. **Documentação integrada**: O código e sua explicação estão no mesmo documento, facilitando a compreensão e manutenção.
+
+5. **Validação automática**: Comparações com os relatórios oficiais são realizadas automaticamente, identificando divergências.
+
+6. **Gestão do conhecimento**: A documentação integrada elimina o risco de perda de conhecimento por mobilidade ou aposentadoria de servidores.
+
+7. **Custo zero**: Desenvolvido inteiramente com tecnologias open source, sem necessidade de licenças proprietárias.
+
+8. **Replicabilidade**: Outras áreas do Tesouro poderão utilizar os dados produzidos e/ou desenvolver sistemas semelhantes para seus próprios processos.
+
+## Desenvolvimento com IA
+
+O código deste projeto foi desenvolvido com **intensa colaboração do Claude** (Anthropic), assistente de inteligência artificial que auxiliou na estruturação da lógica de processamento, na documentação integrada e na otimização de performance.
+
+Essa parceria entre o conhecimento de negócio da equipe da GEINF/CCONT e a capacidade de programação da IA permitiu acelerar significativamente o desenvolvimento da solução, demonstrando o potencial do uso responsável de IA generativa no serviço público.
+
+O uso do Claude seguiu as diretrizes da Política de IA Generativa da STN, com supervisão humana integral em todas as etapas do desenvolvimento.
+
+## Links do Projeto
+
+- **Documentação completa**: [https://andreferrari.quarto.pub/relatorios_fiscais/relatorios_fiscais_inova.html](https://andreferrari.quarto.pub/relatorios_fiscais/relatorios_fiscais_inova.html)
+- **Repositório GitHub**: [https://github.com/andreferraribr/relatorios_fiscais](https://github.com/andreferraribr/relatorios_fiscais)
+
+## Objetivos do Projeto
+
+Este projeto possui dois objetivos principais:
+
+1. **Automação e Reprodutibilidade**: Criar um sistema que gere os demonstrativos fiscais de forma automatizada, com rastreabilidade completa desde os dados brutos até os valores finais publicados.
+
+2. **Documentação e Capacitação**: Servir como manual de referência para a equipe, explicando não apenas *como* os cálculos são feitos, mas *por que* são feitos dessa forma, com base na legislação e nas normas técnicas aplicáveis.
+
+## Público-Alvo
+
+Este material foi desenvolvido pensando em:
+
+- Analistas fiscais que precisam entender a metodologia de cálculo dos demonstrativos
+- Técnicos responsáveis pela manutenção e evolução do sistema
+- Gestores que necessitam de visão geral do processo de geração dos relatórios
+- Servidores do TCU e CGU que precisam auditar e validar os cálculos realizados
+- Outras áreas do Tesouro interessadas em desenvolver sistemas semelhantes
+
+O código foi escrito priorizando clareza e manutenibilidade, com comentários extensivos e estrutura modular, considerando que a equipe possui conhecimento variado em programação R.
+
+## Estrutura do Livro
+
+O livro está organizado da seguinte forma:
+
+- **Importação de Dados**: Carregamento e preparação das bases do Tesouro Gerencial
+- **RGF**: Anexos do Relatório de Gestão Fiscal (Despesa com Pessoal, Dívida Consolidada, Garantias, Operações de Crédito, Disponibilidades)
+- **RREO**: Anexos do Relatório Resumido da Execução Orçamentária (Balanço Orçamentário, RCL, Previdência, Resultado Primário, MDE, Restos a Pagar)
+- **Validação**: Comparação dos resultados com os relatórios oficiais publicados
+- **Mapeamento**: Documentação dos atributos e critérios utilizados (incluindo aqueles antes ocultos no Tesouro Gerencial)
+
+## Tecnologias Utilizadas
+
+| Tecnologia | Finalidade |
+|------------|------------|
+| **R** | Linguagem principal para processamento de dados |
+| **Quarto** | Framework para geração do livro e relatórios |
+| **Tidyverse** | Manipulação e transformação de dados |
+| **furrr/future** | Processamento paralelo para otimização de performance |
+| **data.table** | Operações ultrarrápidas em grandes volumes de dados |
+| **DT** | Tabelas interativas com filtros e busca |
+| **knitr/kableExtra** | Formatação de tabelas estáticas |
+| **Claude (Anthropic)** | Assistente de IA para desenvolvimento e documentação |
+
+## Conformidade com Políticas STN
+
+| Política | Status | Observação |
+|----------|--------|------------|
+| IA Generativa | Conforme | Claude utilizado com supervisão humana integral |
+| POSIN | Conforme | Dados públicos, processamento local |
+| PPPD/LGPD | Conforme | Sem tratamento de dados pessoais |
+| Governança de Dados | Conforme | Documentação completa integrada |
+
+## Roadmap de Evolução
+
+| Fase | Período | Entrega |
+|------|---------|---------|
+| **Fase 1** | 2026 | Sistema de validação em R (atual) |
+| **Fase 2** | 2027 | Migração para Microsoft Fabric (licença já disponível) + Power BI |
+| **Fase 3** | Futuro | IA generativa para análises automatizadas |
+
+## Limitações Conhecidas
+
+- Atributos usados em filtros externos (fora das listas de critérios) podem não ser capturados automaticamente no mapeamento
+- Algumas validações dependem de acesso aos relatórios oficiais publicados
+- O sistema foi desenvolvido para a estrutura atual do Tesouro Gerencial; mudanças na estrutura das fontes podem exigir ajustes
+
+## Agradecimentos
+
+Este trabalho é resultado de um esforço colaborativo da equipe de análise fiscal, com apoio das áreas técnicas responsáveis pela metodologia dos demonstrativos. Agradecemos a todos que contribuíram com revisões, sugestões e validações ao longo do desenvolvimento.
+
+Agradecimento especial ao **Claude (Anthropic)** pela colaboração intensiva no desenvolvimento do código e da documentação, demonstrando como a parceria entre servidores públicos e inteligência artificial pode acelerar a transformação digital no governo.
+
+---
+
+*Brasília, janeiro de 2026*
